@@ -1,0 +1,78 @@
+version: 2
+
+project_name: mpal
+
+builds:
+  - id: mpal
+    main: ./cmd/mpal
+    binary: mpal
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+  - id: mpal-mcp
+    main: ./cmd/mpal-mcp
+    binary: mpal-mcp
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: mpal
+    ids:
+      - mpal
+      - mpal-mcp
+    formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ if eq .Arch "amd64" }}x86_64{{ else }}{{ .Arch }}{{ end }}
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+brews:
+  - name: mpal
+    ids:
+      - mpal
+    repository:
+      owner: reVrost
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    homepage: https://github.com/reVrost/mpal-cli
+    description: MarketPal deterministic portfolio-planning CLI and MCP server
+    license: MIT
+    install: |
+      bin.install "mpal"
+      bin.install "mpal-mcp"
+    test: |
+      output = shell_output("#{bin}/mpal capabilities --json")
+      assert_match "strategy run", output
+      assert_match "live_trade_execution", output
