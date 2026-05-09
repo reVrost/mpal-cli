@@ -26,4 +26,4 @@ jobs:
         run: go test ./...
 
       - name: Build
-        run: go build ./cmd/mpal
+        run: go build ./cmd/mpal ./cmd/mpal-mcp

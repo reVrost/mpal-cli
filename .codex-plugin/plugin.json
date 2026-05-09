@@ -1,0 +1,33 @@
+{
+  "name": "marketpal",
+  "version": "0.1.0",
+  "description": "MarketPal deterministic portfolio-planning capabilities for agent harnesses.",
+  "author": {
+    "name": "MarketPal",
+    "email": "security@marketpal.ai",
+    "url": "https://marketpal.ai"
+  },
+  "homepage": "https://github.com/revrost/mpal-cli",
+  "repository": "https://github.com/revrost/mpal-cli",
+  "license": "MIT",
+  "keywords": ["marketpal", "mpal", "mcp", "portfolio", "trading", "strategy", "backtest"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "MarketPal",
+    "shortDescription": "Deterministic MarketPal planning tools for agents.",
+    "longDescription": "Use mpal to list approved strategies, run explicit strategy configs, fetch MarketPal portfolio/watchlist data, validate final plans, run backtests, and journal agent decisions. The plugin does not execute live trades.",
+    "developerName": "MarketPal",
+    "category": "Finance",
+    "capabilities": ["MCP", "Skills", "Structured JSON", "Portfolio Planning", "Backtesting", "Journal"],
+    "websiteURL": "https://marketpal.ai",
+    "privacyPolicyURL": "https://marketpal.ai/privacy",
+    "termsOfServiceURL": "https://marketpal.ai/terms",
+    "defaultPrompt": [
+      "Run my approved MarketPal strategy.",
+      "Explain this mpal TRADE or NO_TRADE result.",
+      "Validate and journal this final plan."
+    ],
+    "brandColor": "#F1CCFF"
+  }
+}

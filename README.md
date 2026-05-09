@@ -11,13 +11,14 @@ orders.
 
 ```sh
 go install github.com/revrost/mpal-cli/cmd/mpal@latest
+go install github.com/revrost/mpal-cli/cmd/mpal-mcp@latest
 ```
 
 For local development:
 
 ```sh
 go test ./...
-go build ./cmd/mpal
+go build ./cmd/mpal ./cmd/mpal-mcp
 ```
 
 ## Authentication
@@ -97,11 +98,102 @@ mpal journal list --limit 20 --json
 mpal journal get --id <journal-entry-id> --json
 ```
 
+## MCP Server
+
+`mpal-mcp` exposes the same capability boundary through Model Context Protocol
+tools. It is a thin wrapper around the CLI/client logic, not a separate trading
+brain.
+
+Install:
+
+```sh
+go install github.com/revrost/mpal-cli/cmd/mpal-mcp@latest
+export MPAL_API_KEY=mpal_...
+```
+
+Run over stdio:
+
+```sh
+mpal-mcp
+```
+
+Claude Code local install:
+
+```sh
+claude mcp add mpal --env MPAL_API_KEY="$MPAL_API_KEY" -- mpal-mcp
+```
+
+Claude Code project config can also use this repo's `.mcp.json`. For local
+source checkout development, use `examples/mcp.local.json`, which runs
+`go run ./cmd/mpal-mcp`.
+
+The MCP server exposes these tools:
+
+```text
+mpal_capabilities
+mpal_strategy_list
+mpal_strategy_show
+mpal_strategy_validate
+mpal_strategy_run
+mpal_portfolio_snapshot
+mpal_watchlist_get
+mpal_ticker_bars
+mpal_ticker_profile
+mpal_ticker_events
+mpal_portfolio_validate
+mpal_backtest_run
+mpal_journal_append
+mpal_journal_list
+mpal_journal_get
+```
+
+There is no MCP tool for live order placement.
+
+## Codex Plugin
+
+This repo is also structured as a Codex plugin:
+
+```text
+.codex-plugin/plugin.json
+.mcp.json
+skills/marketpal-trader/SKILL.md
+```
+
+The plugin packages the `marketpal-trader` skill plus the `mpal` MCP server
+configuration. Codex users should install `mpal-mcp`, set `MPAL_API_KEY`, then
+enable the plugin from this repository or from a marketplace entry that points
+at it.
+
+## MCP Registry
+
+The MCP Registry metadata lives at:
+
+```text
+registry/server.json
+```
+
+The official registry currently discovers installable servers through supported
+package types such as npm, PyPI, NuGet, OCI, MCPB, or remote MCP URLs. This repo
+uses the OCI path:
+
+```text
+ghcr.io/revrost/mpal-cli:0.1.0
+```
+
+Before publishing `registry/server.json`, push a matching container image. The
+Dockerfile includes the required MCP server-name label:
+
+```text
+io.modelcontextprotocol.server.name=io.github.revrost/mpal
+```
+
 ## Agent Boundary
 
 `mpal strategy run` produces the deterministic baseline: signals, target
 weights, proposed trades, warnings, freshness metadata, strategy ID, strategy
 version, config hash, validation result, and journal entry ID.
+
+When using MCP, `mpal_strategy_run` is the equivalent source-of-truth tool.
 
 An external agent may explain, veto, or propose a bounded override, but it must:
 

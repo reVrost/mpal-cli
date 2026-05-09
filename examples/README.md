@@ -11,3 +11,12 @@ mpal portfolio validate \
   --config strategies/momentum_profile_v1.yaml \
   --json
 ```
+
+For local MCP development from this checkout:
+
+```sh
+cp examples/mcp.local.json .mcp.json
+export MPAL_API_KEY=mpal_...
+```
+
+Then point your MCP-compatible client at the project `.mcp.json`.

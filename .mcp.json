@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "mpal": {
+      "command": "mpal-mcp",
+      "args": [],
+      "env": {
+        "MPAL_API_KEY": "${MPAL_API_KEY:-}",
+        "MPAL_BASE_URL": "${MPAL_BASE_URL:-https://api.marketpal.ai}"
+      }
+    }
+  }
+}
