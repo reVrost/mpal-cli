@@ -57,6 +57,9 @@ reviews, prefer `engine_weekly_swing_v1`. Treat
 `engine_quality_swing_rebuild_v1` as a manual, higher-churn MarketPal engine
 cleanup/rebuild config unless the user explicitly asks for it.
 
+For the recommended weekly/monthly/quarterly swing-trading workflow, see
+[docs/HOW_TO_SWING_TRADE.md](docs/HOW_TO_SWING_TRADE.md).
+
 Users can add custom configs under:
 
 ```text
@@ -173,11 +176,14 @@ This repo is also structured as a Codex plugin:
 .agents/plugins/marketplace.json
 .mcp.json
 skills/marketpal-trader/SKILL.md
+skills/marketpal-onboarding/SKILL.md
 ```
 
-The plugin packages the `marketpal-trader` skill plus the `mpal` MCP server
-configuration. Codex users should install `mpal-mcp`, set `MPAL_API_KEY`, then
-add this repo as a plugin marketplace:
+The plugin packages `marketpal-onboarding`, `marketpal-trader`, and the `mpal`
+MCP server configuration. Use onboarding for install checks and safe smoke
+tests; use trader for strategy reviews, validation, and journaling. Codex users
+should install `mpal-mcp`, set `MPAL_API_KEY`, then add this repo as a plugin
+marketplace:
 
 ```sh
 codex plugin marketplace add revrost/mpal-cli --ref main
@@ -194,6 +200,7 @@ This repo also includes a Claude Code plugin marketplace:
 .claude-plugin/marketplace.json
 .mcp.json
 skills/marketpal-trader/SKILL.md
+skills/marketpal-onboarding/SKILL.md
 ```
 
 Claude Code users should install `mpal-mcp`, set `MPAL_API_KEY`, then run:

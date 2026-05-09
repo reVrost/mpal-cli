@@ -9,7 +9,7 @@ Desktop, Codex, Cursor, and other clients.
 - `mpal` and `mpal-mcp` build from Go.
 - `.mcp.json` starts the stdio MCP server with `MPAL_API_KEY`.
 - `.codex-plugin/plugin.json` packages the Codex plugin metadata, bundled
-  skill, and MCP config.
+  skills, and MCP config.
 - `.agents/plugins/marketplace.json` exposes the Codex plugin through a repo
   marketplace.
 - `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` expose the
@@ -60,6 +60,7 @@ Then open Codex, run `/plugins`, switch to `MarketPal Plugins`, and install
 
 The plugin includes:
 
+- `skills/marketpal-onboarding/SKILL.md`
 - `skills/marketpal-trader/SKILL.md`
 - `.mcp.json`
 - `.codex-plugin/plugin.json`

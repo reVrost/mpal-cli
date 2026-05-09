@@ -6,3 +6,7 @@
 /dist/
 /mpal
 /tmp/
+
+.envrc
+.envrc_local
+.envrc_test

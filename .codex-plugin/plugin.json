@@ -24,6 +24,7 @@
     "privacyPolicyURL": "https://marketpal.ai/privacy",
     "termsOfServiceURL": "https://marketpal.ai/terms",
     "defaultPrompt": [
+      "Set up MarketPal and run safe smoke tests.",
       "Run my approved MarketPal strategy.",
       "Explain this mpal TRADE or NO_TRADE result.",
       "Validate and journal this final plan."
