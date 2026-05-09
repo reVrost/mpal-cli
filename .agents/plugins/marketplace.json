@@ -1,0 +1,21 @@
+{
+  "name": "marketpal-plugins",
+  "interface": {
+    "displayName": "MarketPal Plugins"
+  },
+  "plugins": [
+    {
+      "name": "marketpal",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/revrost/mpal-cli.git",
+        "ref": "main"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Finance"
+    }
+  ]
+}

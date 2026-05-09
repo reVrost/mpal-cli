@@ -75,15 +75,18 @@ type Universe struct {
 }
 
 type StrategyConfig struct {
-	ID        string               `json:"id" yaml:"id"`
-	Version   string               `json:"version" yaml:"version"`
-	Name      string               `json:"name,omitempty" yaml:"name"`
-	Approved  bool                 `json:"approved" yaml:"approved"`
-	Scoring   ScoringConfig        `json:"scoring" yaml:"scoring"`
-	Events    EventGuardrailConfig `json:"event_guardrail" yaml:"event_guardrail"`
-	Portfolio PortfolioConfig      `json:"portfolio" yaml:"portfolio"`
-	Risk      RiskConfig           `json:"risk" yaml:"risk"`
-	Backtest  BacktestConfig       `json:"backtest" yaml:"backtest"`
+	ID          string               `json:"id" yaml:"id"`
+	Version     string               `json:"version" yaml:"version"`
+	Name        string               `json:"name,omitempty" yaml:"name"`
+	Description string               `json:"description,omitempty" yaml:"description"`
+	WhenToUse   string               `json:"when_to_use,omitempty" yaml:"when_to_use"`
+	Cadence     string               `json:"cadence,omitempty" yaml:"cadence"`
+	Approved    bool                 `json:"approved" yaml:"approved"`
+	Scoring     ScoringConfig        `json:"scoring" yaml:"scoring"`
+	Events      EventGuardrailConfig `json:"event_guardrail" yaml:"event_guardrail"`
+	Portfolio   PortfolioConfig      `json:"portfolio" yaml:"portfolio"`
+	Risk        RiskConfig           `json:"risk" yaml:"risk"`
+	Backtest    BacktestConfig       `json:"backtest" yaml:"backtest"`
 }
 
 type ScoringConfig struct {

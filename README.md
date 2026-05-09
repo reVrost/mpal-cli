@@ -44,9 +44,18 @@ export MPAL_JOURNAL=~/.marketpal/journal.jsonl
 The CLI embeds official strategy configs so installed binaries can list and
 show them without needing the source tree:
 
-- `simple_score_v1`
-- `momentum_only_v1`
+- `portfolio_low_churn_swing_v1`
+- `engine_weekly_swing_v1`
+- `engine_quality_swing_rebuild_v1`
 - `momentum_profile_v1`
+- `momentum_only_v1`
+- `simple_score_v1`
+
+For agent-assisted routine full-portfolio reviews, prefer
+`portfolio_low_churn_swing_v1`. For weekly MarketPal return-engine sleeve
+reviews, prefer `engine_weekly_swing_v1`. Treat
+`engine_quality_swing_rebuild_v1` as a manual, higher-churn MarketPal engine
+cleanup/rebuild config unless the user explicitly asks for it.
 
 Users can add custom configs under:
 
@@ -123,6 +132,12 @@ Claude Code local install:
 claude mcp add mpal --env MPAL_API_KEY="$MPAL_API_KEY" -- mpal-mcp
 ```
 
+Codex local install:
+
+```sh
+codex mcp add mpal -- mpal-mcp
+```
+
 Claude Code project config can also use this repo's `.mcp.json`. For local
 source checkout development, use `examples/mcp.local.json`, which runs
 `go run ./cmd/mpal-mcp`.
@@ -155,14 +170,47 @@ This repo is also structured as a Codex plugin:
 
 ```text
 .codex-plugin/plugin.json
+.agents/plugins/marketplace.json
 .mcp.json
 skills/marketpal-trader/SKILL.md
 ```
 
 The plugin packages the `marketpal-trader` skill plus the `mpal` MCP server
 configuration. Codex users should install `mpal-mcp`, set `MPAL_API_KEY`, then
-enable the plugin from this repository or from a marketplace entry that points
-at it.
+add this repo as a plugin marketplace:
+
+```sh
+codex plugin marketplace add revrost/mpal-cli --ref main
+```
+
+Then open `/plugins`, choose `MarketPal Plugins`, and install `marketpal`.
+
+## Claude Code Plugin
+
+This repo also includes a Claude Code plugin marketplace:
+
+```text
+.claude-plugin/plugin.json
+.claude-plugin/marketplace.json
+.mcp.json
+skills/marketpal-trader/SKILL.md
+```
+
+Claude Code users should install `mpal-mcp`, set `MPAL_API_KEY`, then run:
+
+```sh
+claude plugin marketplace add revrost/mpal-cli
+claude plugin install marketpal@marketpal-plugins
+```
+
+For local development, load the plugin directly:
+
+```sh
+claude --plugin-dir .
+```
+
+See `PLUGIN_DISTRIBUTION.md` for the current distribution checklist and the
+Claude Desktop `.mcpb` path.
 
 ## MCP Registry
 

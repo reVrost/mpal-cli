@@ -1,0 +1,24 @@
+{
+  "name": "marketpal-plugins",
+  "owner": {
+    "name": "MarketPal",
+    "email": "security@marketpal.ai"
+  },
+  "description": "MarketPal Claude Code plugins for deterministic portfolio-planning workflows.",
+  "metadata": {
+    "description": "MarketPal Claude Code plugins for deterministic portfolio-planning workflows."
+  },
+  "plugins": [
+    {
+      "name": "marketpal",
+      "source": {
+        "source": "github",
+        "repo": "revrost/mpal-cli",
+        "ref": "main"
+      },
+      "description": "MarketPal deterministic portfolio-planning capabilities for Claude Code.",
+      "category": "Finance",
+      "tags": ["mcp", "finance", "portfolio", "trading", "backtesting"]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "marketpal",
+  "description": "MarketPal deterministic portfolio-planning capabilities for Claude Code.",
+  "version": "0.1.0",
+  "author": {
+    "name": "MarketPal",
+    "email": "security@marketpal.ai",
+    "url": "https://marketpal.ai"
+  },
+  "homepage": "https://github.com/revrost/mpal-cli",
+  "repository": "https://github.com/revrost/mpal-cli",
+  "license": "MIT"
+}

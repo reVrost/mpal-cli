@@ -14,14 +14,17 @@ import (
 var builtinStrategyFS embed.FS
 
 type StrategyInfo struct {
-	ID         string           `json:"id"`
-	Version    string           `json:"version"`
-	Name       string           `json:"name,omitempty"`
-	Approved   bool             `json:"approved"`
-	Source     string           `json:"source"`
-	Path       string           `json:"path"`
-	ConfigHash string           `json:"config_hash"`
-	Validation ValidationResult `json:"validation"`
+	ID          string           `json:"id"`
+	Version     string           `json:"version"`
+	Name        string           `json:"name,omitempty"`
+	Description string           `json:"description,omitempty"`
+	WhenToUse   string           `json:"when_to_use,omitempty"`
+	Cadence     string           `json:"cadence,omitempty"`
+	Approved    bool             `json:"approved"`
+	Source      string           `json:"source"`
+	Path        string           `json:"path"`
+	ConfigHash  string           `json:"config_hash"`
+	Validation  ValidationResult `json:"validation"`
 }
 
 type StrategyRegistry struct {
@@ -44,7 +47,20 @@ func (r StrategyRegistry) List() ([]StrategyInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	infos = append(infos, userInfos...)
+	byID := make(map[string]StrategyInfo, len(infos)+len(userInfos))
+	for _, info := range infos {
+		byID[strings.ToLower(info.ID)] = info
+	}
+	for _, info := range userInfos {
+		// User strategies intentionally override embedded strategies with the
+		// same id, which keeps `strategy list` readable while preserving local
+		// customization.
+		byID[strings.ToLower(info.ID)] = info
+	}
+	infos = make([]StrategyInfo, 0, len(byID))
+	for _, info := range byID {
+		infos = append(infos, info)
+	}
 	sort.Slice(infos, func(i, j int) bool {
 		if infos[i].ID == infos[j].ID {
 			return infos[i].Source < infos[j].Source
@@ -67,14 +83,17 @@ func listEmbeddedStrategies() ([]StrategyInfo, error) {
 		}
 		cfg, hash, validation := strategyInfoFromBytes(raw)
 		infos = append(infos, StrategyInfo{
-			ID:         cfg.ID,
-			Version:    cfg.Version,
-			Name:       cfg.Name,
-			Approved:   cfg.Approved,
-			Source:     "builtin",
-			Path:       "embedded:" + path,
-			ConfigHash: hash,
-			Validation: validation,
+			ID:          cfg.ID,
+			Version:     cfg.Version,
+			Name:        cfg.Name,
+			Description: cfg.Description,
+			WhenToUse:   cfg.WhenToUse,
+			Cadence:     cfg.Cadence,
+			Approved:    cfg.Approved,
+			Source:      "builtin",
+			Path:        "embedded:" + path,
+			ConfigHash:  hash,
+			Validation:  validation,
 		})
 	}
 	return infos, nil
@@ -98,14 +117,17 @@ func listStrategyDir(source, dir string) ([]StrategyInfo, error) {
 			validation = ValidateStrategyConfig(cfg)
 		}
 		infos = append(infos, StrategyInfo{
-			ID:         cfg.ID,
-			Version:    cfg.Version,
-			Name:       cfg.Name,
-			Approved:   cfg.Approved,
-			Source:     source,
-			Path:       path,
-			ConfigHash: hash,
-			Validation: validation,
+			ID:          cfg.ID,
+			Version:     cfg.Version,
+			Name:        cfg.Name,
+			Description: cfg.Description,
+			WhenToUse:   cfg.WhenToUse,
+			Cadence:     cfg.Cadence,
+			Approved:    cfg.Approved,
+			Source:      source,
+			Path:        path,
+			ConfigHash:  hash,
+			Validation:  validation,
 		})
 	}
 	return infos, nil
