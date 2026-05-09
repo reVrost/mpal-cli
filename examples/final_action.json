@@ -1,0 +1,13 @@
+{
+  "decision": "agent_final_action",
+  "baseline_journal_id": "jrnl_example",
+  "final_action": "TRADE",
+  "proposed_trades": [
+    {
+      "ticker": "AAPL",
+      "side": "BUY",
+      "target_weight": 0.02
+    }
+  ],
+  "rationale": "Example payload only. Use a real mpal strategy run as source of truth."
+}

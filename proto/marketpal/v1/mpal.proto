@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package marketpal.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/revrost/mpal-cli/gen/marketpal/v1;marketpalv1";
+
+message MpalCapabilitiesRequest {}
+
+message MpalJSONResponse {
+  string payload_json = 1;
+}
+
+message MpalTickerEventsRequest {
+  repeated string tickers = 1;
+  string run_json = 2;
+  string portfolio_json = 3;
+  string scope = 4;
+  int32 days = 5;
+  int32 limit = 6;
+  int32 alternates = 7;
+  int32 insights_per_ticker = 8;
+}
+
+message MpalTickerBarsRequest {
+  string ticker = 1;
+  google.protobuf.Timestamp start = 2;
+  google.protobuf.Timestamp end = 3;
+}
+
+message MpalTickerProfileRequest {
+  string ticker = 1;
+  google.protobuf.Timestamp date = 2;
+}
+
+message MpalPortfolioSnapshotRequest {}
+
+message MpalWatchlistRequest {}
+
+message MpalStrategyRunRequest {
+  google.protobuf.Timestamp date = 1;
+  string universe_json = 2;
+  string portfolio_json = 3;
+  string config_json = 4;
+  string config_path = 5;
+  string config_hash = 6;
+}
+
+message MpalBacktestRunRequest {
+  google.protobuf.Timestamp start = 1;
+  google.protobuf.Timestamp end = 2;
+  string universe_json = 3;
+  string config_json = 4;
+  string config_path = 5;
+  bool trusted_only = 6;
+  bool allow_untrusted = 7;
+  string benchmark = 8;
+  string config_hash = 9;
+}
+
+service MpalService {
+  rpc GetCapabilities(MpalCapabilitiesRequest) returns (MpalJSONResponse);
+  rpc GetTickerEvents(MpalTickerEventsRequest) returns (MpalJSONResponse);
+  rpc GetTickerBars(MpalTickerBarsRequest) returns (MpalJSONResponse);
+  rpc GetTickerProfile(MpalTickerProfileRequest) returns (MpalJSONResponse);
+  rpc GetPortfolioSnapshot(MpalPortfolioSnapshotRequest) returns (MpalJSONResponse);
+  rpc GetWatchlist(MpalWatchlistRequest) returns (MpalJSONResponse);
+  rpc RunStrategy(MpalStrategyRunRequest) returns (MpalJSONResponse);
+  rpc RunBacktest(MpalBacktestRunRequest) returns (MpalJSONResponse);
+}

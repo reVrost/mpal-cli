@@ -1,0 +1,8 @@
+/.env
+/.env.*
+!/examples/.env.example
+/.DS_Store
+/coverage.out
+/dist/
+/mpal
+/tmp/
