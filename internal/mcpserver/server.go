@@ -71,7 +71,14 @@ func registerTools(server *mcp.Server, cfg Config) {
 		if err != nil {
 			return nil, nil, err
 		}
-		return nil, object(map[string]any{"valid": mpal.ValidateStrategyConfig(strategy), "config_hash": hash}), nil
+		return nil, object(map[string]any{
+			"valid":                 mpal.ValidateStrategyConfig(strategy),
+			"api_compatibility":     mpal.ValidateHostedStrategyAPICompatibility(strategy),
+			"api_contract":          mpal.HostedStrategyAPIContract,
+			"scoring_contract":      mpal.StrategyScoringContract(strategy),
+			"config_hash":           hash,
+			"config_hash_algorithm": mpal.StrategyConfigHashAlgorithm,
+		}), nil
 	})
 	mcp.AddTool(server, additiveTool("mpal_strategy_run", "Run an explicit versioned MarketPal strategy config and return the baseline plan. This can append a MarketPal journal entry, but cannot execute live trades."), func(ctx context.Context, req *mcp.CallToolRequest, in strategyRunInput) (*mcp.CallToolResult, any, error) {
 		asOf, err := mpal.ParseDate(in.Date)
@@ -93,11 +100,15 @@ func registerTools(server *mcp.Server, cfg Config) {
 		if validation := mpal.ValidateStrategyConfig(strategy); !validation.Valid {
 			return nil, nil, fmt.Errorf("invalid strategy config: %s", strings.Join(validation.Errors, "; "))
 		}
+		if err := mpal.EnsureHostedStrategyAPICompatible(strategy); err != nil {
+			return nil, nil, err
+		}
+		wireConfig := mpal.CanonicalStrategyConfig(strategy)
 		payload, err := cfg.Client.RunStrategy(ctx, &marketpalv1.MpalStrategyRunRequest{
 			Date:          timestamppb.New(asOf),
 			UniverseJson:  mustJSON(universe),
 			PortfolioJson: mustJSON(portfolio),
-			ConfigJson:    mustJSON(strategy),
+			ConfigJson:    mustJSON(wireConfig),
 			ConfigPath:    sourceLabel(in.ConfigPath, "inline"),
 			ConfigHash:    hash,
 		})
@@ -205,11 +216,15 @@ func registerTools(server *mcp.Server, cfg Config) {
 		if err != nil {
 			return nil, nil, err
 		}
+		if err := mpal.EnsureHostedStrategyAPICompatible(strategy); err != nil {
+			return nil, nil, err
+		}
+		wireConfig := mpal.CanonicalStrategyConfig(strategy)
 		payload, err := cfg.Client.RunBacktest(ctx, &marketpalv1.MpalBacktestRunRequest{
 			Start:          timestamppb.New(start),
 			End:            timestamppb.New(end),
 			UniverseJson:   mustJSON(universe),
-			ConfigJson:     mustJSON(strategy),
+			ConfigJson:     mustJSON(wireConfig),
 			ConfigPath:     sourceLabel(in.ConfigPath, "inline"),
 			ConfigHash:     hash,
 			TrustedOnly:    !in.AllowUntrusted,

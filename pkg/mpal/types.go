@@ -1,6 +1,7 @@
 package mpal
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -75,6 +76,7 @@ type Universe struct {
 }
 
 type StrategyConfig struct {
+	Schema      string               `json:"-" yaml:"$schema,omitempty"`
 	ID          string               `json:"id" yaml:"id"`
 	Version     string               `json:"version" yaml:"version"`
 	Defaults    string               `json:"defaults,omitempty" yaml:"defaults"`
@@ -91,10 +93,13 @@ type StrategyConfig struct {
 }
 
 type ScoringConfig struct {
-	MomentumWeight float64 `json:"momentum_weight" yaml:"momentum_weight"`
-	ProfileWeight  float64 `json:"profile_weight" yaml:"profile_weight"`
-	MinBuyScore    float64 `json:"min_buy_score" yaml:"min_buy_score"`
-	MinHoldScore   float64 `json:"min_hold_score" yaml:"min_hold_score"`
+	MomentumWeight  float64 `json:"momentum_weight" yaml:"momentum_weight"`
+	ProfileWeight   float64 `json:"profile_weight" yaml:"profile_weight"`
+	QualityWeight   float64 `json:"quality_weight,omitempty" yaml:"quality_weight,omitempty"`
+	ValueWeight     float64 `json:"value_weight,omitempty" yaml:"value_weight,omitempty"`
+	ReversionWeight float64 `json:"reversion_weight,omitempty" yaml:"reversion_weight,omitempty"`
+	MinBuyScore     float64 `json:"min_buy_score" yaml:"min_buy_score"`
+	MinHoldScore    float64 `json:"min_hold_score" yaml:"min_hold_score"`
 }
 
 type EventGuardrailConfig struct {
@@ -132,6 +137,11 @@ type BacktestConfig struct {
 const (
 	StrategyDefaultsSwingV1 = "swing_v1"
 	StrategyDefaultsBasicV1 = "basic_v1"
+
+	StrategyConfigHashAlgorithm = "sha256:canonical-expanded-strategy-json-v1"
+	HostedStrategyAPIContract   = "hosted_strategy_api_v1"
+	ScoringContractV1           = "scoring_v1_momentum_profile"
+	ScoringContractV2           = "scoring_v2_quality_value_reversion"
 )
 
 type StrategyRef struct {
@@ -148,6 +158,8 @@ type ProfileScore struct {
 	AsOf          time.Time  `json:"as_of"`
 	ProfileScore  float64    `json:"profile_score"`
 	MomentumScore *float64   `json:"momentum_score,omitempty"`
+	QualityScore  *float64   `json:"quality_score,omitempty"`
+	ValueScore    *float64   `json:"value_score,omitempty"`
 	ScoreSource   string     `json:"score_source"`
 	Reasons       []string   `json:"reasons,omitempty"`
 	Warnings      []string   `json:"warnings,omitempty"`
@@ -220,6 +232,9 @@ type SignalResult struct {
 	AsOf                 time.Time   `json:"as_of"`
 	MomentumScore        float64     `json:"momentum_score"`
 	ProfileScore         float64     `json:"profile_score"`
+	QualityScore         *float64    `json:"quality_score,omitempty"`
+	ValueScore           *float64    `json:"value_score,omitempty"`
+	ReversionScore       *float64    `json:"reversion_score,omitempty"`
 	EventScore           *float64    `json:"event_score,omitempty"`
 	EventScoreConfidence *float64    `json:"event_score_confidence,omitempty"`
 	FinalScore           float64     `json:"final_score"`
@@ -399,11 +414,28 @@ func LoadStrategyFile(path string) (StrategyConfig, string, error) {
 
 func LoadStrategyBytes(raw []byte) (StrategyConfig, string, error) {
 	var cfg StrategyConfig
-	if err := yaml.Unmarshal(raw, &cfg); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewReader(raw))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&cfg); err != nil {
 		return StrategyConfig{}, "", err
 	}
 	cfg = ApplyStrategyDefaults(cfg)
-	return cfg, HashBytes(raw), nil
+	return cfg, HashStrategyConfig(cfg), nil
+}
+
+func CanonicalStrategyConfig(cfg StrategyConfig) StrategyConfig {
+	cfg = ApplyStrategyDefaults(cfg)
+	cfg.Schema = ""
+	cfg.Defaults = ""
+	return cfg
+}
+
+func HashStrategyConfig(cfg StrategyConfig) string {
+	raw, err := json.Marshal(CanonicalStrategyConfig(cfg))
+	if err != nil {
+		return ""
+	}
+	return HashBytes(raw)
 }
 
 func ApplyStrategyDefaults(cfg StrategyConfig) StrategyConfig {
@@ -447,10 +479,14 @@ func ValidateStrategyConfig(cfg StrategyConfig) ValidationResult {
 	default:
 		errs = append(errs, "defaults must be empty, swing_v1, or basic_v1")
 	}
-	if cfg.Scoring.MomentumWeight < 0 || cfg.Scoring.ProfileWeight < 0 {
+	if cfg.Scoring.MomentumWeight < 0 ||
+		cfg.Scoring.ProfileWeight < 0 ||
+		cfg.Scoring.QualityWeight < 0 ||
+		cfg.Scoring.ValueWeight < 0 ||
+		cfg.Scoring.ReversionWeight < 0 {
 		errs = append(errs, "scoring weights must be non-negative")
 	}
-	if math.Abs(cfg.Scoring.MomentumWeight+cfg.Scoring.ProfileWeight-1) > 0.000001 {
+	if math.Abs(scoringWeightTotal(cfg.Scoring)-1) > 0.000001 {
 		errs = append(errs, "scoring weights must sum to 1")
 	}
 	if cfg.Scoring.MinBuyScore < cfg.Scoring.MinHoldScore {
@@ -502,6 +538,43 @@ func ValidateStrategyConfig(cfg StrategyConfig) ValidationResult {
 		errs = append(errs, "risk.cash_buffer_pct must be in [0,1)")
 	}
 	return ValidationResult{Valid: len(errs) == 0, Errors: errs}
+}
+
+func ValidateHostedStrategyAPICompatibility(cfg StrategyConfig) ValidationResult {
+	var errs []string
+	if validation := ValidateStrategyConfig(cfg); !validation.Valid {
+		errs = append(errs, "local strategy config is invalid: "+strings.Join(validation.Errors, "; "))
+	}
+	if usesAdvancedScoring(cfg.Scoring) {
+		errs = append(errs, HostedStrategyAPIContract+" supports momentum_weight and profile_weight only; quality_weight, value_weight, and reversion_weight require a hosted API update")
+	}
+	return ValidationResult{Valid: len(errs) == 0, Errors: errs}
+}
+
+func EnsureHostedStrategyAPICompatible(cfg StrategyConfig) error {
+	if compatibility := ValidateHostedStrategyAPICompatibility(cfg); !compatibility.Valid {
+		return fmt.Errorf("strategy config is not compatible with %s: %s", HostedStrategyAPIContract, strings.Join(compatibility.Errors, "; "))
+	}
+	return nil
+}
+
+func StrategyScoringContract(cfg StrategyConfig) string {
+	if usesAdvancedScoring(cfg.Scoring) {
+		return ScoringContractV2
+	}
+	return ScoringContractV1
+}
+
+func scoringWeightTotal(scoring ScoringConfig) float64 {
+	return scoring.MomentumWeight +
+		scoring.ProfileWeight +
+		scoring.QualityWeight +
+		scoring.ValueWeight +
+		scoring.ReversionWeight
+}
+
+func usesAdvancedScoring(scoring ScoringConfig) bool {
+	return scoring.QualityWeight != 0 || scoring.ValueWeight != 0 || scoring.ReversionWeight != 0
 }
 
 func normalizedEventGuardrails(cfg StrategyConfig) EventGuardrailConfig {

@@ -107,11 +107,14 @@ func (p *rebalancePlanner) handleUnscoredHolding(ticker string, weight float64) 
 }
 
 func (p *rebalancePlanner) protectsUnusableScore(signal SignalResult) bool {
-	if !p.cfg.Risk.ProtectUnscoredHoldings || p.cfg.Scoring.ProfileWeight <= 0 {
+	if !p.cfg.Risk.ProtectUnscoredHoldings || !usesProfileFactors(p.cfg) {
 		return false
 	}
 	for _, warning := range signal.Warnings {
 		if strings.Contains(strings.ToLower(warning), "profile unavailable") {
+			return true
+		}
+		if strings.Contains(strings.ToLower(warning), "component unavailable") {
 			return true
 		}
 	}

@@ -3,7 +3,6 @@ package mpal
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -191,7 +190,11 @@ func backtestSignalForTicker(
 	}
 	momentum := simpleMomentumScore(backtestBarsToCoreBars(bars))
 	profileScore := 0.0
-	reasons := []string{fmt.Sprintf("combined %.2f momentum and %.2f profile weights", cfg.Scoring.MomentumWeight, cfg.Scoring.ProfileWeight)}
+	qualityScore := 0.0
+	valueScore := 0.0
+	reversionScore := meanReversionScore(backtestBarsToCoreBars(bars))
+	reasons := []string{scoringReason(cfg.Scoring)}
+	profile := ProfileScore{ProfileScore: profileScore}
 	if usesProfileFactors(cfg) {
 		snapshot, ok := snapshots[ticker]
 		if !ok {
@@ -204,13 +207,22 @@ func backtestSignalForTicker(
 		if snapshot.QVMScore != nil {
 			profileScore = clamp(*snapshot.QVMScore/100, 0, 1)
 		}
+		profile.ProfileScore = profileScore
+		if snapshot.QVMQualityScore != nil {
+			qualityScore = clamp(*snapshot.QVMQualityScore/100, 0, 1)
+			profile.QualityScore = &qualityScore
+		}
+		if snapshot.QVMValueScore != nil {
+			valueScore = clamp(*snapshot.QVMValueScore/100, 0, 1)
+			profile.ValueScore = &valueScore
+		}
 		if snapshot.QVMMomentumScore != nil {
 			momentum = clamp(*snapshot.QVMMomentumScore/100, -1, 1)
 			reasons = append(reasons, "using point-in-time QVM momentum snapshot")
 		}
 		reasons = append(reasons, "using point-in-time factor snapshot "+dateString(snapshot.SnapshotDate))
 	}
-	finalScore := cfg.Scoring.MomentumWeight*momentum + cfg.Scoring.ProfileWeight*profileScore
+	finalScore := weightedSignalScore(cfg.Scoring, momentum, profileScore, qualityScore, valueScore, reversionScore)
 	var eventScore *EventScore
 	if cfg.Events.Enabled {
 		if score, ok := eventScores[ticker]; ok {
@@ -218,7 +230,7 @@ func backtestSignalForTicker(
 			finalScore, reasons = applyEventGuardrail(finalScore, eventScore, cfg, reasons)
 		}
 	}
-	return signalResult(ticker, asOf, momentum, ProfileScore{ProfileScore: profileScore}, finalScore, cfg, reasons, nil, nil, eventScore), true, nil
+	return signalResult(ticker, asOf, momentum, profile, reversionScore, finalScore, cfg, reasons, nil, nil, eventScore), true, nil
 }
 
 func applyPendingBacktestFill(
@@ -396,5 +408,5 @@ func (e Engine) factorCoverage(ctx context.Context, tickers []string, profileVer
 }
 
 func usesProfileFactors(cfg StrategyConfig) bool {
-	return cfg.Scoring.ProfileWeight > 0
+	return cfg.Scoring.ProfileWeight > 0 || cfg.Scoring.QualityWeight > 0 || cfg.Scoring.ValueWeight > 0
 }

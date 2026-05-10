@@ -47,7 +47,7 @@ constraints visible, not to force a calendar-based action.
 
 ## Strategy Configs
 
-`mpal-cli` includes three swing-oriented strategy configs. They are related,
+`mpal-cli` includes several swing-oriented strategy configs. They are related,
 but they are not interchangeable.
 
 | Strategy | Typical Review Context | Possible Output Shape | Out Of Scope |
@@ -55,6 +55,13 @@ but they are not interchangeable.
 | `engine_weekly_swing_v1` | Active-engine review, especially when the input includes cash assigned to that engine | Starter candidates, top-up candidates, risk-driven trims/reductions, or `NO_TRADE` | Forced cleanup or high-turnover rotation |
 | `engine_quality_swing_rebuild_v1` | Engine cleanup, transition review, or rebuild scenario | Weak-hold review, oversized-position review, ranked candidates, higher-turnover proposal | Routine weekly monitoring |
 | `portfolio_low_churn_swing_v1` | Conservative full-portfolio or well-funded portfolio review | Lower-churn incremental changes with larger minimum trade value | Aggressive rotation or engine rebuild |
+| `engine_quality_value_reversion_v1` | Engine-sleeve cash deployment when quality and valuation should dominate momentum | Conservative starter buys or modest top-ups in quality/value names after measured pullbacks | Momentum breakouts, high-churn cleanup, or forced exits |
+| `portfolio_quality_value_reversion_v1` | Full-portfolio or well-funded portfolio review for quality/value pullbacks | Low-churn starter buys or top-ups with larger minimum trade value | Engine-only policy reviews or aggressive rotation |
+
+The quality-value reversion configs use the local
+`scoring_v2_quality_value_reversion` contract. They are research/local-engine
+configs until `strategy list` or `strategy validate` reports
+`api_compatible: true` for the hosted MarketPal API.
 
 The weekly engine strategy is buy-biased, not mathematically buy-only. It is
 tuned to avoid forced cleanup sells, but a valid run can still produce trims or

@@ -14,17 +14,22 @@ import (
 var builtinStrategyFS embed.FS
 
 type StrategyInfo struct {
-	ID          string           `json:"id"`
-	Version     string           `json:"version"`
-	Name        string           `json:"name,omitempty"`
-	Description string           `json:"description,omitempty"`
-	WhenToUse   string           `json:"when_to_use,omitempty"`
-	Cadence     string           `json:"cadence,omitempty"`
-	Approved    bool             `json:"approved"`
-	Source      string           `json:"source"`
-	Path        string           `json:"path"`
-	ConfigHash  string           `json:"config_hash"`
-	Validation  ValidationResult `json:"validation"`
+	ID                  string           `json:"id"`
+	Version             string           `json:"version"`
+	Name                string           `json:"name,omitempty"`
+	Description         string           `json:"description,omitempty"`
+	WhenToUse           string           `json:"when_to_use,omitempty"`
+	Cadence             string           `json:"cadence,omitempty"`
+	Approved            bool             `json:"approved"`
+	Source              string           `json:"source"`
+	Path                string           `json:"path"`
+	ConfigHash          string           `json:"config_hash"`
+	ConfigHashAlgorithm string           `json:"config_hash_algorithm"`
+	ScoringContract     string           `json:"scoring_contract"`
+	APIContract         string           `json:"api_contract"`
+	APICompatible       bool             `json:"api_compatible"`
+	APICompatibility    ValidationResult `json:"api_compatibility"`
+	Validation          ValidationResult `json:"validation"`
 }
 
 type StrategyRegistry struct {
@@ -82,18 +87,24 @@ func listEmbeddedStrategies() ([]StrategyInfo, error) {
 			return nil, err
 		}
 		cfg, hash, validation := strategyInfoFromBytes(raw)
+		apiCompatibility := ValidateHostedStrategyAPICompatibility(cfg)
 		infos = append(infos, StrategyInfo{
-			ID:          cfg.ID,
-			Version:     cfg.Version,
-			Name:        cfg.Name,
-			Description: cfg.Description,
-			WhenToUse:   cfg.WhenToUse,
-			Cadence:     cfg.Cadence,
-			Approved:    cfg.Approved,
-			Source:      "builtin",
-			Path:        "embedded:" + path,
-			ConfigHash:  hash,
-			Validation:  validation,
+			ID:                  cfg.ID,
+			Version:             cfg.Version,
+			Name:                cfg.Name,
+			Description:         cfg.Description,
+			WhenToUse:           cfg.WhenToUse,
+			Cadence:             cfg.Cadence,
+			Approved:            cfg.Approved,
+			Source:              "builtin",
+			Path:                "embedded:" + path,
+			ConfigHash:          hash,
+			ConfigHashAlgorithm: StrategyConfigHashAlgorithm,
+			ScoringContract:     StrategyScoringContract(cfg),
+			APIContract:         HostedStrategyAPIContract,
+			APICompatible:       apiCompatibility.Valid,
+			APICompatibility:    apiCompatibility,
+			Validation:          validation,
 		})
 	}
 	return infos, nil
@@ -116,18 +127,24 @@ func listStrategyDir(source, dir string) ([]StrategyInfo, error) {
 		} else {
 			validation = ValidateStrategyConfig(cfg)
 		}
+		apiCompatibility := ValidateHostedStrategyAPICompatibility(cfg)
 		infos = append(infos, StrategyInfo{
-			ID:          cfg.ID,
-			Version:     cfg.Version,
-			Name:        cfg.Name,
-			Description: cfg.Description,
-			WhenToUse:   cfg.WhenToUse,
-			Cadence:     cfg.Cadence,
-			Approved:    cfg.Approved,
-			Source:      source,
-			Path:        path,
-			ConfigHash:  hash,
-			Validation:  validation,
+			ID:                  cfg.ID,
+			Version:             cfg.Version,
+			Name:                cfg.Name,
+			Description:         cfg.Description,
+			WhenToUse:           cfg.WhenToUse,
+			Cadence:             cfg.Cadence,
+			Approved:            cfg.Approved,
+			Source:              source,
+			Path:                path,
+			ConfigHash:          hash,
+			ConfigHashAlgorithm: StrategyConfigHashAlgorithm,
+			ScoringContract:     StrategyScoringContract(cfg),
+			APIContract:         HostedStrategyAPIContract,
+			APICompatible:       apiCompatibility.Valid,
+			APICompatibility:    apiCompatibility,
+			Validation:          validation,
 		})
 	}
 	return infos, nil

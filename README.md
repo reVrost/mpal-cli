@@ -83,6 +83,8 @@ Built-in configs:
 - `portfolio_low_churn_swing_v1`: routine full-portfolio review packet
 - `engine_weekly_swing_v1`: weekly return-engine sleeve review packet
 - `engine_quality_swing_rebuild_v1`: manual engine cleanup or rebuild scenario
+- `engine_quality_value_reversion_v1`: engine quality-value pullback review
+- `portfolio_quality_value_reversion_v1`: full-portfolio quality-value pullback review
 - `momentum_profile_v1`
 - `momentum_only_v1`
 - `simple_score_v1`
@@ -96,6 +98,15 @@ Custom configs can live in:
 Strategy configs are YAML and can be checked against
 `schemas/strategy.schema.json`. See
 [docs/STRATEGY_CONFIGS.md](docs/STRATEGY_CONFIGS.md).
+Quality-value mean-reversion configs use optional `quality_weight`,
+`value_weight`, and `reversion_weight` scoring fields; all scoring weights must
+sum to `1.0`. These fields use the local `scoring_v2_quality_value_reversion`
+contract and are marked `api_compatible: false` until the hosted MarketPal API
+supports the same scoring contract.
+
+`config_hash` is calculated from the canonical expanded config that is sent to
+the hosted API, not from the raw YAML bytes. Slim configs using `defaults` and
+equivalent fully expanded configs therefore share the same hash.
 
 The full review workflow is in
 [docs/MARKETPAL_REVIEW_WORKFLOW.md](docs/MARKETPAL_REVIEW_WORKFLOW.md).

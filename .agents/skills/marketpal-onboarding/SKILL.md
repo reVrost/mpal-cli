@@ -41,7 +41,8 @@ verified.
    - Run `mpal capabilities --json` when `mpal` is on `PATH`; otherwise use
      `go run ./cmd/mpal capabilities --json` from the repo.
    - Run `mpal strategy list --json` and confirm the expected approved configs
-     are visible.
+     are visible, and check `api_compatible` for any config that will be used
+     with API-backed `strategy run` or `backtest run`.
    - Run `mpal strategy show --id <id> --json` for any config the user plans to
      use.
 
@@ -53,6 +54,9 @@ verified.
      cleanup sells.
    - `engine_quality_swing_rebuild_v1`: manual higher-turnover engine cleanup
      or transition rebuild; do not use as the default weekly strategy.
+   - `engine_quality_value_reversion_v1` and
+     `portfolio_quality_value_reversion_v1`: quality/value mean-reversion
+     configs for explicit underpriced-quality or pullback-buying requests.
    - `momentum_profile_v1`, `momentum_only_v1`, and `simple_score_v1` may also
      appear in installed strategy lists as general or example configs. Do not
      recommend them for routine MarketPal swing onboarding unless the user

@@ -114,6 +114,10 @@ backtest:
 	var payload map[string]any
 	require.NoError(t, json.Unmarshal(out.Bytes(), &payload))
 	require.NotEmpty(t, payload["config_hash"])
+	require.Equal(t, "hosted_strategy_api_v1", payload["api_contract"])
+	compatibility, ok := payload["api_compatibility"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, true, compatibility["valid"])
 }
 
 func TestStrategyRunJSONIncludesExecutionValidation(t *testing.T) {
@@ -180,4 +184,59 @@ backtest:
 	validation, ok := payload["validation"].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, true, validation["valid"])
+}
+
+func TestStrategyRunRejectsHostedIncompatibleConfig(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "strategy.yaml")
+	universePath := filepath.Join(dir, "universe.json")
+	portfolioPath := filepath.Join(dir, "portfolio.json")
+	require.NoError(t, os.WriteFile(configPath, []byte(`
+id: local_v2_strategy
+version: 1.0.0
+approved: true
+scoring:
+  momentum_weight: 0.15
+  profile_weight: 0.00
+  quality_weight: 0.35
+  value_weight: 0.35
+  reversion_weight: 0.15
+  min_buy_score: 0.62
+  min_hold_score: 0.30
+portfolio:
+  long_only: true
+  max_positions: 5
+  max_position_pct: 0.2
+  min_trade_value: 100
+risk:
+  turnover_budget_pct: 0.1
+  max_single_trade_pct: 0.2
+  starter_position_pct: 0.02
+  max_new_positions_per_run: 2
+  cash_buffer_pct: 0.02
+  protect_unscored_holdings: true
+backtest:
+  initial_cash: 100000
+  fee_bps: 5
+  slippage_bps: 10
+`), 0o600))
+	require.NoError(t, os.WriteFile(universePath, []byte(`{"tickers":["AAPL"]}`), 0o600))
+	require.NoError(t, os.WriteFile(portfolioPath, []byte(`{"cash":100000,"equity":100000,"positions":[]}`), 0o600))
+
+	var out bytes.Buffer
+	a := &app{out: &out, client: fakeMpalAPI{strategyPayload: `{"result":"TRADE"}`}}
+	cmd := a.strategyRunCommand(context.Background())
+	cmd.SetArgs([]string{
+		"--date", "2026-05-03",
+		"--universe", universePath,
+		"--portfolio", portfolioPath,
+		"--config", configPath,
+		"--json",
+	})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not compatible with hosted_strategy_api_v1")
 }

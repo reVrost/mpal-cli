@@ -73,10 +73,14 @@ func (e Engine) SignalScore(
 	if profile.MomentumScore != nil {
 		momentum = *profile.MomentumScore
 	}
-	finalScore := cfg.Scoring.MomentumWeight*momentum + cfg.Scoring.ProfileWeight*profile.ProfileScore
-	reasons := []string{fmt.Sprintf("combined %.2f momentum and %.2f profile weights", cfg.Scoring.MomentumWeight, cfg.Scoring.ProfileWeight)}
 	warnings := append([]string{}, bars.Warnings...)
 	warnings = append(warnings, profile.Warnings...)
+	quality := profileComponentScore(profile.QualityScore)
+	value := profileComponentScore(profile.ValueScore)
+	reversion := meanReversionScore(bars.Bars)
+	finalScore := weightedSignalScore(cfg.Scoring, momentum, profile.ProfileScore, quality, value, reversion)
+	reasons := []string{scoringReason(cfg.Scoring)}
+	warnings = append(warnings, missingComponentWarnings(cfg.Scoring, profile)...)
 	var eventScore *EventScore
 	if cfg.Events.Enabled {
 		var eventWarnings []string
@@ -88,7 +92,7 @@ func (e Engine) SignalScore(
 		}
 	}
 
-	return signalResult(ticker, asOf, momentum, profile, finalScore, cfg, reasons, warnings, bars.Freshness, eventScore), nil
+	return signalResult(ticker, asOf, momentum, profile, reversion, finalScore, cfg, reasons, warnings, bars.Freshness, eventScore), nil
 }
 
 func (e Engine) eventScoreForSignal(ctx context.Context, ticker string, asOf time.Time, cfg StrategyConfig) (*EventScore, []string) {
@@ -127,6 +131,7 @@ func signalResult(
 	asOf time.Time,
 	momentum float64,
 	profile ProfileScore,
+	reversion float64,
 	finalScore float64,
 	cfg StrategyConfig,
 	reasons []string,
@@ -152,6 +157,21 @@ func signalResult(
 	if profile.Freshness != nil {
 		freshness = append(freshness, *profile.Freshness)
 	}
+	var qualityScore *float64
+	if cfg.Scoring.QualityWeight > 0 && profile.QualityScore != nil {
+		scoreValue := round(*profile.QualityScore, 6)
+		qualityScore = &scoreValue
+	}
+	var valueScore *float64
+	if cfg.Scoring.ValueWeight > 0 && profile.ValueScore != nil {
+		scoreValue := round(*profile.ValueScore, 6)
+		valueScore = &scoreValue
+	}
+	var reversionScore *float64
+	if cfg.Scoring.ReversionWeight > 0 {
+		scoreValue := round(reversion, 6)
+		reversionScore = &scoreValue
+	}
 	var score *float64
 	var confidence *float64
 	if eventScore != nil {
@@ -175,6 +195,9 @@ func signalResult(
 		AsOf:                 asOf,
 		MomentumScore:        round(momentum, 6),
 		ProfileScore:         round(profile.ProfileScore, 6),
+		QualityScore:         qualityScore,
+		ValueScore:           valueScore,
+		ReversionScore:       reversionScore,
 		EventScore:           score,
 		EventScoreConfidence: confidence,
 		FinalScore:           round(finalScore, 6),
@@ -184,6 +207,46 @@ func signalResult(
 		Warnings:             warnings,
 		Freshness:            freshness,
 	}
+}
+
+func weightedSignalScore(scoring ScoringConfig, momentum float64, profile float64, quality float64, value float64, reversion float64) float64 {
+	return scoring.MomentumWeight*momentum +
+		scoring.ProfileWeight*profile +
+		scoring.QualityWeight*quality +
+		scoring.ValueWeight*value +
+		scoring.ReversionWeight*reversion
+}
+
+func scoringReason(scoring ScoringConfig) string {
+	if scoring.QualityWeight == 0 && scoring.ValueWeight == 0 && scoring.ReversionWeight == 0 {
+		return fmt.Sprintf("combined %.2f momentum and %.2f profile weights", scoring.MomentumWeight, scoring.ProfileWeight)
+	}
+	return fmt.Sprintf(
+		"combined %.2f momentum, %.2f profile, %.2f quality, %.2f value, and %.2f reversion weights",
+		scoring.MomentumWeight,
+		scoring.ProfileWeight,
+		scoring.QualityWeight,
+		scoring.ValueWeight,
+		scoring.ReversionWeight,
+	)
+}
+
+func profileComponentScore(score *float64) float64 {
+	if score == nil {
+		return 0
+	}
+	return clamp(*score, 0, 1)
+}
+
+func missingComponentWarnings(scoring ScoringConfig, profile ProfileScore) []string {
+	var warnings []string
+	if scoring.QualityWeight > 0 && profile.QualityScore == nil {
+		warnings = append(warnings, "quality component unavailable: zero score used")
+	}
+	if scoring.ValueWeight > 0 && profile.ValueScore == nil {
+		warnings = append(warnings, "value component unavailable: zero score used")
+	}
+	return warnings
 }
 
 func (e Engine) RankSignals(
@@ -422,6 +485,40 @@ func simpleMomentumScore(bars []Bar) float64 {
 	}
 	raw := latest/past - 1
 	return clamp(raw/0.20, -1, 1)
+}
+
+func meanReversionScore(bars []Bar) float64 {
+	if len(bars) < 2 {
+		return 0
+	}
+	sorted := append([]Bar{}, bars...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Date.Before(sorted[j].Date) })
+	latest := sorted[len(sorted)-1].Close
+	if latest <= 0 {
+		return 0
+	}
+	high := latest
+	for _, bar := range sorted {
+		if bar.Close > high {
+			high = bar.Close
+		}
+	}
+	if high <= 0 {
+		return 0
+	}
+	drawdown := clamp((high-latest)/high, 0, 1)
+	switch {
+	case drawdown <= 0.05:
+		return 0
+	case drawdown <= 0.25:
+		return (drawdown - 0.05) / 0.20
+	case drawdown <= 0.45:
+		return 1 - ((drawdown-0.25)/0.20)*0.50
+	case drawdown <= 0.65:
+		return 0.50 - ((drawdown-0.45)/0.20)*0.50
+	default:
+		return 0
+	}
 }
 
 func clamp(v, lo, hi float64) float64 {

@@ -141,7 +141,14 @@ func (a *app) strategyValidateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return writeJSON(a.out, map[string]any{"valid": mpal.ValidateStrategyConfig(cfg), "config_hash": hash})
+			return writeJSON(a.out, map[string]any{
+				"valid":                 mpal.ValidateStrategyConfig(cfg),
+				"api_compatibility":     mpal.ValidateHostedStrategyAPICompatibility(cfg),
+				"api_contract":          mpal.HostedStrategyAPIContract,
+				"scoring_contract":      mpal.StrategyScoringContract(cfg),
+				"config_hash":           hash,
+				"config_hash_algorithm": mpal.StrategyConfigHashAlgorithm,
+			})
 		},
 	}
 	cmd.Flags().StringVar(&configPath, "config", "", "strategy config path")
@@ -170,11 +177,15 @@ func (a *app) strategyRunCommand(ctx context.Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := mpal.EnsureHostedStrategyAPICompatible(cfg); err != nil {
+				return err
+			}
+			wireConfig := mpal.CanonicalStrategyConfig(cfg)
 			result, err := a.client.RunStrategy(ctx, &marketpalv1.MpalStrategyRunRequest{
 				Date:          timestamppb.New(asOf),
 				UniverseJson:  mustJSON(universe),
 				PortfolioJson: mustJSON(portfolio),
-				ConfigJson:    mustJSON(cfg),
+				ConfigJson:    mustJSON(wireConfig),
 				ConfigPath:    configPath,
 				ConfigHash:    hash,
 			})
@@ -304,11 +315,15 @@ func (a *app) backtestRunCommand(ctx context.Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := mpal.EnsureHostedStrategyAPICompatible(cfg); err != nil {
+				return err
+			}
+			wireConfig := mpal.CanonicalStrategyConfig(cfg)
 			result, err := a.client.RunBacktest(ctx, &marketpalv1.MpalBacktestRunRequest{
 				Start:          timestamppb.New(start),
 				End:            timestamppb.New(end),
 				UniverseJson:   mustJSON(universe),
-				ConfigJson:     mustJSON(cfg),
+				ConfigJson:     mustJSON(wireConfig),
 				ConfigPath:     configPath,
 				ConfigHash:     hash,
 				TrustedOnly:    trustedOnly,

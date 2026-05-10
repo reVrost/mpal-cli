@@ -257,6 +257,51 @@ func TestSignalScoreAppliesEventBoost(t *testing.T) {
 	assert.Contains(t, signal.Reasons, "event boost 0.05 from latest scored article")
 }
 
+func TestSignalScoreSupportsQualityValueReversionWeights(t *testing.T) {
+	t.Parallel()
+
+	asOf := time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC)
+	quality := 0.9
+	value := 0.8
+	cfg := testConfig()
+	cfg.Scoring = ScoringConfig{
+		MomentumWeight:  0,
+		ProfileWeight:   0,
+		QualityWeight:   0.4,
+		ValueWeight:     0.4,
+		ReversionWeight: 0.2,
+		MinBuyScore:     0.6,
+		MinHoldScore:    0.2,
+	}
+	engine := Engine{
+		Prices: fakePrices{bars: BarsResult{Bars: []Bar{
+			{Date: asOf.AddDate(0, 0, -120), Close: 100},
+			{Date: asOf.AddDate(0, 0, -60), Close: 75},
+			{Date: asOf, Close: 75},
+		}}},
+		Profiles: fakeProfiles{score: ProfileScore{
+			Ticker:       "AAPL",
+			AsOf:         asOf,
+			ProfileScore: 0.1,
+			QualityScore: &quality,
+			ValueScore:   &value,
+			ScoreSource:  "qvm_components",
+		}},
+	}
+
+	signal, err := engine.SignalScore(context.Background(), "AAPL", asOf, cfg)
+	require.NoError(t, err)
+	require.NotNil(t, signal.QualityScore)
+	require.NotNil(t, signal.ValueScore)
+	require.NotNil(t, signal.ReversionScore)
+	assert.Equal(t, 0.9, *signal.QualityScore)
+	assert.Equal(t, 0.8, *signal.ValueScore)
+	assert.Equal(t, 1.0, *signal.ReversionScore)
+	assert.Equal(t, 0.88, signal.FinalScore)
+	assert.Equal(t, SideBuy, signal.ActionHint)
+	assert.Contains(t, signal.Reasons[0], "quality")
+}
+
 func TestPlanPortfolioRejectsEventVetoStarter(t *testing.T) {
 	t.Parallel()
 
@@ -358,6 +403,35 @@ func TestPlanPortfolioProtectsMissingProfileHolding(t *testing.T) {
 			ProfileScore:  0,
 			FinalScore:    0,
 			Warnings:      []string{"profile unavailable: profile not found"},
+		}},
+		cfg,
+	)
+
+	require.Equal(t, ResultNoTrade, plan.Result)
+	assert.Empty(t, plan.ProposedTrades)
+	assert.Contains(t, plan.Warnings, "IVV.AX protected: no usable score")
+}
+
+func TestPlanPortfolioProtectsMissingComponentHolding(t *testing.T) {
+	t.Parallel()
+
+	cfg := testConfig()
+	cfg.Scoring = ScoringConfig{
+		MomentumWeight: 0,
+		ProfileWeight:  0,
+		QualityWeight:  0.5,
+		ValueWeight:    0.5,
+		MinBuyScore:    0.6,
+		MinHoldScore:   0.2,
+	}
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"IVV.AX"}},
+		Portfolio{Equity: 100000, Positions: []Position{{Ticker: "IVV.AX", MarketValue: 30000, Weight: 0.3}}},
+		[]SignalResult{{
+			Ticker:     "IVV.AX",
+			FinalScore: 0,
+			Warnings:   []string{"quality component unavailable: zero score used"},
 		}},
 		cfg,
 	)

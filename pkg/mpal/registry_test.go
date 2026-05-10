@@ -175,6 +175,140 @@ backtest:
 	require.Equal(t, BacktestConfig{InitialCash: 12345, FeeBps: 1, SlippageBps: 2}, cfg.Backtest)
 }
 
+func TestLoadStrategyBytesUsesCanonicalExpandedHash(t *testing.T) {
+	t.Parallel()
+
+	_, slimHash, err := LoadStrategyBytes([]byte(`
+id: canonical_strategy
+version: 1.0.0
+defaults: swing_v1
+approved: true
+scoring:
+  momentum_weight: 0.7
+  profile_weight: 0.3
+  min_buy_score: 0.6
+  min_hold_score: 0.2
+portfolio:
+  max_positions: 5
+  max_position_pct: 0.2
+  min_trade_value: 100
+  rebalance: weekly
+risk:
+  turnover_budget_pct: 0.3
+  max_single_trade_pct: 0.2
+  starter_position_pct: 0.02
+  max_new_positions_per_run: 2
+  cash_buffer_pct: 0.02
+`))
+	require.NoError(t, err)
+
+	_, expandedHash, err := LoadStrategyBytes([]byte(`
+id: canonical_strategy
+version: 1.0.0
+approved: true
+scoring:
+  momentum_weight: 0.7
+  profile_weight: 0.3
+  min_buy_score: 0.6
+  min_hold_score: 0.2
+event_guardrail:
+  enabled: true
+  lookback_days: 14
+  event_veto_score: -0.55
+  event_boost_score: 0.70
+  event_boost_amount: 0.03
+portfolio:
+  long_only: true
+  max_positions: 5
+  max_position_pct: 0.2
+  min_trade_value: 100
+  rebalance: weekly
+risk:
+  turnover_budget_pct: 0.3
+  max_single_trade_pct: 0.2
+  starter_position_pct: 0.02
+  max_new_positions_per_run: 2
+  cash_buffer_pct: 0.02
+  protect_unscored_holdings: true
+backtest:
+  initial_cash: 100000
+  fee_bps: 5
+  slippage_bps: 10
+`))
+	require.NoError(t, err)
+
+	require.Equal(t, slimHash, expandedHash)
+}
+
+func TestLoadStrategyBytesRejectsUnknownFields(t *testing.T) {
+	t.Parallel()
+
+	_, _, err := LoadStrategyBytes([]byte(`
+id: unknown_field_strategy
+version: 1.0.0
+approved: true
+not_a_real_field: true
+scoring:
+  momentum_weight: 0.7
+  profile_weight: 0.3
+  min_buy_score: 0.6
+  min_hold_score: 0.2
+portfolio:
+  max_positions: 5
+  max_position_pct: 0.2
+  min_trade_value: 100
+risk:
+  turnover_budget_pct: 0.3
+  max_single_trade_pct: 0.2
+  starter_position_pct: 0.02
+  max_new_positions_per_run: 2
+  cash_buffer_pct: 0.02
+`))
+	require.Error(t, err)
+}
+
+func TestHostedStrategyAPICompatibilityRejectsAdvancedScoring(t *testing.T) {
+	t.Parallel()
+
+	cfg, _, err := LoadStrategyBytes([]byte(`
+id: local_v2_strategy
+version: 1.0.0
+approved: true
+scoring:
+  momentum_weight: 0.15
+  profile_weight: 0.00
+  quality_weight: 0.35
+  value_weight: 0.35
+  reversion_weight: 0.15
+  min_buy_score: 0.62
+  min_hold_score: 0.30
+portfolio:
+  long_only: true
+  max_positions: 5
+  max_position_pct: 0.2
+  min_trade_value: 100
+risk:
+  turnover_budget_pct: 0.3
+  max_single_trade_pct: 0.2
+  starter_position_pct: 0.02
+  max_new_positions_per_run: 2
+  cash_buffer_pct: 0.02
+  protect_unscored_holdings: true
+backtest:
+  initial_cash: 100000
+  fee_bps: 5
+  slippage_bps: 10
+`))
+	require.NoError(t, err)
+
+	localValidation := ValidateStrategyConfig(cfg)
+	require.True(t, localValidation.Valid)
+	apiCompatibility := ValidateHostedStrategyAPICompatibility(cfg)
+	require.False(t, apiCompatibility.Valid)
+	require.Contains(t, apiCompatibility.Errors[0], HostedStrategyAPIContract)
+	require.Equal(t, ScoringContractV2, StrategyScoringContract(cfg))
+}
+
 func loadStrategySchema(t *testing.T) *jsonschema.Resolved {
 	t.Helper()
 

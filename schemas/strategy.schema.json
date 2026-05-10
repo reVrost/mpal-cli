@@ -55,13 +55,31 @@
           "type": "number",
           "minimum": 0,
           "maximum": 1,
-          "description": "Weight of momentum in the final signal score. Momentum plus profile weights must sum to 1."
+          "description": "Weight of momentum in the final signal score. All scoring weights must sum to 1."
         },
         "profile_weight": {
           "type": "number",
           "minimum": 0,
           "maximum": 1,
-          "description": "Weight of profile/QVM quality in the final signal score. Momentum plus profile weights must sum to 1."
+          "description": "Weight of aggregate profile/QVM score in the final signal score. All scoring weights must sum to 1."
+        },
+        "quality_weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Optional weight of the QVM quality component. Use this for quality-focused strategies instead of relying only on aggregate profile score."
+        },
+        "value_weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Optional weight of the QVM value component. Higher scores indicate more attractive valuation."
+        },
+        "reversion_weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Optional weight of the mean-reversion setup score. The v1 score favors a meaningful but not extreme drawdown from the one-year high."
         },
         "min_buy_score": {
           "type": "number",

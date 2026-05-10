@@ -18,6 +18,7 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
 
 2. Choose an approved strategy config.
    - Prefer `mpal strategy list --json` and `mpal strategy show --id <id> --json`.
+   - For API-backed runs, require `api_compatible: true`; if a locally valid config is not API-compatible, treat it as research-only until the hosted API contract is updated.
    - Never silently edit a strategy config.
    - If a config change is needed, create a new version outside the trading run.
 
@@ -56,12 +57,13 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
 
 ## Hybrid Trader / Quality-Swing Overlay
 
-Use this overlay when the chosen strategy is a MarketPal swing config, such as `portfolio_low_churn_swing_v1`, `engine_weekly_swing_v1`, or `engine_quality_swing_rebuild_v1`.
+Use this overlay when the chosen strategy is a MarketPal swing config, such as `portfolio_low_churn_swing_v1`, `engine_weekly_swing_v1`, `engine_quality_swing_rebuild_v1`, `engine_quality_value_reversion_v1`, or `portfolio_quality_value_reversion_v1`.
 
 - Treat momentum as the primary entry signal and profile-QVM as the holdability and survivability check.
 - For routine daily or weekly full-portfolio reviews, prefer `portfolio_low_churn_swing_v1` when available. It allows up to four new positions per run while keeping turnover, starter size, minimum trade value, and hold thresholds conservative.
 - For weekly policy engine-sleeve reviews, prefer `engine_weekly_swing_v1` when available. It is sized for the MarketPal return-engine sleeve and should be the default strategy for engine swing-trade proposals.
 - Treat `engine_quality_swing_rebuild_v1` as a manual engine-sleeve rebuild config only. Do not use it for daily reviews unless the user explicitly asks for a higher-churn transition or cleanup plan.
+- Use `engine_quality_value_reversion_v1` or `portfolio_quality_value_reversion_v1` only when the user explicitly asks for quality/value mean reversion, underpriced quality, or pullback buying. These configs are deliberately less momentum-led and should not replace the default weekly swing run.
 - Remember that `max_new_positions_per_run` caps new buy positions only; sells, trims, reductions, and exits can make total trade tickets higher. If a daily low-churn baseline produces more than four total proposed trades, explicitly flag churn risk and prefer an agent veto or a smaller validated override unless the user asked for a transition rebalance.
 - After every baseline run, use `ticker events --days 14` to classify proposed buys and alternates before the final decision:
   - `CORE_SWING`: strong signal, profile-QVM support, no event veto, and supportive or neutral source context.
