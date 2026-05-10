@@ -10,6 +10,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	marketpalv1 "github.com/revrost/mpal-cli/gen/marketpal/v1"
 	"github.com/revrost/mpal-cli/internal/client"
+	"github.com/revrost/mpal-cli/internal/localmarkov"
 	mpal "github.com/revrost/mpal-cli/pkg/mpal"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -150,17 +151,32 @@ func registerTools(server *mcp.Server, cfg Config) {
 		out, err := decodePayload(payload)
 		return nil, out, err
 	})
-	mcp.AddTool(server, readOnlyTool("mpal_ticker_profile", "Fetch MarketPal profile/fundamental scoring for a ticker and date."), func(ctx context.Context, req *mcp.CallToolRequest, in tickerProfileInput) (*mcp.CallToolResult, any, error) {
+	mcp.AddTool(server, readOnlyTool("mpal_ticker_profile", "Fetch MarketPal profile/fundamental scoring for one or more tickers and a date."), func(ctx context.Context, req *mcp.CallToolRequest, in tickerProfileInput) (*mcp.CallToolResult, any, error) {
 		asOf, err := mpal.ParseDate(in.Date)
 		if err != nil {
 			return nil, nil, err
 		}
-		payload, err := cfg.Client.GetTickerProfile(ctx, &marketpalv1.MpalTickerProfileRequest{Ticker: in.Ticker, Date: timestamppb.New(asOf)})
+		tickers := mpal.NormalizeTickers(append([]string{in.Ticker}, in.Tickers...))
+		if len(tickers) == 0 {
+			return nil, nil, fmt.Errorf("expected ticker or tickers")
+		}
+		payload, err := cfg.Client.GetTickerProfile(ctx, &marketpalv1.MpalTickerProfileRequest{Ticker: tickers[0], Tickers: tickers, Date: timestamppb.New(asOf)})
 		if err != nil {
 			return nil, nil, err
 		}
 		out, err := decodePayload(payload)
 		return nil, out, err
+	})
+	mcp.AddTool(server, readOnlyTool("mpal_ticker_markov", "Compute local Markov transition reads for tickers using hosted MarketPal price bars. This is evidence metadata only and does not change strategy output."), func(ctx context.Context, req *mcp.CallToolRequest, in tickerMarkovInput) (*mcp.CallToolResult, any, error) {
+		asOf, err := mpal.ParseDate(in.Date)
+		if err != nil {
+			return nil, nil, err
+		}
+		result, err := localmarkov.Run(ctx, cfg.Client, in.Tickers, asOf, in.Rebalance, in.LookbackDays)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, object(result), nil
 	})
 	mcp.AddTool(server, readOnlyTool("mpal_ticker_events", "Fetch source-backed ticker events for explicit tickers, a strategy run, or a tracked portfolio/watchlist scope."), func(ctx context.Context, req *mcp.CallToolRequest, in tickerEventsInput) (*mcp.CallToolResult, any, error) {
 		message, err := tickerEventsRequest(in)

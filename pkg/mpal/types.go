@@ -237,12 +237,49 @@ type SignalResult struct {
 	ReversionScore       *float64    `json:"reversion_score,omitempty"`
 	EventScore           *float64    `json:"event_score,omitempty"`
 	EventScoreConfidence *float64    `json:"event_score_confidence,omitempty"`
+	Markov               *MarkovRead `json:"markov,omitempty"`
 	FinalScore           float64     `json:"final_score"`
 	ActionHint           string      `json:"action_hint"`
 	EventVeto            bool        `json:"event_veto,omitempty"`
 	Reasons              []string    `json:"reasons,omitempty"`
 	Warnings             []string    `json:"warnings,omitempty"`
 	Freshness            []Freshness `json:"freshness,omitempty"`
+}
+
+type MarkovRead struct {
+	Model                   string             `json:"model"`
+	Horizon                 string             `json:"horizon"`
+	HorizonBars             int                `json:"horizon_bars"`
+	CurrentState            string             `json:"current_state"`
+	CurrentReturn           float64            `json:"current_return"`
+	TransitionProbabilities map[string]float64 `json:"transition_probabilities"`
+	FavorableProbability    float64            `json:"favorable_probability"`
+	UnfavorableProbability  float64            `json:"unfavorable_probability"`
+	ExpectedStateScore      float64            `json:"expected_state_score"`
+	SampleCount             int                `json:"sample_count"`
+	TotalTransitionCount    int                `json:"total_transition_count"`
+	Confidence              float64            `json:"confidence"`
+	Warnings                []string           `json:"warnings,omitempty"`
+}
+
+type TickerMarkovResult struct {
+	RunID        string             `json:"run_id"`
+	Mode         string             `json:"mode"`
+	AsOf         time.Time          `json:"as_of"`
+	Rebalance    string             `json:"rebalance"`
+	Horizon      string             `json:"horizon"`
+	HorizonBars  int                `json:"horizon_bars"`
+	LookbackDays int                `json:"lookback_days"`
+	Results      []TickerMarkovItem `json:"results"`
+	Warnings     []string           `json:"warnings,omitempty"`
+}
+
+type TickerMarkovItem struct {
+	Ticker    string      `json:"ticker"`
+	BarCount  int         `json:"bar_count"`
+	Markov    *MarkovRead `json:"markov,omitempty"`
+	Freshness *Freshness  `json:"freshness,omitempty"`
+	Warnings  []string    `json:"warnings,omitempty"`
 }
 
 type TargetPosition struct {

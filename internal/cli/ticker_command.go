@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	marketpalv1 "github.com/revrost/mpal-cli/gen/marketpal/v1"
+	"github.com/revrost/mpal-cli/internal/localmarkov"
 	mpal "github.com/revrost/mpal-cli/pkg/mpal"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -17,6 +18,11 @@ func (a *app) tickerCommand(ctx context.Context) *cobra.Command {
 		a.tickerEventsCommand(ctx),
 		a.tickerBarsCommand(ctx),
 		a.tickerProfileCommand(ctx),
+		a.tickerFinancialsCommand(ctx),
+		a.tickerDataCommand(ctx, "fundamentals", 0, 0, a.client.GetTickerFundamentals),
+		a.tickerDataCommand(ctx, "insiders", 365, 100, a.client.GetTickerInsiders),
+		a.tickerDataCommand(ctx, "ownership", 365, 100, a.client.GetTickerOwnership),
+		a.tickerMarkovCommand(ctx),
 	)
 	return cmd
 }
@@ -103,17 +109,27 @@ func (a *app) tickerBarsCommand(ctx context.Context) *cobra.Command {
 }
 
 func (a *app) tickerProfileCommand(ctx context.Context) *cobra.Command {
-	var ticker, dateArg string
+	var ticker, tickersArg, dateArg string
 	cmd := &cobra.Command{
-		Use: "profile",
+		Use:   "profile",
+		Short: "Fetch profile/fundamental scoring for one or more tickers",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			asOf, err := mpal.ParseDate(dateArg)
 			if err != nil {
 				return err
 			}
+			tickers := parseTickerCSV(tickersArg)
+			if strings.TrimSpace(ticker) != "" {
+				tickers = append(tickers, ticker)
+			}
+			tickers = mpal.NormalizeTickers(tickers)
+			if len(tickers) == 0 {
+				return fmt.Errorf("expected --ticker or --tickers")
+			}
 			payload, err := a.client.GetTickerProfile(ctx, &marketpalv1.MpalTickerProfileRequest{
-				Ticker: ticker,
-				Date:   timestamppb.New(asOf),
+				Ticker:  tickers[0],
+				Tickers: tickers,
+				Date:    timestamppb.New(asOf),
 			})
 			if err != nil {
 				return err
@@ -121,8 +137,101 @@ func (a *app) tickerProfileCommand(ctx context.Context) *cobra.Command {
 			return writePayload(a.out, payload)
 		},
 	}
-	cmd.Flags().StringVar(&ticker, "ticker", "", "ticker")
-	cmd.Flags().StringVar(&dateArg, "date", "", "date")
+	cmd.Flags().StringVar(&ticker, "ticker", "", "single ticker")
+	cmd.Flags().StringVar(&tickersArg, "tickers", "", "comma-separated tickers for one batched profile request")
+	cmd.Flags().StringVar(&dateArg, "date", "", "as-of date")
+	addJSONFlag(cmd)
+	return cmd
+}
+
+func (a *app) tickerFinancialsCommand(ctx context.Context) *cobra.Command {
+	var tickersArg string
+	var years int
+	var includeTTM bool
+	cmd := &cobra.Command{
+		Use: "financials",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			tickers := parseTickerCSV(tickersArg)
+			if len(tickers) == 0 {
+				return fmt.Errorf("expected --tickers")
+			}
+			payload, err := a.client.GetTickerFinancials(ctx, &marketpalv1.MpalTickerFinancialsRequest{
+				Tickers:    tickers,
+				Years:      int32(years),
+				IncludeTtm: includeTTM,
+			})
+			if err != nil {
+				return err
+			}
+			return writePayload(a.out, payload)
+		},
+	}
+	cmd.Flags().StringVar(&tickersArg, "tickers", "", "comma-separated Yahoo tickers")
+	cmd.Flags().IntVar(&years, "years", 6, "annual years per ticker")
+	cmd.Flags().BoolVar(&includeTTM, "include-ttm", true, "include trailing twelve month row when available")
+	addJSONFlag(cmd)
+	return cmd
+}
+
+func (a *app) tickerDataCommand(
+	ctx context.Context,
+	use string,
+	defaultDays int,
+	defaultLimit int,
+	call func(context.Context, *marketpalv1.MpalTickerDataRequest) (string, error),
+) *cobra.Command {
+	var tickersArg string
+	var days, limit int
+	cmd := &cobra.Command{
+		Use: use,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			tickers := parseTickerCSV(tickersArg)
+			if len(tickers) == 0 {
+				return fmt.Errorf("expected --tickers")
+			}
+			payload, err := call(ctx, &marketpalv1.MpalTickerDataRequest{
+				Tickers: tickers,
+				Days:    int32(days),
+				Limit:   int32(limit),
+			})
+			if err != nil {
+				return err
+			}
+			return writePayload(a.out, payload)
+		},
+	}
+	cmd.Flags().StringVar(&tickersArg, "tickers", "", "comma-separated Yahoo tickers")
+	if defaultDays > 0 {
+		cmd.Flags().IntVar(&days, "days", defaultDays, "lookback days")
+	}
+	if defaultLimit > 0 {
+		cmd.Flags().IntVar(&limit, "limit", defaultLimit, "maximum rows")
+	}
+	addJSONFlag(cmd)
+	return cmd
+}
+
+func (a *app) tickerMarkovCommand(ctx context.Context) *cobra.Command {
+	var tickersArg, dateArg, rebalance string
+	var lookbackDays int
+	cmd := &cobra.Command{
+		Use: "markov",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			asOf, err := mpal.ParseDate(dateArg)
+			if err != nil {
+				return err
+			}
+			result, err := localmarkov.Run(ctx, a.client, parseTickerCSV(tickersArg), asOf, rebalance, lookbackDays)
+			if err != nil {
+				return err
+			}
+			return writeJSON(a.out, result)
+		},
+	}
+	cmd.Flags().StringVar(&tickersArg, "tickers", "", "comma-separated tickers")
+	cmd.Flags().StringVar(&dateArg, "date", "", "as-of date")
+	cmd.Flags().StringVar(&rebalance, "rebalance", "weekly", "rebalance cadence for Markov horizon: daily, weekly, or monthly")
+	cmd.Flags().IntVar(&lookbackDays, "lookback-days", localmarkov.DefaultLookbackDays, "historical calendar days to fetch for Markov estimation")
 	addJSONFlag(cmd)
 	return cmd
 }

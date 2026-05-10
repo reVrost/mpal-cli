@@ -192,7 +192,9 @@ func backtestSignalForTicker(
 	profileScore := 0.0
 	qualityScore := 0.0
 	valueScore := 0.0
-	reversionScore := meanReversionScore(backtestBarsToCoreBars(bars))
+	coreBars := backtestBarsToCoreBars(bars)
+	reversionScore := meanReversionScore(coreBars)
+	markov := markovRead(coreBars, cfg)
 	reasons := []string{scoringReason(cfg.Scoring)}
 	profile := ProfileScore{ProfileScore: profileScore}
 	if usesProfileFactors(cfg) {
@@ -230,7 +232,7 @@ func backtestSignalForTicker(
 			finalScore, reasons = applyEventGuardrail(finalScore, eventScore, cfg, reasons)
 		}
 	}
-	return signalResult(ticker, asOf, momentum, profile, reversionScore, finalScore, cfg, reasons, nil, nil, eventScore), true, nil
+	return signalResult(ticker, asOf, momentum, profile, reversionScore, markov, finalScore, cfg, reasons, nil, nil, eventScore), true, nil
 }
 
 func applyPendingBacktestFill(

@@ -78,6 +78,7 @@ func (e Engine) SignalScore(
 	quality := profileComponentScore(profile.QualityScore)
 	value := profileComponentScore(profile.ValueScore)
 	reversion := meanReversionScore(bars.Bars)
+	markov := markovRead(bars.Bars, cfg)
 	finalScore := weightedSignalScore(cfg.Scoring, momentum, profile.ProfileScore, quality, value, reversion)
 	reasons := []string{scoringReason(cfg.Scoring)}
 	warnings = append(warnings, missingComponentWarnings(cfg.Scoring, profile)...)
@@ -92,7 +93,7 @@ func (e Engine) SignalScore(
 		}
 	}
 
-	return signalResult(ticker, asOf, momentum, profile, reversion, finalScore, cfg, reasons, warnings, bars.Freshness, eventScore), nil
+	return signalResult(ticker, asOf, momentum, profile, reversion, markov, finalScore, cfg, reasons, warnings, bars.Freshness, eventScore), nil
 }
 
 func (e Engine) eventScoreForSignal(ctx context.Context, ticker string, asOf time.Time, cfg StrategyConfig) (*EventScore, []string) {
@@ -132,6 +133,7 @@ func signalResult(
 	momentum float64,
 	profile ProfileScore,
 	reversion float64,
+	markov *MarkovRead,
 	finalScore float64,
 	cfg StrategyConfig,
 	reasons []string,
@@ -200,6 +202,7 @@ func signalResult(
 		ReversionScore:       reversionScore,
 		EventScore:           score,
 		EventScoreConfidence: confidence,
+		Markov:               markov,
 		FinalScore:           round(finalScore, 6),
 		ActionHint:           actionHint,
 		EventVeto:            eventVeto,

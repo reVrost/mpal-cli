@@ -127,8 +127,18 @@ Read MarketPal data:
 ```sh
 mpal portfolio snapshot --json
 mpal watchlist get --json
+mpal ticker profile --tickers AAPL,MSFT,NVDA --date 2026-05-10 --json
 mpal ticker events --tickers AAPL,MSFT,NVDA --days 14 --json
+mpal ticker financials --tickers AAPL,MSFT,NVDA --years 6 --include-ttm --json
+mpal ticker fundamentals --tickers AAPL,MSFT,NVDA --json
+mpal ticker insiders --tickers AAPL,MSFT,NVDA --days 365 --limit 100 --json
+mpal ticker ownership --tickers AAPL,MSFT,NVDA --days 365 --limit 100 --json
+mpal ticker markov --tickers AAPL,MSFT,NVDA --date 2026-05-10 --rebalance weekly --json
 ```
+
+`mpal ticker events` is the curated feed for recent source-backed context. It includes price/volume events, filings, ASX announcements, press releases, insider activity, institutional activity, and enriched article/announcement summaries when available.
+
+`mpal ticker fundamentals` is a compact profile-backed DD packet. It includes valuation fields (`price`, `market_cap`, `enterprise_value`, `pe`, `forward_pe`, `pb`, `ps`, `ev_to_ebit`, `ev_to_fcf`, `fcf_yield`, DCF and target-price payloads), estimate fields (`forward_eps`, `trailing_eps`, `eps_growth`, projections, growth pattern, earnings date), and credit fields (`debt_to_equity`, `solvency_ratio`, Altman Z-score, latest debt/cash/working-capital fields from stored financials).
 
 Run a strategy review packet:
 
@@ -215,6 +225,9 @@ There is no MCP tool for live order placement.
 `mpal strategy run` is the source of truth for model output: signals, target
 weights, proposed model actions, warnings, freshness metadata, strategy ID,
 strategy version, config hash, validation result, and journal entry ID.
+Signals may include optional `markov` metadata with trend-state transition
+probabilities over the strategy rebalance horizon. This metadata is explanatory
+only and does not change scoring, planning, or validation.
 
 Agents may summarize review packets or construct bounded alternative packets,
 but must:

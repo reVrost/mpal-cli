@@ -53,6 +53,14 @@ The v1 reversion score favors a measured pullback from the one-year high. It
 does not reward a stock sitting at highs, and it also fades very deep drawdowns
 that may indicate a broken setup rather than a normal mean-reversion candidate.
 
+Strategy runs may also include optional `signals[].markov` metadata. This is a
+metadata-only transition read from recent price bars: it classifies the current
+trend bucket, estimates next-state probabilities over the strategy's
+`portfolio.rebalance` horizon, and reports confidence and sample warnings. It
+does not change `final_score`, candidate ordering, proposed trades, or
+validation. If the hosted strategy-run API omits this field, use
+`mpal ticker markov` as a separate local evidence packet.
+
 The hosted MarketPal API currently uses the `hosted_strategy_api_v1` execution
 contract, which supports `momentum_weight` and `profile_weight`. Configs with
 non-zero `quality_weight`, `value_weight`, or `reversion_weight` are valid local

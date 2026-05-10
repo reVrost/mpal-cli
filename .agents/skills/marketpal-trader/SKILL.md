@@ -38,16 +38,27 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
    - Use the returned proposed buys/sells/trims, alternate candidates, ticker research, source-backed updates, cached article insights, missing insight sources, warnings, and freshness metadata as the evidence layer.
    - Extract up to five alternate buy candidates from `ticker events` alternates first, then from deterministic `signals` if the context pack has fewer than five. Exclude tickers already in proposed buy trades unless the user specifically asks for substitutes.
    - Always show those alternate buy candidates to the user with ticker, rank, score, action hint, event context, and why they were not in the executable baseline. Label them as non-executable candidates until a replacement or override plan validates.
+   - When `signals[].markov` is present, use it as a probabilistic transition read only: current trend state, favorable/unfavorable next-state probability, confidence, and warnings. Do not let Markov metadata authorize, replace, or resize a trade by itself.
+   - If hosted `strategy run` output omits `signals[].markov`, call `mpal ticker markov --tickers <proposed-and-alternate-tickers> --date <run-date> --rebalance <strategy-portfolio-rebalance> --json` or MCP `mpal_ticker_markov` for the same local evidence layer. Keep it separate from baseline execution truth.
    - The context pack can support an approve, veto, resize, or replacement recommendation, but it does not itself authorize a trade.
    - Do not replace a proposed trade with a news-driven alternative unless the replacement appears in the context pack or the deterministic `mpal` signal output, and the final plan validates.
 
-5. Explain the baseline before giving the decision.
+5. Run the risk/reward override gate.
+   - Before approving a valid baseline, compare each proposed buy with the top alternate buy candidates from `ticker events`.
+   - Do not treat thin or missing source-backed updates as a standalone reason to reject or replace a proposed starter. For a momentum-led swing strategy, unexplained price/volume strength can still be a valid starter signal when deterministic score, profile-QVM, sizing, and validation are strong.
+   - Treat a proposed starter as replacement-eligible only when it has stale or missing critical data, mixed/adverse event context, materially weaker profile-QVM support, an event veto, a validation/risk issue, or a severe concentration/sleeve concern.
+   - Treat an alternate as a better risk/reward candidate only when it appears in `ticker events.alternates` or deterministic `signals`, has no event veto, and either has equal-or-better deterministic score/profile support or is within 0.03 `final_score` of a replacement-eligible proposed starter. Do not use news context alone to replace a higher-scoring validated baseline starter.
+   - Prefer one bounded replacement at a time: swap the weakest replacement-eligible proposed starter for the strongest qualifying alternate, preserve the baseline sizing, turnover, cash buffer, and max-new-position count, then validate the concrete override plan with `mpal portfolio validate`.
+   - If the override validates, present it as `agent_override` for user review and journal it. If it fails validation, keep the baseline or veto based on the validation errors and event risk.
+   - If no qualifying replacement exists, explicitly say why the baseline remains the best validated plan.
+
+6. Explain the baseline before giving the decision.
    - Start with a compact baseline brief: strategy, date, portfolio source, universe, model result, execution result, proposed trades, selected signal scores, rejected tickers, and the scoring rule/threshold.
-   - Include an "alternate buy candidates" prompt with up to five candidates and one concise question asking whether the user wants any of them evaluated as a validated override.
+   - Include an "alternate buy candidates" section with up to five candidates. If the risk/reward gate already found and validated a superior bounded override, state the override directly instead of asking a follow-up question.
    - Include warnings, freshness/staleness notes, strategy id/version/config hash, and journal entry id.
    - Do not add trades that are absent from `mpal` output.
 
-6. For final action, vetoes, or overrides.
+7. For final action, vetoes, or overrides.
    - Label the action as an agent veto or override.
    - Give an investor-readable rationale, not just a terse error string.
    - Validate any override or final executable plan with `mpal portfolio validate --plan <path-or-json> --portfolio <path> --universe <path> --config <path> --json`.
@@ -60,6 +71,7 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
 Use this overlay when the chosen strategy is a MarketPal swing config, such as `portfolio_low_churn_swing_v1`, `engine_weekly_swing_v1`, `engine_quality_swing_rebuild_v1`, `engine_quality_value_reversion_v1`, or `portfolio_quality_value_reversion_v1`.
 
 - Treat momentum as the primary entry signal and profile-QVM as the holdability and survivability check.
+- Treat Markov transition metadata as explanatory only. A strong favorable transition probability can support confidence in an already validated candidate; a weak or low-confidence read can justify caution or a follow-up watchlist note, but not an unvalidated replacement.
 - For routine daily or weekly full-portfolio reviews, prefer `portfolio_low_churn_swing_v1` when available. It allows up to four new positions per run while keeping turnover, starter size, minimum trade value, and hold thresholds conservative.
 - For weekly policy engine-sleeve reviews, prefer `engine_weekly_swing_v1` when available. It is sized for the MarketPal return-engine sleeve and should be the default strategy for engine swing-trade proposals.
 - Treat `engine_quality_swing_rebuild_v1` as a manual engine-sleeve rebuild config only. Do not use it for daily reviews unless the user explicitly asks for a higher-churn transition or cleanup plan.
@@ -67,8 +79,9 @@ Use this overlay when the chosen strategy is a MarketPal swing config, such as `
 - Remember that `max_new_positions_per_run` caps new buy positions only; sells, trims, reductions, and exits can make total trade tickets higher. If a daily low-churn baseline produces more than four total proposed trades, explicitly flag churn risk and prefer an agent veto or a smaller validated override unless the user asked for a transition rebalance.
 - After every baseline run, use `ticker events --days 14` to classify proposed buys and alternates before the final decision:
   - `CORE_SWING`: strong signal, profile-QVM support, no event veto, and supportive or neutral source context.
-  - `TACTICAL_ONLY`: strong momentum with weaker profile-QVM, thin source context, or mixed event context; keep starter sizing and avoid top-up overrides.
+  - `TACTICAL_ONLY`: strong momentum with weaker profile-QVM, thin source context, or mixed event context; keep starter sizing and avoid top-up overrides, but do not treat thin source context alone as a veto.
   - `VETO_REVIEW`: stale data, event veto, missing critical source context, or severe adverse update; prefer veto, resize, or replacement only if the replacement validates.
+- For a weekly cash-deployment review, do not replace a higher-scoring validated `TACTICAL_ONLY` starter with a lower-scoring `CORE_SWING` alternate solely because the alternate has better source-backed news. Present the alternate as optional unless the proposed starter is replacement-eligible under the risk/reward override gate.
 - If a trade moves against the plan but the ticker remains above `min_hold_score`, profile-QVM remains supportive, and no event veto appears, prefer `HOLD` over an immediate forced exit.
 - If a user has a gut-favored ticker, only propose a bounded override when that ticker appears in deterministic `signals` or `ticker events` alternates, and only after `mpal portfolio validate` passes.
 - In the final rationale, explicitly separate model rank, profile-QVM holdability, event context, sizing/turnover constraints, and whether the action is baseline approval, agent veto, or agent override.
@@ -103,7 +116,7 @@ For alternate buy candidates:
 
 - Show exactly five when available; otherwise state how many were available.
 - Prefer `ticker events.alternates` ordering, then top buy-like `signals` by `final_score`.
-- Include ticker, score, rank, `action_hint`, event read, source gaps, and the baseline rejection reason such as insufficient funding, min trade value, or buy threshold.
+- Include ticker, score, rank, `action_hint`, Markov transition read when available, event read, source gaps, and the baseline rejection reason such as insufficient funding, min trade value, or buy threshold.
 - Ask one direct preference question after the list, e.g. "Which, if any, should I validate as an override candidate?"
 - Do not imply these are approved trades unless `mpal portfolio validate` passes on a concrete override plan.
 

@@ -32,6 +32,19 @@ message MpalTickerBarsRequest {
 message MpalTickerProfileRequest {
   string ticker = 1;
   google.protobuf.Timestamp date = 2;
+  repeated string tickers = 3;
+}
+
+message MpalTickerFinancialsRequest {
+  repeated string tickers = 1;
+  int32 years = 2;
+  bool include_ttm = 3;
+}
+
+message MpalTickerDataRequest {
+  repeated string tickers = 1;
+  int32 days = 2;
+  int32 limit = 3;
 }
 
 message MpalPortfolioSnapshotRequest {}
@@ -64,6 +77,10 @@ service MpalService {
   rpc GetTickerEvents(MpalTickerEventsRequest) returns (MpalJSONResponse);
   rpc GetTickerBars(MpalTickerBarsRequest) returns (MpalJSONResponse);
   rpc GetTickerProfile(MpalTickerProfileRequest) returns (MpalJSONResponse);
+  rpc GetTickerFinancials(MpalTickerFinancialsRequest) returns (MpalJSONResponse);
+  rpc GetTickerFundamentals(MpalTickerDataRequest) returns (MpalJSONResponse);
+  rpc GetTickerInsiders(MpalTickerDataRequest) returns (MpalJSONResponse);
+  rpc GetTickerOwnership(MpalTickerDataRequest) returns (MpalJSONResponse);
   rpc GetPortfolioSnapshot(MpalPortfolioSnapshotRequest) returns (MpalJSONResponse);
   rpc GetWatchlist(MpalWatchlistRequest) returns (MpalJSONResponse);
   rpc RunStrategy(MpalStrategyRunRequest) returns (MpalJSONResponse);

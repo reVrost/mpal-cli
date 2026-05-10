@@ -28,8 +28,16 @@ type tickerBarsInput struct {
 }
 
 type tickerProfileInput struct {
-	Ticker string `json:"ticker" jsonschema:"Ticker symbol."`
-	Date   string `json:"date" jsonschema:"As-of date in YYYY-MM-DD format."`
+	Ticker  string   `json:"ticker,omitempty" jsonschema:"Single ticker symbol."`
+	Tickers []string `json:"tickers,omitempty" jsonschema:"Ticker symbols for one batched profile request."`
+	Date    string   `json:"date" jsonschema:"As-of date in YYYY-MM-DD format."`
+}
+
+type tickerMarkovInput struct {
+	Tickers      []string `json:"tickers" jsonschema:"Ticker symbols to compute local Markov reads for."`
+	Date         string   `json:"date" jsonschema:"As-of date in YYYY-MM-DD format."`
+	Rebalance    string   `json:"rebalance,omitempty" jsonschema:"Rebalance cadence for Markov horizon: daily, weekly, or monthly. Defaults to weekly."`
+	LookbackDays int      `json:"lookback_days,omitempty" jsonschema:"Historical calendar days to fetch for Markov estimation. Defaults to 365."`
 }
 
 type tickerEventsInput struct {

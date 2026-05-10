@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -300,6 +301,107 @@ func TestSignalScoreSupportsQualityValueReversionWeights(t *testing.T) {
 	assert.Equal(t, 0.88, signal.FinalScore)
 	assert.Equal(t, SideBuy, signal.ActionHint)
 	assert.Contains(t, signal.Reasons[0], "quality")
+}
+
+func TestMarkovHorizonFollowsRebalanceCadence(t *testing.T) {
+	t.Parallel()
+
+	horizon, bars := markovHorizon("daily")
+	assert.Equal(t, "daily", horizon)
+	assert.Equal(t, 1, bars)
+
+	horizon, bars = markovHorizon("weekly")
+	assert.Equal(t, "weekly", horizon)
+	assert.Equal(t, 5, bars)
+
+	horizon, bars = markovHorizon("monthly")
+	assert.Equal(t, "monthly", horizon)
+	assert.Equal(t, 21, bars)
+
+	horizon, bars = markovHorizon("monthly_or_quarterly_manual")
+	assert.Equal(t, "weekly", horizon)
+	assert.Equal(t, 5, bars)
+}
+
+func TestMarkovReadProbabilitiesAndWarnings(t *testing.T) {
+	t.Parallel()
+
+	asOf := time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC)
+	read := markovRead(markovTestBars(asOf, 45), testConfig())
+	require.NotNil(t, read)
+
+	total := 0.0
+	for _, probability := range read.TransitionProbabilities {
+		total += probability
+	}
+	assert.InDelta(t, 1.0, total, 0.00001)
+	assert.Equal(t, markovModelTrendBucketV1, read.Model)
+	assert.Equal(t, "weekly", read.Horizon)
+	assert.Equal(t, 5, read.HorizonBars)
+	assert.NotEmpty(t, read.CurrentState)
+	assert.LessOrEqual(t, read.FavorableProbability, 1.0)
+	assert.LessOrEqual(t, read.UnfavorableProbability, 1.0)
+	assert.NotEmpty(t, read.Warnings)
+}
+
+func TestSignalScoreIncludesMarkovMetadata(t *testing.T) {
+	t.Parallel()
+
+	asOf := time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC)
+	cfg := testConfig()
+	cfg.Portfolio.Rebalance = "monthly"
+	engine := Engine{
+		Prices: fakePrices{bars: BarsResult{Bars: markovTestBars(asOf, 140)}},
+		Profiles: fakeProfiles{score: ProfileScore{
+			Ticker:       "AAPL",
+			AsOf:         asOf,
+			ProfileScore: 0.8,
+			ScoreSource:  "qvm_score",
+		}},
+	}
+
+	signal, err := engine.SignalScore(context.Background(), "AAPL", asOf, cfg)
+	require.NoError(t, err)
+	require.NotNil(t, signal.Markov)
+	assert.Equal(t, "monthly", signal.Markov.Horizon)
+	assert.Equal(t, 21, signal.Markov.HorizonBars)
+	assert.Equal(t, markovModelTrendBucketV1, signal.Markov.Model)
+}
+
+func TestPlanPortfolioIgnoresMarkovWhenOrderingStarters(t *testing.T) {
+	t.Parallel()
+
+	cfg := testConfig()
+	cfg.Portfolio.MaxPositions = 5
+	cfg.Risk.MaxNewPositionsPerRun = 1
+	signals := []SignalResult{
+		{
+			Ticker:     "LOW",
+			FinalScore: 0.8,
+			Markov: &MarkovRead{
+				FavorableProbability: 0.95,
+			},
+		},
+		{
+			Ticker:     "HIGH",
+			FinalScore: 0.9,
+			Markov: &MarkovRead{
+				FavorableProbability: 0.05,
+			},
+		},
+	}
+
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"HIGH", "LOW"}},
+		Portfolio{Equity: 100000, Cash: 100000},
+		signals,
+		cfg,
+	)
+
+	require.Len(t, plan.ProposedTrades, 1)
+	assert.Equal(t, "HIGH", plan.ProposedTrades[0].Ticker)
+	assert.Contains(t, plan.Rejected, RejectedTicker{Ticker: "LOW", Reason: "max_new_positions_per_run reached"})
 }
 
 func TestPlanPortfolioRejectsEventVetoStarter(t *testing.T) {
@@ -705,4 +807,48 @@ func TestJournalAppendListGet(t *testing.T) {
 	got, err := journal.Get(context.Background(), "jrnl_test")
 	require.NoError(t, err)
 	assert.Equal(t, JournalTypeAgentOverride, got.Type)
+}
+
+func TestJournalListHandlesLargeEntries(t *testing.T) {
+	t.Parallel()
+
+	journal := FileJournal{Path: t.TempDir() + "/journal.jsonl"}
+	largeValue := strings.Repeat("x", 128*1024)
+	_, err := journal.Append(context.Background(), JournalEntry{
+		ID:        "jrnl_large",
+		Type:      JournalTypeBaselinePlan,
+		CreatedAt: time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Output:    map[string]any{"large": largeValue},
+	})
+	require.NoError(t, err)
+
+	entries, err := journal.List(context.Background(), 10)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+
+	got, err := journal.Get(context.Background(), "jrnl_large")
+	require.NoError(t, err)
+	output, ok := got.Output.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, largeValue, output["large"])
+}
+
+func markovTestBars(asOf time.Time, count int) []Bar {
+	start := asOf.AddDate(0, 0, -count+1)
+	bars := make([]Bar, 0, count)
+	price := 100.0
+	for i := 0; i < count; i++ {
+		if i%11 == 0 {
+			price *= 0.985
+		} else if i%7 == 0 {
+			price *= 1.012
+		} else {
+			price *= 1.003
+		}
+		bars = append(bars, Bar{
+			Date:  start.AddDate(0, 0, i),
+			Close: price,
+		})
+	}
+	return bars
 }

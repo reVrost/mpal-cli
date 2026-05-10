@@ -23,6 +23,10 @@ type API interface {
 	GetTickerEvents(ctx context.Context, msg *marketpalv1.MpalTickerEventsRequest) (string, error)
 	GetTickerBars(ctx context.Context, msg *marketpalv1.MpalTickerBarsRequest) (string, error)
 	GetTickerProfile(ctx context.Context, msg *marketpalv1.MpalTickerProfileRequest) (string, error)
+	GetTickerFinancials(ctx context.Context, msg *marketpalv1.MpalTickerFinancialsRequest) (string, error)
+	GetTickerFundamentals(ctx context.Context, msg *marketpalv1.MpalTickerDataRequest) (string, error)
+	GetTickerInsiders(ctx context.Context, msg *marketpalv1.MpalTickerDataRequest) (string, error)
+	GetTickerOwnership(ctx context.Context, msg *marketpalv1.MpalTickerDataRequest) (string, error)
 	GetPortfolioSnapshot(ctx context.Context, msg *marketpalv1.MpalPortfolioSnapshotRequest) (string, error)
 	GetWatchlist(ctx context.Context, msg *marketpalv1.MpalWatchlistRequest) (string, error)
 	RunStrategy(ctx context.Context, msg *marketpalv1.MpalStrategyRunRequest) (string, error)
@@ -55,6 +59,26 @@ func (c *Client) GetTickerBars(ctx context.Context, msg *marketpalv1.MpalTickerB
 
 func (c *Client) GetTickerProfile(ctx context.Context, msg *marketpalv1.MpalTickerProfileRequest) (string, error) {
 	resp, err := c.client.GetTickerProfile(ctx, authRequest(c.apiKey, msg))
+	return payload(resp, err)
+}
+
+func (c *Client) GetTickerFinancials(ctx context.Context, msg *marketpalv1.MpalTickerFinancialsRequest) (string, error) {
+	resp, err := c.client.GetTickerFinancials(ctx, authRequest(c.apiKey, msg))
+	return payload(resp, err)
+}
+
+func (c *Client) GetTickerFundamentals(ctx context.Context, msg *marketpalv1.MpalTickerDataRequest) (string, error) {
+	resp, err := c.client.GetTickerFundamentals(ctx, authRequest(c.apiKey, msg))
+	return payload(resp, err)
+}
+
+func (c *Client) GetTickerInsiders(ctx context.Context, msg *marketpalv1.MpalTickerDataRequest) (string, error) {
+	resp, err := c.client.GetTickerInsiders(ctx, authRequest(c.apiKey, msg))
+	return payload(resp, err)
+}
+
+func (c *Client) GetTickerOwnership(ctx context.Context, msg *marketpalv1.MpalTickerDataRequest) (string, error) {
+	resp, err := c.client.GetTickerOwnership(ctx, authRequest(c.apiKey, msg))
 	return payload(resp, err)
 }
 

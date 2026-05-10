@@ -45,6 +45,18 @@ const (
 	// MpalServiceGetTickerProfileProcedure is the fully-qualified name of the MpalService's
 	// GetTickerProfile RPC.
 	MpalServiceGetTickerProfileProcedure = "/marketpal.v1.MpalService/GetTickerProfile"
+	// MpalServiceGetTickerFinancialsProcedure is the fully-qualified name of the MpalService's
+	// GetTickerFinancials RPC.
+	MpalServiceGetTickerFinancialsProcedure = "/marketpal.v1.MpalService/GetTickerFinancials"
+	// MpalServiceGetTickerFundamentalsProcedure is the fully-qualified name of the MpalService's
+	// GetTickerFundamentals RPC.
+	MpalServiceGetTickerFundamentalsProcedure = "/marketpal.v1.MpalService/GetTickerFundamentals"
+	// MpalServiceGetTickerInsidersProcedure is the fully-qualified name of the MpalService's
+	// GetTickerInsiders RPC.
+	MpalServiceGetTickerInsidersProcedure = "/marketpal.v1.MpalService/GetTickerInsiders"
+	// MpalServiceGetTickerOwnershipProcedure is the fully-qualified name of the MpalService's
+	// GetTickerOwnership RPC.
+	MpalServiceGetTickerOwnershipProcedure = "/marketpal.v1.MpalService/GetTickerOwnership"
 	// MpalServiceGetPortfolioSnapshotProcedure is the fully-qualified name of the MpalService's
 	// GetPortfolioSnapshot RPC.
 	MpalServiceGetPortfolioSnapshotProcedure = "/marketpal.v1.MpalService/GetPortfolioSnapshot"
@@ -63,6 +75,10 @@ type MpalServiceClient interface {
 	GetTickerEvents(context.Context, *connect.Request[v1.MpalTickerEventsRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	GetTickerBars(context.Context, *connect.Request[v1.MpalTickerBarsRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	GetTickerProfile(context.Context, *connect.Request[v1.MpalTickerProfileRequest]) (*connect.Response[v1.MpalJSONResponse], error)
+	GetTickerFinancials(context.Context, *connect.Request[v1.MpalTickerFinancialsRequest]) (*connect.Response[v1.MpalJSONResponse], error)
+	GetTickerFundamentals(context.Context, *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error)
+	GetTickerInsiders(context.Context, *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error)
+	GetTickerOwnership(context.Context, *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	GetPortfolioSnapshot(context.Context, *connect.Request[v1.MpalPortfolioSnapshotRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	GetWatchlist(context.Context, *connect.Request[v1.MpalWatchlistRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	RunStrategy(context.Context, *connect.Request[v1.MpalStrategyRunRequest]) (*connect.Response[v1.MpalJSONResponse], error)
@@ -104,6 +120,30 @@ func NewMpalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(mpalServiceMethods.ByName("GetTickerProfile")),
 			connect.WithClientOptions(opts...),
 		),
+		getTickerFinancials: connect.NewClient[v1.MpalTickerFinancialsRequest, v1.MpalJSONResponse](
+			httpClient,
+			baseURL+MpalServiceGetTickerFinancialsProcedure,
+			connect.WithSchema(mpalServiceMethods.ByName("GetTickerFinancials")),
+			connect.WithClientOptions(opts...),
+		),
+		getTickerFundamentals: connect.NewClient[v1.MpalTickerDataRequest, v1.MpalJSONResponse](
+			httpClient,
+			baseURL+MpalServiceGetTickerFundamentalsProcedure,
+			connect.WithSchema(mpalServiceMethods.ByName("GetTickerFundamentals")),
+			connect.WithClientOptions(opts...),
+		),
+		getTickerInsiders: connect.NewClient[v1.MpalTickerDataRequest, v1.MpalJSONResponse](
+			httpClient,
+			baseURL+MpalServiceGetTickerInsidersProcedure,
+			connect.WithSchema(mpalServiceMethods.ByName("GetTickerInsiders")),
+			connect.WithClientOptions(opts...),
+		),
+		getTickerOwnership: connect.NewClient[v1.MpalTickerDataRequest, v1.MpalJSONResponse](
+			httpClient,
+			baseURL+MpalServiceGetTickerOwnershipProcedure,
+			connect.WithSchema(mpalServiceMethods.ByName("GetTickerOwnership")),
+			connect.WithClientOptions(opts...),
+		),
 		getPortfolioSnapshot: connect.NewClient[v1.MpalPortfolioSnapshotRequest, v1.MpalJSONResponse](
 			httpClient,
 			baseURL+MpalServiceGetPortfolioSnapshotProcedure,
@@ -133,14 +173,18 @@ func NewMpalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // mpalServiceClient implements MpalServiceClient.
 type mpalServiceClient struct {
-	getCapabilities      *connect.Client[v1.MpalCapabilitiesRequest, v1.MpalJSONResponse]
-	getTickerEvents      *connect.Client[v1.MpalTickerEventsRequest, v1.MpalJSONResponse]
-	getTickerBars        *connect.Client[v1.MpalTickerBarsRequest, v1.MpalJSONResponse]
-	getTickerProfile     *connect.Client[v1.MpalTickerProfileRequest, v1.MpalJSONResponse]
-	getPortfolioSnapshot *connect.Client[v1.MpalPortfolioSnapshotRequest, v1.MpalJSONResponse]
-	getWatchlist         *connect.Client[v1.MpalWatchlistRequest, v1.MpalJSONResponse]
-	runStrategy          *connect.Client[v1.MpalStrategyRunRequest, v1.MpalJSONResponse]
-	runBacktest          *connect.Client[v1.MpalBacktestRunRequest, v1.MpalJSONResponse]
+	getCapabilities       *connect.Client[v1.MpalCapabilitiesRequest, v1.MpalJSONResponse]
+	getTickerEvents       *connect.Client[v1.MpalTickerEventsRequest, v1.MpalJSONResponse]
+	getTickerBars         *connect.Client[v1.MpalTickerBarsRequest, v1.MpalJSONResponse]
+	getTickerProfile      *connect.Client[v1.MpalTickerProfileRequest, v1.MpalJSONResponse]
+	getTickerFinancials   *connect.Client[v1.MpalTickerFinancialsRequest, v1.MpalJSONResponse]
+	getTickerFundamentals *connect.Client[v1.MpalTickerDataRequest, v1.MpalJSONResponse]
+	getTickerInsiders     *connect.Client[v1.MpalTickerDataRequest, v1.MpalJSONResponse]
+	getTickerOwnership    *connect.Client[v1.MpalTickerDataRequest, v1.MpalJSONResponse]
+	getPortfolioSnapshot  *connect.Client[v1.MpalPortfolioSnapshotRequest, v1.MpalJSONResponse]
+	getWatchlist          *connect.Client[v1.MpalWatchlistRequest, v1.MpalJSONResponse]
+	runStrategy           *connect.Client[v1.MpalStrategyRunRequest, v1.MpalJSONResponse]
+	runBacktest           *connect.Client[v1.MpalBacktestRunRequest, v1.MpalJSONResponse]
 }
 
 // GetCapabilities calls marketpal.v1.MpalService.GetCapabilities.
@@ -161,6 +205,26 @@ func (c *mpalServiceClient) GetTickerBars(ctx context.Context, req *connect.Requ
 // GetTickerProfile calls marketpal.v1.MpalService.GetTickerProfile.
 func (c *mpalServiceClient) GetTickerProfile(ctx context.Context, req *connect.Request[v1.MpalTickerProfileRequest]) (*connect.Response[v1.MpalJSONResponse], error) {
 	return c.getTickerProfile.CallUnary(ctx, req)
+}
+
+// GetTickerFinancials calls marketpal.v1.MpalService.GetTickerFinancials.
+func (c *mpalServiceClient) GetTickerFinancials(ctx context.Context, req *connect.Request[v1.MpalTickerFinancialsRequest]) (*connect.Response[v1.MpalJSONResponse], error) {
+	return c.getTickerFinancials.CallUnary(ctx, req)
+}
+
+// GetTickerFundamentals calls marketpal.v1.MpalService.GetTickerFundamentals.
+func (c *mpalServiceClient) GetTickerFundamentals(ctx context.Context, req *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error) {
+	return c.getTickerFundamentals.CallUnary(ctx, req)
+}
+
+// GetTickerInsiders calls marketpal.v1.MpalService.GetTickerInsiders.
+func (c *mpalServiceClient) GetTickerInsiders(ctx context.Context, req *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error) {
+	return c.getTickerInsiders.CallUnary(ctx, req)
+}
+
+// GetTickerOwnership calls marketpal.v1.MpalService.GetTickerOwnership.
+func (c *mpalServiceClient) GetTickerOwnership(ctx context.Context, req *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error) {
+	return c.getTickerOwnership.CallUnary(ctx, req)
 }
 
 // GetPortfolioSnapshot calls marketpal.v1.MpalService.GetPortfolioSnapshot.
@@ -189,6 +253,10 @@ type MpalServiceHandler interface {
 	GetTickerEvents(context.Context, *connect.Request[v1.MpalTickerEventsRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	GetTickerBars(context.Context, *connect.Request[v1.MpalTickerBarsRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	GetTickerProfile(context.Context, *connect.Request[v1.MpalTickerProfileRequest]) (*connect.Response[v1.MpalJSONResponse], error)
+	GetTickerFinancials(context.Context, *connect.Request[v1.MpalTickerFinancialsRequest]) (*connect.Response[v1.MpalJSONResponse], error)
+	GetTickerFundamentals(context.Context, *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error)
+	GetTickerInsiders(context.Context, *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error)
+	GetTickerOwnership(context.Context, *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	GetPortfolioSnapshot(context.Context, *connect.Request[v1.MpalPortfolioSnapshotRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	GetWatchlist(context.Context, *connect.Request[v1.MpalWatchlistRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	RunStrategy(context.Context, *connect.Request[v1.MpalStrategyRunRequest]) (*connect.Response[v1.MpalJSONResponse], error)
@@ -226,6 +294,30 @@ func NewMpalServiceHandler(svc MpalServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(mpalServiceMethods.ByName("GetTickerProfile")),
 		connect.WithHandlerOptions(opts...),
 	)
+	mpalServiceGetTickerFinancialsHandler := connect.NewUnaryHandler(
+		MpalServiceGetTickerFinancialsProcedure,
+		svc.GetTickerFinancials,
+		connect.WithSchema(mpalServiceMethods.ByName("GetTickerFinancials")),
+		connect.WithHandlerOptions(opts...),
+	)
+	mpalServiceGetTickerFundamentalsHandler := connect.NewUnaryHandler(
+		MpalServiceGetTickerFundamentalsProcedure,
+		svc.GetTickerFundamentals,
+		connect.WithSchema(mpalServiceMethods.ByName("GetTickerFundamentals")),
+		connect.WithHandlerOptions(opts...),
+	)
+	mpalServiceGetTickerInsidersHandler := connect.NewUnaryHandler(
+		MpalServiceGetTickerInsidersProcedure,
+		svc.GetTickerInsiders,
+		connect.WithSchema(mpalServiceMethods.ByName("GetTickerInsiders")),
+		connect.WithHandlerOptions(opts...),
+	)
+	mpalServiceGetTickerOwnershipHandler := connect.NewUnaryHandler(
+		MpalServiceGetTickerOwnershipProcedure,
+		svc.GetTickerOwnership,
+		connect.WithSchema(mpalServiceMethods.ByName("GetTickerOwnership")),
+		connect.WithHandlerOptions(opts...),
+	)
 	mpalServiceGetPortfolioSnapshotHandler := connect.NewUnaryHandler(
 		MpalServiceGetPortfolioSnapshotProcedure,
 		svc.GetPortfolioSnapshot,
@@ -260,6 +352,14 @@ func NewMpalServiceHandler(svc MpalServiceHandler, opts ...connect.HandlerOption
 			mpalServiceGetTickerBarsHandler.ServeHTTP(w, r)
 		case MpalServiceGetTickerProfileProcedure:
 			mpalServiceGetTickerProfileHandler.ServeHTTP(w, r)
+		case MpalServiceGetTickerFinancialsProcedure:
+			mpalServiceGetTickerFinancialsHandler.ServeHTTP(w, r)
+		case MpalServiceGetTickerFundamentalsProcedure:
+			mpalServiceGetTickerFundamentalsHandler.ServeHTTP(w, r)
+		case MpalServiceGetTickerInsidersProcedure:
+			mpalServiceGetTickerInsidersHandler.ServeHTTP(w, r)
+		case MpalServiceGetTickerOwnershipProcedure:
+			mpalServiceGetTickerOwnershipHandler.ServeHTTP(w, r)
 		case MpalServiceGetPortfolioSnapshotProcedure:
 			mpalServiceGetPortfolioSnapshotHandler.ServeHTTP(w, r)
 		case MpalServiceGetWatchlistProcedure:
@@ -291,6 +391,22 @@ func (UnimplementedMpalServiceHandler) GetTickerBars(context.Context, *connect.R
 
 func (UnimplementedMpalServiceHandler) GetTickerProfile(context.Context, *connect.Request[v1.MpalTickerProfileRequest]) (*connect.Response[v1.MpalJSONResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketpal.v1.MpalService.GetTickerProfile is not implemented"))
+}
+
+func (UnimplementedMpalServiceHandler) GetTickerFinancials(context.Context, *connect.Request[v1.MpalTickerFinancialsRequest]) (*connect.Response[v1.MpalJSONResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketpal.v1.MpalService.GetTickerFinancials is not implemented"))
+}
+
+func (UnimplementedMpalServiceHandler) GetTickerFundamentals(context.Context, *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketpal.v1.MpalService.GetTickerFundamentals is not implemented"))
+}
+
+func (UnimplementedMpalServiceHandler) GetTickerInsiders(context.Context, *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketpal.v1.MpalService.GetTickerInsiders is not implemented"))
+}
+
+func (UnimplementedMpalServiceHandler) GetTickerOwnership(context.Context, *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketpal.v1.MpalService.GetTickerOwnership is not implemented"))
 }
 
 func (UnimplementedMpalServiceHandler) GetPortfolioSnapshot(context.Context, *connect.Request[v1.MpalPortfolioSnapshotRequest]) (*connect.Response[v1.MpalJSONResponse], error) {

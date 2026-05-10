@@ -2,9 +2,12 @@ package mpal
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -109,13 +112,21 @@ func (j FileJournal) readAll() ([]JournalEntry, error) {
 	}
 	defer f.Close()
 	var entries []JournalEntry
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		var entry JournalEntry
-		if err := json.Unmarshal(scanner.Bytes(), &entry); err != nil {
-			continue
+	reader := bufio.NewReader(f)
+	for {
+		line, err := reader.ReadBytes('\n')
+		if len(bytes.TrimSpace(line)) > 0 {
+			var entry JournalEntry
+			if unmarshalErr := json.Unmarshal(line, &entry); unmarshalErr == nil {
+				entries = append(entries, entry)
+			}
 		}
-		entries = append(entries, entry)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
 	}
-	return entries, scanner.Err()
+	return entries, nil
 }

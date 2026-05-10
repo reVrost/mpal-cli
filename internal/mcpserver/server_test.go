@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	marketpalv1 "github.com/revrost/mpal-cli/gen/marketpal/v1"
@@ -14,7 +15,8 @@ import (
 )
 
 type fakeAPI struct {
-	runStrategyReq *marketpalv1.MpalStrategyRunRequest
+	runStrategyReq    *marketpalv1.MpalStrategyRunRequest
+	tickerBarsPayload string
 }
 
 func (f *fakeAPI) GetTickerEvents(context.Context, *marketpalv1.MpalTickerEventsRequest) (string, error) {
@@ -22,11 +24,30 @@ func (f *fakeAPI) GetTickerEvents(context.Context, *marketpalv1.MpalTickerEvents
 }
 
 func (f *fakeAPI) GetTickerBars(context.Context, *marketpalv1.MpalTickerBarsRequest) (string, error) {
+	if f.tickerBarsPayload != "" {
+		return f.tickerBarsPayload, nil
+	}
 	return `{"bars":[]}`, nil
 }
 
 func (f *fakeAPI) GetTickerProfile(context.Context, *marketpalv1.MpalTickerProfileRequest) (string, error) {
 	return `{"profile_score":0.5}`, nil
+}
+
+func (f *fakeAPI) GetTickerFinancials(context.Context, *marketpalv1.MpalTickerFinancialsRequest) (string, error) {
+	return `{"financials":{}}`, nil
+}
+
+func (f *fakeAPI) GetTickerFundamentals(context.Context, *marketpalv1.MpalTickerDataRequest) (string, error) {
+	return `{"fundamentals":{}}`, nil
+}
+
+func (f *fakeAPI) GetTickerInsiders(context.Context, *marketpalv1.MpalTickerDataRequest) (string, error) {
+	return `{"transactions":[]}`, nil
+}
+
+func (f *fakeAPI) GetTickerOwnership(context.Context, *marketpalv1.MpalTickerDataRequest) (string, error) {
+	return `{"flow":[],"events":[]}`, nil
 }
 
 func (f *fakeAPI) GetPortfolioSnapshot(context.Context, *marketpalv1.MpalPortfolioSnapshotRequest) (string, error) {
@@ -59,6 +80,7 @@ func TestServerExposesCapabilityTools(t *testing.T) {
 	}
 	require.True(t, slices.Contains(toolNames, "mpal_capabilities"))
 	require.True(t, slices.Contains(toolNames, "mpal_strategy_run"))
+	require.True(t, slices.Contains(toolNames, "mpal_ticker_markov"))
 	require.False(t, slices.Contains(toolNames, "mpal_execute_trade"))
 }
 
@@ -75,6 +97,40 @@ func TestCapabilitiesToolReturnsNoLiveTrading(t *testing.T) {
 	payload := result.StructuredContent.(map[string]any)
 	require.Equal(t, false, payload["live_trade_execution"])
 	require.Contains(t, payload["mcp_tools"], "mpal_portfolio_validate")
+	require.Contains(t, payload["mcp_tools"], "mpal_ticker_markov")
+}
+
+func TestTickerMarkovToolReturnsLocalRead(t *testing.T) {
+	t.Parallel()
+
+	asOf := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
+	bars := make([]mpal.Bar, 0, 120)
+	price := 100.0
+	for i := 0; i < 120; i++ {
+		price *= 1.002
+		bars = append(bars, mpal.Bar{Date: asOf.AddDate(0, 0, -119+i), Close: price})
+	}
+	api := &fakeAPI{tickerBarsPayload: mustJSON(mpal.BarsResult{Ticker: "AAPL", Bars: bars})}
+	session, closeSession := testSession(t, api)
+	defer closeSession()
+
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "mpal_ticker_markov",
+		Arguments: map[string]any{
+			"tickers":   []string{"AAPL"},
+			"date":      "2026-05-10",
+			"rebalance": "weekly",
+		},
+	})
+	require.NoError(t, err)
+	require.False(t, result.IsError)
+	payload := result.StructuredContent.(map[string]any)
+	require.Equal(t, "ticker_markov", payload["mode"])
+	results := payload["results"].([]any)
+	require.Len(t, results, 1)
+	item := results[0].(map[string]any)
+	require.Equal(t, "AAPL", item["ticker"])
+	require.NotNil(t, item["markov"])
 }
 
 func TestStrategyRunToolSendsConfigHash(t *testing.T) {

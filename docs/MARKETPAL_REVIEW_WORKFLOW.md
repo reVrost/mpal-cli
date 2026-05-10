@@ -239,11 +239,15 @@ Inspect:
 - `final_score`
 - `momentum_score`
 - `profile_score`
+- `markov`, when present: current trend state, favorable/unfavorable transition
+  probabilities, confidence, and warnings
 - `action_hint`
 - event score and event confidence, when present
 
 The current swing configs use momentum as the primary entry signal and
 profile-QVM as a quality/holdability check.
+Markov metadata is an explanatory transition read only; it does not authorize
+or resize trades and does not replace validation.
 
 ### Execution Read
 
@@ -272,6 +276,23 @@ journaled. The event pack can surface:
 
 This is especially important for momentum names, where the model may detect
 strength without fully explaining why the move happened.
+
+### Markov Read
+
+When hosted strategy output does not include `signals[].markov`, use the local
+evidence command:
+
+```sh
+mpal ticker markov \
+  --tickers AAPL,MSFT,NVDA \
+  --date YYYY-MM-DD \
+  --rebalance weekly \
+  --json
+```
+
+The command fetches hosted price bars and computes local transition metadata.
+It is not part of the executable baseline plan and should not be used to bypass
+`execution_result` or validation.
 
 ## Journal The Review
 
