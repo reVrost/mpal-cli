@@ -8,8 +8,11 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
+
+const defaultSignalConcurrency = 8
 
 type PriceData interface {
 	Bars(ctx context.Context, ticker string, start, end time.Time) (BarsResult, error)
@@ -40,11 +43,12 @@ type JournalStore interface {
 }
 
 type Engine struct {
-	Prices   PriceData
-	Profiles ProfileScorer
-	Factors  FactorSnapshotReader
-	Events   EventScoreReader
-	Journal  JournalStore
+	Prices            PriceData
+	Profiles          ProfileScorer
+	Factors           FactorSnapshotReader
+	Events            EventScoreReader
+	Journal           JournalStore
+	SignalConcurrency int
 }
 
 func (e Engine) SignalScore(
@@ -52,6 +56,18 @@ func (e Engine) SignalScore(
 	ticker string,
 	asOf time.Time,
 	cfg StrategyConfig,
+) (SignalResult, error) {
+	eventScore, eventWarnings := e.eventScoreForSignal(ctx, ticker, asOf, cfg)
+	return e.signalScoreWithEvent(ctx, ticker, asOf, cfg, eventScore, eventWarnings)
+}
+
+func (e Engine) signalScoreWithEvent(
+	ctx context.Context,
+	ticker string,
+	asOf time.Time,
+	cfg StrategyConfig,
+	eventScore *EventScore,
+	eventWarnings []string,
 ) (SignalResult, error) {
 	start := asOf.AddDate(0, 0, -365)
 	bars, err := e.Prices.Bars(ctx, ticker, start, asOf)
@@ -82,10 +98,7 @@ func (e Engine) SignalScore(
 	finalScore := weightedSignalScore(cfg.Scoring, momentum, profile.ProfileScore, quality, value, reversion)
 	reasons := []string{scoringReason(cfg.Scoring)}
 	warnings = append(warnings, missingComponentWarnings(cfg.Scoring, profile)...)
-	var eventScore *EventScore
 	if cfg.Events.Enabled {
-		var eventWarnings []string
-		eventScore, eventWarnings = e.eventScoreForSignal(ctx, ticker, asOf, cfg)
 		warnings = append(warnings, eventWarnings...)
 		finalScore, reasons = applyEventGuardrail(finalScore, eventScore, cfg, reasons)
 		if eventScore != nil && eventScore.Score <= normalizedEventGuardrails(cfg).VetoScore {
@@ -97,6 +110,9 @@ func (e Engine) SignalScore(
 }
 
 func (e Engine) eventScoreForSignal(ctx context.Context, ticker string, asOf time.Time, cfg StrategyConfig) (*EventScore, []string) {
+	if !cfg.Events.Enabled {
+		return nil, nil
+	}
 	if e.Events == nil {
 		return nil, []string{"event guardrail skipped: event score reader is not configured"}
 	}
@@ -258,18 +274,91 @@ func (e Engine) RankSignals(
 	asOf time.Time,
 	cfg StrategyConfig,
 ) ([]SignalResult, []string) {
-	var signals []SignalResult
+	tickers = NormalizeTickers(tickers)
+	if len(tickers) == 0 {
+		return nil, nil
+	}
+	eventScores, eventWarnings := e.eventScoresForRank(ctx, tickers, asOf, cfg)
+	signalsByTicker := make([]SignalResult, len(tickers))
+	signalWarnings := make([][]string, len(tickers))
+	concurrency := e.normalizedSignalConcurrency(len(tickers))
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	for range concurrency {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for index := range jobs {
+				ticker := tickers[index]
+				var eventScore *EventScore
+				if eventScores != nil {
+					if score, ok := eventScores[ticker]; ok {
+						eventScore = &score
+					}
+				}
+				signal, err := e.signalScoreWithEvent(ctx, ticker, asOf, cfg, eventScore, eventWarnings)
+				if err != nil {
+					signalWarnings[index] = []string{fmt.Sprintf("%s signal failed: %v", ticker, err)}
+					continue
+				}
+				signalsByTicker[index] = signal
+			}
+		}()
+	}
+	for index := range tickers {
+		jobs <- index
+	}
+	close(jobs)
+	wg.Wait()
+
+	signals := make([]SignalResult, 0, len(tickers))
 	var warnings []string
-	for _, ticker := range NormalizeTickers(tickers) {
-		signal, err := e.SignalScore(ctx, ticker, asOf, cfg)
-		if err != nil {
-			warnings = append(warnings, fmt.Sprintf("%s signal failed: %v", ticker, err))
+	for index, ticker := range tickers {
+		warnings = append(warnings, signalWarnings[index]...)
+		signal := signalsByTicker[index]
+		if signal.Ticker == "" {
 			continue
+		}
+		if signal.Ticker != ticker {
+			signal.Ticker = strings.ToUpper(signal.Ticker)
 		}
 		signals = append(signals, signal)
 	}
 	SortSignals(signals)
 	return signals, warnings
+}
+
+func (e Engine) eventScoresForRank(ctx context.Context, tickers []string, asOf time.Time, cfg StrategyConfig) (map[string]EventScore, []string) {
+	if !cfg.Events.Enabled {
+		return nil, nil
+	}
+	if e.Events == nil {
+		return nil, []string{"event guardrail skipped: event score reader is not configured"}
+	}
+	events := normalizedEventGuardrails(cfg)
+	scores, err := e.Events.ScoresAsOf(ctx, tickers, asOf, events.LookbackDays)
+	if err != nil {
+		return nil, []string{"event guardrail skipped: " + err.Error()}
+	}
+	normalized := make(map[string]EventScore, len(scores))
+	for ticker, score := range scores {
+		normalized[strings.ToUpper(strings.TrimSpace(ticker))] = score
+	}
+	return normalized, nil
+}
+
+func (e Engine) normalizedSignalConcurrency(tickerCount int) int {
+	concurrency := e.SignalConcurrency
+	if concurrency <= 0 {
+		concurrency = defaultSignalConcurrency
+	}
+	if concurrency > tickerCount {
+		concurrency = tickerCount
+	}
+	if concurrency < 1 {
+		return 1
+	}
+	return concurrency
 }
 
 func (e Engine) StrategyRun(

@@ -27,7 +27,8 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
    - If MarketPal is installed as an MCP server, call `mpal_strategy_run` with the same date, universe, portfolio, and explicit config inputs.
    - Treat the returned JSON as the source of truth for model result, execution result, validation, signals, target weights, proposed trades, warnings, freshness metadata, config hash, and journal entry id.
    - Read `model_result` as the raw signal read and `execution_result`/top-level `result` as the executable rebalance decision.
-   - For real current-portfolio reviews, the approved strategy configs use a transition rebalance policy by default: turnover budget, max single-trade size, starter position size, new-position limit, cash buffer, and protected unscored holdings.
+   - For real current-portfolio reviews, the approved strategy configs use a transition rebalance policy by default: sizing method, turnover budget, max single-trade size, starter position size or Kelly fallback, new-position limit, cash buffer, and protected unscored holdings.
+   - Inspect `strategy.config.risk.sizing_method`, `proposed_trades[].sizing`, `proposed_trades[].reason`, `proposed_trades[].target_weight`, and `proposed_trades[].delta_weight`. If `mpal` returns a structured sizing decision, explain it as part of the baseline; do not fall back to old fixed-starter language.
    - Use the `signals` payload from `strategy run` for pure research ranking. Do not describe the old top-N/rank-and-replace behavior as a rebalance plan.
    - If `validation.valid` is false, the final decision is `NO_TRADE` unless a separately validated override is journaled.
 
@@ -38,23 +39,24 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
    - Use the returned proposed buys/sells/trims, alternate candidates, ticker research, source-backed updates, cached article insights, missing insight sources, warnings, and freshness metadata as the evidence layer.
    - Extract up to five alternate buy candidates from `ticker events` alternates first, then from deterministic `signals` if the context pack has fewer than five. Exclude tickers already in proposed buy trades unless the user specifically asks for substitutes.
    - Always show those alternate buy candidates to the user with ticker, rank, score, action hint, event context, and why they were not in the executable baseline. Label them as non-executable candidates until a replacement or override plan validates.
-   - When `signals[].markov` is present, use it as a probabilistic transition read only: current trend state, favorable/unfavorable next-state probability, confidence, and warnings. Do not let Markov metadata authorize, replace, or resize a trade by itself.
-   - If hosted `strategy run` output omits `signals[].markov`, call `mpal ticker markov --tickers <proposed-and-alternate-tickers> --date <run-date> --rebalance <strategy-portfolio-rebalance> --json` or MCP `mpal_ticker_markov` for the same local evidence layer. Keep it separate from baseline execution truth.
+   - When `signals[].markov` is present, use it as a probabilistic transition read: current trend state, favorable/unfavorable next-state probability, confidence, sample count, and warnings. Raw Markov metadata by itself must not authorize a buy, replacement, or resize.
+   - If `mpal strategy run` or `proposed_trades[].sizing` used Markov-derived fractional Kelly, explain the resulting `mpal` sizing decision. If `mpal` did not expose a structured sizing decision, do not independently invent Kelly fractions, payoff ratios, probabilities, or confidence shrinkage.
    - The context pack can support an approve, veto, resize, or replacement recommendation, but it does not itself authorize a trade.
    - Do not replace a proposed trade with a news-driven alternative unless the replacement appears in the context pack or the deterministic `mpal` signal output, and the final plan validates.
 
 5. Run the risk/reward override gate.
    - Before approving a valid baseline, compare each proposed buy with the top alternate buy candidates from `ticker events`.
    - Do not treat thin or missing source-backed updates as a standalone reason to reject or replace a proposed starter. For a momentum-led swing strategy, unexplained price/volume strength can still be a valid starter signal when deterministic score, profile-QVM, sizing, and validation are strong.
-   - Treat a proposed starter as replacement-eligible only when it has stale or missing critical data, mixed/adverse event context, materially weaker profile-QVM support, an event veto, a validation/risk issue, or a severe concentration/sleeve concern.
-   - Treat an alternate as a better risk/reward candidate only when it appears in `ticker events.alternates` or deterministic `signals`, has no event veto, and either has equal-or-better deterministic score/profile support or is within 0.03 `final_score` of a replacement-eligible proposed starter. Do not use news context alone to replace a higher-scoring validated baseline starter.
-   - Prefer one bounded replacement at a time: swap the weakest replacement-eligible proposed starter for the strongest qualifying alternate, preserve the baseline sizing, turnover, cash buffer, and max-new-position count, then validate the concrete override plan with `mpal portfolio validate`.
+   - Treat a proposed starter as replacement-eligible only when it has stale or missing critical data, mixed/adverse event context, materially weaker profile-QVM support, adverse or missing sizing evidence from `mpal`, an event veto, a validation/risk issue, or a severe concentration/sleeve concern.
+   - Treat an alternate as a better risk/reward candidate only when it appears in `ticker events.alternates` or deterministic `signals`, has no event veto, and either has equal-or-better deterministic score/profile support or is within 0.03 `final_score` of a replacement-eligible proposed starter. Do not use news context alone to replace a higher-scoring validated baseline starter, and do not replace a Kelly-sized validated candidate with a lower-ranked alternate solely because the alternate has richer news coverage.
+   - Prefer one bounded replacement at a time: swap the weakest replacement-eligible proposed starter for the strongest qualifying alternate, preserve the baseline sizing unless `mpal` exposes a lower validated Kelly-sized target, preserve turnover, cash buffer, and max-new-position count, then validate the concrete override plan with `mpal portfolio validate`.
    - If the override validates, present it as `agent_override` for user review and journal it. If it fails validation, keep the baseline or veto based on the validation errors and event risk.
    - If no qualifying replacement exists, explicitly say why the baseline remains the best validated plan.
 
 6. Explain the baseline before giving the decision.
    - Start with a compact baseline brief: strategy, date, portfolio source, universe, model result, execution result, proposed trades, selected signal scores, rejected tickers, and the scoring rule/threshold.
    - Include an "alternate buy candidates" section with up to five candidates. If the risk/reward gate already found and validated a superior bounded override, state the override directly instead of asking a follow-up question.
+   - Include a sizing read. If Kelly sizing is active or `proposed_trades[].sizing` exists, distinguish signal eligibility, `mpal` sizing target, risk-cap clamp, final target weight, validation status, and the binding constraint when inferable from `sizing.warnings`, rejection reasons, target weights, or config caps.
    - Include warnings, freshness/staleness notes, strategy id/version/config hash, and journal entry id.
    - Do not add trades that are absent from `mpal` output.
 
@@ -71,13 +73,13 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
 Use this overlay when the chosen strategy is a MarketPal swing config, such as `portfolio_low_churn_swing_v1`, `engine_weekly_swing_v1`, `engine_quality_swing_rebuild_v1`, `engine_quality_value_reversion_v1`, or `portfolio_quality_value_reversion_v1`.
 
 - Treat momentum as the primary entry signal and profile-QVM as the holdability and survivability check.
-- Treat Markov transition metadata as explanatory only. A strong favorable transition probability can support confidence in an already validated candidate; a weak or low-confidence read can justify caution or a follow-up watchlist note, but not an unvalidated replacement.
+- Treat Markov transition metadata as explanatory unless it has already been consumed by `mpal` into a structured sizing decision. A strong favorable transition probability can support confidence in an already validated candidate; a weak or low-confidence read can justify caution or a follow-up watchlist note, but not an unvalidated replacement.
 - For routine daily or weekly full-portfolio reviews, prefer `portfolio_low_churn_swing_v1` when available. It allows up to four new positions per run while keeping turnover, starter size, minimum trade value, and hold thresholds conservative.
 - For weekly policy engine-sleeve reviews, prefer `engine_weekly_swing_v1` when available. It is sized for the MarketPal return-engine sleeve and should be the default strategy for engine swing-trade proposals.
 - Treat `engine_quality_swing_rebuild_v1` as a manual engine-sleeve rebuild config only. Do not use it for daily reviews unless the user explicitly asks for a higher-churn transition or cleanup plan.
 - Use `engine_quality_value_reversion_v1` or `portfolio_quality_value_reversion_v1` only when the user explicitly asks for quality/value mean reversion, underpriced quality, or pullback buying. These configs are deliberately less momentum-led and should not replace the default weekly swing run.
 - Remember that `max_new_positions_per_run` caps new buy positions only; sells, trims, reductions, and exits can make total trade tickets higher. If a daily low-churn baseline produces more than four total proposed trades, explicitly flag churn risk and prefer an agent veto or a smaller validated override unless the user asked for a transition rebalance.
-- After every baseline run, use `ticker events --days 14` to classify proposed buys and alternates before the final decision:
+- After every weekly baseline run, use `ticker events --days 14` to classify proposed buys and alternates before the final decision:
   - `CORE_SWING`: strong signal, profile-QVM support, no event veto, and supportive or neutral source context.
   - `TACTICAL_ONLY`: strong momentum with weaker profile-QVM, thin source context, or mixed event context; keep starter sizing and avoid top-up overrides, but do not treat thin source context alone as a veto.
   - `VETO_REVIEW`: stale data, event veto, missing critical source context, or severe adverse update; prefer veto, resize, or replacement only if the replacement validates.
@@ -85,6 +87,52 @@ Use this overlay when the chosen strategy is a MarketPal swing config, such as `
 - If a trade moves against the plan but the ticker remains above `min_hold_score`, profile-QVM remains supportive, and no event veto appears, prefer `HOLD` over an immediate forced exit.
 - If a user has a gut-favored ticker, only propose a bounded override when that ticker appears in deterministic `signals` or `ticker events` alternates, and only after `mpal portfolio validate` passes.
 - In the final rationale, explicitly separate model rank, profile-QVM holdability, event context, sizing/turnover constraints, and whether the action is baseline approval, agent veto, or agent override.
+
+## Weekly Swing Mode
+
+Use this mode for weekly engine-sleeve or low-churn swing reviews.
+
+- Use the selected strategy's configured rebalance horizon as the source of truth for the trade packet.
+- Treat Kelly as short-horizon sizing support after the candidate already qualifies through signal threshold, profile-QVM, event context, freshness, policy, and validation.
+- Use recent event context, normally `ticker events --days 14` unless the strategy or user specifies another window.
+- Prefer smaller starter trades when `mpal` reports low Kelly confidence, missing Markov edge, fixed sizing fallback, or thin source context.
+- Do not top up aggressively unless the ticker remains above the buy threshold, profile-QVM remains supportive, no event veto appears, and any exposed Kelly target remains above current weight.
+- If several proposed buys are from the same sector/theme, flag correlation or concentration risk before approving the full packet. Do not treat individually positive Kelly-sized trades as independent bets.
+
+## Monthly Swing Mode
+
+Use this mode when the user asks for a monthly swing review, monthly cleanup, transition rebalance, or a monthly/quarterly engine rebuild.
+
+- Use a longer event/context window, normally `ticker events --days 30` to `--days 45`, unless the strategy explicitly uses a shorter catalyst window.
+- Require stronger persistence than a weekly entry: prefer candidates whose score remains above the strategy threshold and whose profile-QVM/event context support the holding period.
+- Prefer lower turnover than weekly reviews. Be slower to replace existing holdings that remain above `min_hold_score` and have no event veto.
+- Be cautious with Kelly if probability inputs are generated from a shorter horizon than the monthly review. If the Markov or Kelly horizon is weekly but the review is monthly, label it as short-horizon support only and do not let it justify aggressive monthly sizing.
+- If the strategy output does not expose the Kelly/probability horizon, state that the sizing horizon is not exposed rather than assuming it matches the monthly holding period.
+- For monthly reviews, prefer watchlist or smaller validated entries when source freshness is stale, event context is thin, or sizing depends on default payoff assumptions.
+
+## Fractional Kelly Swing-Sizing Overlay
+
+Use this overlay when the selected strategy config has `risk.sizing_method: fractional_kelly`, when `strategy run` returns `proposed_trades[].sizing`, or when `mpal` otherwise returns a structured sizing decision.
+
+- Treat `mpal` sizing output as the source of truth. Do not independently invent Kelly fractions, payoff ratios, probabilities, confidence values, or shrinkage factors.
+- Kelly sizing can influence trade size only when it is produced by `mpal strategy run` or when a concrete override plan using that size validates through `mpal portfolio validate`.
+- Kelly sizing is a sizing overlay, not a trade authorization layer. A ticker must first qualify through the selected strategy's signal threshold, portfolio policy, event guardrails, freshness checks, and validation rules.
+- Markov transition metadata may be one input into the deterministic `mpal` Kelly sizing engine, but raw Markov metadata by itself must not authorize a buy, replacement, or resize.
+- Always distinguish signal eligibility, Kelly sizing, risk caps, and validation:
+  - signal eligibility: whether the ticker cleared the strategy threshold
+  - Kelly sizing: how much `mpal` wanted to allocate before final clamps, if exposed
+  - risk caps: why the final size may be smaller than the Kelly target
+  - validation: whether the final concrete plan is executable
+- For each Kelly-sized trade, report fields that are present in `mpal` output: sizing method, raw Kelly, fractional Kelly, payoff ratio or default payoff assumption, final target weight, current weight, delta weight, warnings, and any confidence/sample/probability fields exposed by `signals[].markov`.
+- Explain the binding constraint when inferable: Kelly target, max position, max single trade, turnover budget, cash buffer, min trade value, Kelly max cap, max new positions, protected holdings, or validation failure.
+- If the binding constraint is not explicit in `mpal` output, say "binding constraint not exposed" rather than guessing.
+- Never approve a larger trade merely because Kelly is high if event context, data quality, policy sleeve, liquidity, concentration, correlation, or validation is adverse.
+- If Kelly input data is missing, stale, low-confidence, or below the strategy sample threshold, explain whether `mpal` fell back to fixed sizing, skipped the candidate, rejected it, or capped the size. Use `proposed_trades[].reason`, `proposed_trades[].sizing.warnings`, and `baseline_plan.rejected[].reason` as evidence.
+- Do not interpret per-ticker Kelly fractions as portfolio-optimal Kelly allocations. Unless `mpal` explicitly provides a portfolio-level Kelly or covariance-aware optimizer, treat Kelly sizing as single-candidate edge sizing that is then clamped by portfolio construction rules.
+- Describe calibration status honestly. If `mpal` does not expose calibration evidence for the probability inputs, call the Kelly sizing experimental or confidence-shrunk, not proven.
+- Prefer an agent veto, resize, or watchlist-only decision when `mpal` exposes low-confidence transition data, sample count below the configured threshold, missing favorable/unfavorable probabilities, defaulted payoff assumptions, adverse event context despite a high Kelly target, poor liquidity/concentration/correlation context, or multiple highly correlated proposed trades that independently receive positive Kelly sizes.
+- For weekly swing reviews, treat exposed Kelly as short-horizon sizing support. For monthly swing reviews, first check whether the exposed probability/Kelly horizon matches the monthly holding period; if not exposed or shorter horizon, label it as short-horizon support and keep sizing conservative.
+- Never let high Kelly sizing override an event veto, stale critical data, validation failure, sleeve-policy conflict, severe concentration risk, or obvious correlation clustering across proposed trades.
 
 ## Portfolio Construction Overlay
 
@@ -116,18 +164,34 @@ For alternate buy candidates:
 
 - Show exactly five when available; otherwise state how many were available.
 - Prefer `ticker events.alternates` ordering, then top buy-like `signals` by `final_score`.
-- Include ticker, score, rank, `action_hint`, Markov transition read when available, event read, source gaps, and the baseline rejection reason such as insufficient funding, min trade value, or buy threshold.
-- Ask one direct preference question after the list, e.g. "Which, if any, should I validate as an override candidate?"
+- Include ticker, score, rank, `action_hint`, Markov transition read when available, sizing read when exposed, event read, source gaps, and the baseline rejection reason such as insufficient funding, min trade value, or buy threshold.
+- If a clearly superior alternate passes the risk/reward gate and a concrete override validates, present the override directly. Otherwise ask one direct preference question, e.g. "Which, if any, should I validate as an override candidate?"
 - Do not imply these are approved trades unless `mpal portfolio validate` passes on a concrete override plan.
 
 For the risk and sizing read, explicitly name:
 
+- sizing method: fixed, fractional Kelly, or other configured method
+- fixed starter size, if fixed sizing was used or used as fallback
+- Kelly target weight, raw Kelly, fractional Kelly, and final clamped target weight when available
+- binding constraint for each proposed trade when inferable from `mpal` output
 - turnover used versus the strategy turnover budget
 - max single-trade cap
+- max position cap
+- cash buffer and available cash after buffer when exposed or calculable from the portfolio input
 - starter position size
 - max new positions per run
 - protected or unscored holdings
 - trade intents: `STARTER`, `TOP_UP`, `TRIM`, `REDUCE`, or `EXIT_CANDIDATE`
+
+## Kelly Evidence Standard
+
+When evaluating whether a Kelly-enabled strategy version improves the system, require evidence rather than assuming improvement:
+
+- Compare fixed sizing versus Kelly sizing over the same backtest window when the current CLI/configs make that comparison available.
+- Report available metrics such as CAGR/return, Sharpe, Sortino, max drawdown, turnover, average trade size, hit rate, payoff ratio, and tail-loss behavior when exposed by `mpal backtest run`.
+- Check whether probability inputs are calibrated, defaulted, or heuristic if `mpal` exposes that status.
+- Do not claim Kelly improves returns unless the backtest and risk metrics support it.
+- If the CLI does not expose calibration or fixed-versus-Kelly comparison artifacts, state the gap and avoid promotional language.
 
 ## Journal Payload Shape
 
@@ -148,6 +212,27 @@ For `agent_veto`, `agent_override`, and `agent_final_action`, journal a JSON obj
     "selected_signals": [],
     "rejected": [],
     "strategy_logic": "70% momentum / 30% profile-QVM, buy threshold 0.60"
+  },
+  "sizing_read": {
+    "method": "fractional_kelly",
+    "turnover_used": 0.045,
+    "turnover_budget": 0.12,
+    "trades": [
+      {
+        "ticker": "EXAMPLE",
+        "intent": "STARTER",
+        "current_weight": 0,
+        "target_weight": 0.012,
+        "delta_weight": 0.012,
+        "raw_kelly": 0.084,
+        "fractional_kelly": 0.021,
+        "final_clamped_weight": 0.012,
+        "binding_constraint": "kelly_max_fraction",
+        "confidence": 0.62,
+        "sample_count": 143,
+        "warnings": []
+      }
+    ]
   },
   "signal_read": "The model found attractive names, but this is not the same as an executable trade.",
   "risk_read": "The proposed allocation violates the approved turnover guardrail.",

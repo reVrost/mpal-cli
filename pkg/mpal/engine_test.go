@@ -5,6 +5,8 @@ import (
 	"errors"
 	"math"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -107,6 +109,94 @@ func testBars(asOf time.Time, past float64, latest float64) []Bar {
 	return []Bar{
 		{Date: asOf.AddDate(0, 0, -80), Close: past},
 		{Date: asOf, Close: latest},
+	}
+}
+
+type blockingPrices struct {
+	bars      BarsResult
+	active    atomic.Int32
+	maxActive atomic.Int32
+}
+
+func (f *blockingPrices) Bars(context.Context, string, time.Time, time.Time) (BarsResult, error) {
+	active := f.active.Add(1)
+	for {
+		maxActive := f.maxActive.Load()
+		if active <= maxActive || f.maxActive.CompareAndSwap(maxActive, active) {
+			break
+		}
+	}
+	time.Sleep(20 * time.Millisecond)
+	f.active.Add(-1)
+	return f.bars, nil
+}
+
+type recordingEventScores struct {
+	mu      sync.Mutex
+	calls   int
+	tickers []string
+	scores  map[string]EventScore
+}
+
+func (f *recordingEventScores) ScoresAsOf(_ context.Context, tickers []string, _ time.Time, _ int) (map[string]EventScore, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls++
+	f.tickers = append([]string{}, tickers...)
+	result := map[string]EventScore{}
+	for _, ticker := range NormalizeTickers(tickers) {
+		if score, ok := f.scores[ticker]; ok {
+			result[ticker] = score
+		}
+	}
+	return result, nil
+}
+
+func TestRankSignalsUsesBoundedConcurrency(t *testing.T) {
+	t.Parallel()
+
+	asOf := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
+	prices := &blockingPrices{bars: BarsResult{Bars: testBars(asOf, 90, 110)}}
+	engine := Engine{
+		Prices:            prices,
+		Profiles:          fakeProfiles{score: ProfileScore{ProfileScore: 0.5}},
+		SignalConcurrency: 4,
+	}
+
+	signals, warnings := engine.RankSignals(context.Background(), []string{"AAPL", "MSFT", "NVDA", "GOOG"}, asOf, testConfig())
+
+	require.Empty(t, warnings)
+	require.Len(t, signals, 4)
+	require.Greater(t, prices.maxActive.Load(), int32(1))
+}
+
+func TestRankSignalsBatchesEventScoresOnce(t *testing.T) {
+	t.Parallel()
+
+	asOf := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
+	cfg := testConfig()
+	cfg.Events.Enabled = true
+	events := &recordingEventScores{scores: map[string]EventScore{
+		"AAPL": {Ticker: "AAPL", Score: 0.9, PublishedAt: asOf, ScoredAt: asOf},
+	}}
+	engine := Engine{
+		Prices:            fakePrices{bars: BarsResult{Bars: testBars(asOf, 90, 110)}},
+		Profiles:          fakeProfiles{score: ProfileScore{ProfileScore: 0.5}},
+		Events:            events,
+		SignalConcurrency: 1,
+	}
+
+	signals, warnings := engine.RankSignals(context.Background(), []string{"MSFT", "AAPL", "AAPL"}, asOf, cfg)
+
+	require.Empty(t, warnings)
+	require.Len(t, signals, 2)
+	require.Equal(t, 1, events.calls)
+	require.Equal(t, []string{"AAPL", "MSFT"}, events.tickers)
+	for _, signal := range signals {
+		if signal.Ticker == "AAPL" {
+			require.NotNil(t, signal.EventScore)
+			require.Equal(t, 0.9, *signal.EventScore)
+		}
 	}
 }
 
