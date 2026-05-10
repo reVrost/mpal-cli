@@ -98,8 +98,8 @@ Strategy configs can optionally set `portfolio.listing_region_tilt: US` or
 `ASX`. This is a soft starter-selection preference only: when preferred-region
 exposure is below the built-in threshold and candidates are close in score, the
 planner may prefer that listing region. The built-in tilt is intentionally
-limited to starter ordering: it currently uses a 0.05 score nudge while the
-preferred region is below 55% exposure, and it is disabled when omitted.
+limited to starter ordering: it currently uses a 0.10 score nudge while the
+preferred region is below 60% exposure, and it is disabled when omitted.
 
 Strategy configs remain YAML, with editor validation available through
 `schemas/strategy.schema.json`. Built-in YAML uses `defaults: swing_v1` or
@@ -109,6 +109,13 @@ the files users normally read. See
 
 For the research-oriented strategy review workflow, see
 [docs/MARKETPAL_REVIEW_WORKFLOW.md](docs/MARKETPAL_REVIEW_WORKFLOW.md).
+
+For real portfolio reviews, agents should first check the private local policy
+file at `~/.marketpal/portfolio-policy.md` when it exists. Keep that file out
+of the repository. Use it only to decide whether the review is full-portfolio,
+engine-only, core, high-conviction, or a what-if simulation, and to keep fixed
+holdings outside normal strategy trades unless the user explicitly asks for
+that sleeve.
 
 Users can add custom configs under:
 
@@ -159,6 +166,65 @@ mpal journal append --type agent_final_action --input examples/final_action.json
 mpal journal list --limit 20 --json
 mpal journal get --id <journal-entry-id> --json
 ```
+
+## Trader Review Workflow
+
+The trader workflow is a research and decision-journaling flow, not an order
+entry flow. Use it when a user asks what to buy, whether to approve a strategy
+run, or how to deploy portfolio cash.
+
+1. Load private portfolio policy from `~/.marketpal/portfolio-policy.md` when
+   present, but do not copy private holdings or dollar amounts into tracked
+   files.
+2. Pick an approved config with `mpal strategy list --json` and inspect it with
+   `mpal strategy show --id <strategy-id> --json`.
+3. Run the deterministic baseline:
+
+   ```sh
+   mpal strategy run \
+     --date 2026-05-10 \
+     --universe tmp/mpal-runs/engine-universe.json \
+     --portfolio tmp/mpal-runs/engine-portfolio.json \
+     --config ~/.marketpal/strategies/engine_weekly_swing_v1.yaml \
+     --json > tmp/mpal-runs/weekly-engine-run.json
+   ```
+
+4. Build the source-backed event pack for proposed trades and alternates:
+
+   ```sh
+   mpal ticker events \
+     --run tmp/mpal-runs/weekly-engine-run.json \
+     --portfolio tmp/mpal-runs/engine-portfolio.json \
+     --days 14 \
+     --json > tmp/mpal-runs/weekly-engine-events.json
+   ```
+
+5. Validate any final executable baseline or override before treating it as an
+   approved plan:
+
+   ```sh
+   mpal portfolio validate \
+     --plan tmp/mpal-runs/final-plan.json \
+     --portfolio tmp/mpal-runs/engine-portfolio.json \
+     --universe tmp/mpal-runs/engine-universe.json \
+     --config ~/.marketpal/strategies/engine_weekly_swing_v1.yaml \
+     --json
+   ```
+
+6. Journal the final action, veto, or override:
+
+   ```sh
+   mpal journal append \
+     --type agent_final_action \
+     --baseline-journal-id <strategy-run-or-journal-id> \
+     --input tmp/mpal-runs/final-action.json \
+     --json
+   ```
+
+Weekly engine-sleeve reviews should normally use `engine_weekly_swing_v1`.
+Monthly engine cleanup or transition work should normally use
+`engine_quality_swing_rebuild_v1`. Routine full-portfolio reviews should
+normally use `portfolio_low_churn_swing_v1`.
 
 ## MCP Server
 
@@ -297,6 +363,9 @@ io.modelcontextprotocol.server.name=io.github.revrost/mpal
 `mpal strategy run` produces the deterministic baseline: signals, target
 weights, proposed trades, warnings, freshness metadata, strategy ID, strategy
 version, config hash, validation result, and journal entry ID.
+This command is API-backed, so planner behavior changes in this repository must
+also be available on the MarketPal service before installed clients see them in
+live strategy-run output.
 
 When using MCP, `mpal_strategy_run` is the equivalent source-of-truth tool.
 
