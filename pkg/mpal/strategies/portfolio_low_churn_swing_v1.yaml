@@ -1,5 +1,6 @@
 id: portfolio_low_churn_swing_v1
 version: 1.0.0
+defaults: swing_v1
 name: Portfolio low-churn swing review v1
 description: Conservative swing-trading review for a full or well-funded portfolio. Keeps turnover low, uses starter sizing, and may return NO_TRADE when cash or minimum-trade constraints make a trade impractical.
 when_to_use: Use for routine daily or weekly reviews when the goal is controlled incremental changes, not a major engine rebuild. Best for full-portfolio checks or larger sleeves where 1.2% starter trades clear the minimum trade value.
@@ -12,15 +13,7 @@ scoring:
   min_buy_score: 0.70
   min_hold_score: 0.14
 
-event_guardrail:
-  enabled: true
-  lookback_days: 14
-  event_veto_score: -0.55
-  event_boost_score: 0.70
-  event_boost_amount: 0.03
-
 portfolio:
-  long_only: true
   max_positions: 20
   max_position_pct: 0.20
   min_trade_value: 5000
@@ -32,9 +25,3 @@ risk:
   starter_position_pct: 0.012
   max_new_positions_per_run: 4
   cash_buffer_pct: 0.01
-  protect_unscored_holdings: true
-
-backtest:
-  initial_cash: 100000
-  fee_bps: 5
-  slippage_bps: 10

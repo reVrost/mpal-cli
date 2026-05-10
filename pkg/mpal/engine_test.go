@@ -424,6 +424,151 @@ func TestPlanPortfolioLimitsStarterPositions(t *testing.T) {
 	assert.Contains(t, plan.Rejected, RejectedTicker{Ticker: "CCC", Reason: "max_new_positions_per_run reached"})
 }
 
+func TestPlanPortfolioListingRegionTiltPrefersCloseRegionCandidate(t *testing.T) {
+	t.Parallel()
+
+	cfg := testConfig()
+	cfg.Portfolio.MaxPositions = 5
+	cfg.Portfolio.ListingRegionTilt = "US"
+	cfg.Risk.MaxNewPositionsPerRun = 1
+	signals := []SignalResult{
+		{Ticker: "AAA.AX", FinalScore: 0.9},
+		{Ticker: "MSFT", FinalScore: 0.86},
+	}
+
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"AAA.AX", "MSFT"}},
+		Portfolio{Equity: 100000, Cash: 100000},
+		signals,
+		cfg,
+	)
+
+	require.Len(t, plan.ProposedTrades, 1)
+	assert.Equal(t, "MSFT", plan.ProposedTrades[0].Ticker)
+	assert.Contains(t, plan.ProposedTrades[0].Reason, "preferred by listing-region tilt toward US")
+	assert.Contains(t, plan.Rejected, RejectedTicker{Ticker: "AAA.AX", Reason: "max_new_positions_per_run reached"})
+}
+
+func TestPlanPortfolioListingRegionTiltDoesNotOverrideClearScoreLead(t *testing.T) {
+	t.Parallel()
+
+	cfg := testConfig()
+	cfg.Portfolio.MaxPositions = 5
+	cfg.Portfolio.ListingRegionTilt = "US"
+	cfg.Risk.MaxNewPositionsPerRun = 1
+	signals := []SignalResult{
+		{Ticker: "AAA.AX", FinalScore: 0.96},
+		{Ticker: "MSFT", FinalScore: 0.85},
+	}
+
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"AAA.AX", "MSFT"}},
+		Portfolio{Equity: 100000, Cash: 100000},
+		signals,
+		cfg,
+	)
+
+	require.Len(t, plan.ProposedTrades, 1)
+	assert.Equal(t, "AAA.AX", plan.ProposedTrades[0].Ticker)
+	assert.NotContains(t, plan.ProposedTrades[0].Reason, "listing-region tilt")
+}
+
+func TestPlanPortfolioListingRegionTiltSurfacesUSStartersWhenUnderweight(t *testing.T) {
+	t.Parallel()
+
+	cfg := testConfig()
+	cfg.Portfolio.MaxPositions = 20
+	cfg.Portfolio.ListingRegionTilt = "US"
+	cfg.Risk.MaxNewPositionsPerRun = 3
+	signals := []SignalResult{
+		{Ticker: "MIN.AX", FinalScore: 1.0},
+		{Ticker: "SXE.AX", FinalScore: 0.955275},
+		{Ticker: "GNP.AX", FinalScore: 0.951175},
+		{Ticker: "DOCN", FinalScore: 0.88695},
+		{Ticker: "MU", FinalScore: 0.88565},
+	}
+	portfolio := Portfolio{
+		Equity: 199826.89,
+		Cash:   20000,
+		Positions: []Position{
+			{Ticker: "GOOGL", MarketValue: 30971.58, Weight: 0.154992},
+			{Ticker: "AMD", MarketValue: 26380.90, Weight: 0.132019},
+			{Ticker: "MSFT", MarketValue: 6301.07, Weight: 0.031533},
+			{Ticker: "XYZ.AX", MarketValue: 36380.18, Weight: 0.182058},
+			{Ticker: "LTR.AX", MarketValue: 24073.70, Weight: 0.120473},
+			{Ticker: "XRO.AX", MarketValue: 18633.88, Weight: 0.093250},
+		},
+	}
+
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"MIN.AX", "SXE.AX", "GNP.AX", "DOCN", "MU"}},
+		portfolio,
+		signals,
+		cfg,
+	)
+
+	require.Len(t, plan.ProposedTrades, 3)
+	tradesByTicker := map[string]ProposedTrade{}
+	for _, trade := range plan.ProposedTrades {
+		tradesByTicker[trade.Ticker] = trade
+	}
+	assert.Contains(t, tradesByTicker, "MIN.AX")
+	assert.Contains(t, tradesByTicker, "DOCN")
+	assert.Contains(t, tradesByTicker, "MU")
+	assert.Contains(t, tradesByTicker["DOCN"].Reason, "preferred by listing-region tilt toward US")
+	assert.Contains(t, tradesByTicker["MU"].Reason, "preferred by listing-region tilt toward US")
+	assert.Contains(t, plan.Rejected, RejectedTicker{Ticker: "GNP.AX", Reason: "max_new_positions_per_run reached"})
+	assert.Contains(t, plan.Rejected, RejectedTicker{Ticker: "SXE.AX", Reason: "max_new_positions_per_run reached"})
+}
+
+func TestPlanPortfolioListingRegionTiltInactiveAbovePreferredExposure(t *testing.T) {
+	t.Parallel()
+
+	cfg := testConfig()
+	cfg.Portfolio.MaxPositions = 5
+	cfg.Portfolio.MaxPositionPct = 0.8
+	cfg.Portfolio.ListingRegionTilt = "US"
+	cfg.Risk.MaxNewPositionsPerRun = 1
+	signals := []SignalResult{
+		{Ticker: "AAA.AX", FinalScore: 0.9},
+		{Ticker: "MSFT", FinalScore: 0.86},
+	}
+	portfolio := Portfolio{
+		Equity: 100000,
+		Cash:   40000,
+		Positions: []Position{
+			{Ticker: "AAPL", MarketValue: 60000, Weight: 0.6},
+		},
+	}
+
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"AAA.AX", "MSFT"}},
+		portfolio,
+		signals,
+		cfg,
+	)
+
+	require.Len(t, plan.ProposedTrades, 1)
+	assert.Equal(t, "AAA.AX", plan.ProposedTrades[0].Ticker)
+	assert.NotContains(t, plan.ProposedTrades[0].Reason, "listing-region tilt")
+}
+
+func TestValidateStrategyConfigRejectsUnknownListingRegionTilt(t *testing.T) {
+	t.Parallel()
+
+	cfg := testConfig()
+	cfg.Portfolio.ListingRegionTilt = "EU"
+
+	result := ValidateStrategyConfig(cfg)
+
+	require.False(t, result.Valid)
+	assert.Contains(t, result.Errors, "portfolio.listing_region_tilt must be empty, US, or ASX")
+}
+
 func TestValidatePlanAllowsReducingExistingNonUniverseHolding(t *testing.T) {
 	t.Parallel()
 

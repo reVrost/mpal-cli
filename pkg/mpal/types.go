@@ -77,6 +77,7 @@ type Universe struct {
 type StrategyConfig struct {
 	ID          string               `json:"id" yaml:"id"`
 	Version     string               `json:"version" yaml:"version"`
+	Defaults    string               `json:"defaults,omitempty" yaml:"defaults"`
 	Name        string               `json:"name,omitempty" yaml:"name"`
 	Description string               `json:"description,omitempty" yaml:"description"`
 	WhenToUse   string               `json:"when_to_use,omitempty" yaml:"when_to_use"`
@@ -105,11 +106,12 @@ type EventGuardrailConfig struct {
 }
 
 type PortfolioConfig struct {
-	LongOnly       bool    `json:"long_only" yaml:"long_only"`
-	MaxPositions   int     `json:"max_positions" yaml:"max_positions"`
-	MaxPositionPct float64 `json:"max_position_pct" yaml:"max_position_pct"`
-	MinTradeValue  float64 `json:"min_trade_value" yaml:"min_trade_value"`
-	Rebalance      string  `json:"rebalance" yaml:"rebalance"`
+	LongOnly          bool    `json:"long_only" yaml:"long_only"`
+	MaxPositions      int     `json:"max_positions" yaml:"max_positions"`
+	MaxPositionPct    float64 `json:"max_position_pct" yaml:"max_position_pct"`
+	MinTradeValue     float64 `json:"min_trade_value" yaml:"min_trade_value"`
+	Rebalance         string  `json:"rebalance" yaml:"rebalance"`
+	ListingRegionTilt string  `json:"listing_region_tilt,omitempty" yaml:"listing_region_tilt"`
 }
 
 type RiskConfig struct {
@@ -126,6 +128,11 @@ type BacktestConfig struct {
 	FeeBps      float64 `json:"fee_bps" yaml:"fee_bps"`
 	SlippageBps float64 `json:"slippage_bps" yaml:"slippage_bps"`
 }
+
+const (
+	StrategyDefaultsSwingV1 = "swing_v1"
+	StrategyDefaultsBasicV1 = "basic_v1"
+)
 
 type StrategyRef struct {
 	ID         string `json:"id"`
@@ -395,7 +402,36 @@ func LoadStrategyBytes(raw []byte) (StrategyConfig, string, error) {
 	if err := yaml.Unmarshal(raw, &cfg); err != nil {
 		return StrategyConfig{}, "", err
 	}
+	cfg = ApplyStrategyDefaults(cfg)
 	return cfg, HashBytes(raw), nil
+}
+
+func ApplyStrategyDefaults(cfg StrategyConfig) StrategyConfig {
+	switch strings.TrimSpace(cfg.Defaults) {
+	case StrategyDefaultsSwingV1:
+		applySharedStrategyDefaults(&cfg)
+		cfg.Events = EventGuardrailConfig{
+			Enabled:      true,
+			LookbackDays: 14,
+			VetoScore:    -0.55,
+			BoostScore:   0.70,
+			BoostAmount:  0.03,
+		}
+	case StrategyDefaultsBasicV1:
+		applySharedStrategyDefaults(&cfg)
+		cfg.Events = EventGuardrailConfig{}
+	}
+	return cfg
+}
+
+func applySharedStrategyDefaults(cfg *StrategyConfig) {
+	cfg.Portfolio.LongOnly = true
+	cfg.Risk.ProtectUnscoredHoldings = true
+	cfg.Backtest = BacktestConfig{
+		InitialCash: 100000,
+		FeeBps:      5,
+		SlippageBps: 10,
+	}
 }
 
 func ValidateStrategyConfig(cfg StrategyConfig) ValidationResult {
@@ -405,6 +441,11 @@ func ValidateStrategyConfig(cfg StrategyConfig) ValidationResult {
 	}
 	if strings.TrimSpace(cfg.Version) == "" {
 		errs = append(errs, "version is required")
+	}
+	switch strings.TrimSpace(cfg.Defaults) {
+	case "", StrategyDefaultsSwingV1, StrategyDefaultsBasicV1:
+	default:
+		errs = append(errs, "defaults must be empty, swing_v1, or basic_v1")
 	}
 	if cfg.Scoring.MomentumWeight < 0 || cfg.Scoring.ProfileWeight < 0 {
 		errs = append(errs, "scoring weights must be non-negative")
@@ -438,6 +479,9 @@ func ValidateStrategyConfig(cfg StrategyConfig) ValidationResult {
 	}
 	if cfg.Portfolio.MinTradeValue < 0 {
 		errs = append(errs, "portfolio.min_trade_value must be >= 0")
+	}
+	if region := normalizeListingRegion(cfg.Portfolio.ListingRegionTilt); region != "" && region != listingRegionUS && region != listingRegionASX {
+		errs = append(errs, "portfolio.listing_region_tilt must be empty, US, or ASX")
 	}
 	if cfg.Risk.TurnoverBudgetPct < 0 || cfg.Risk.TurnoverBudgetPct > 1 {
 		errs = append(errs, "risk.turnover_budget_pct must be in [0,1]")

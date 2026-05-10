@@ -1,5 +1,6 @@
 id: simple_score_v1
 version: 1.0.0
+defaults: basic_v1
 name: Simple score v1
 approved: true
 
@@ -10,7 +11,6 @@ scoring:
   min_hold_score: 0.20
 
 portfolio:
-  long_only: true
   max_positions: 20
   max_position_pct: 0.12
   min_trade_value: 100
@@ -22,9 +22,3 @@ risk:
   starter_position_pct: 0.02
   max_new_positions_per_run: 2
   cash_buffer_pct: 0.02
-  protect_unscored_holdings: true
-
-backtest:
-  initial_cash: 100000
-  fee_bps: 5
-  slippage_bps: 10

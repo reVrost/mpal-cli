@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/revrost/mpal-cli/schemas/strategy.schema.json",
+  "title": "MarketPal Strategy Config",
+  "description": "YAML strategy config for mpal-cli. Built-in strategies should use a defaults profile plus visible scoring and sizing knobs. Advanced full configs may still specify event guardrails, long-only behavior, unscored-holding protection, and backtest assumptions explicitly.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "version", "approved", "scoring", "portfolio", "risk"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional editor hint pointing to this schema."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable strategy identifier, for example engine_weekly_swing_v1."
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Strategy config version."
+    },
+    "defaults": {
+      "type": "string",
+      "enum": ["swing_v1", "basic_v1"],
+      "description": "Named profile for advanced defaults. swing_v1 enables the standard event guardrail; basic_v1 keeps event guardrails disabled. Both profiles apply long-only, protected unscored holdings, and standard backtest assumptions."
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable strategy name."
+    },
+    "description": {
+      "type": "string",
+      "description": "Short explanation of what the strategy is for."
+    },
+    "when_to_use": {
+      "type": "string",
+      "description": "Human guidance for choosing this strategy."
+    },
+    "cadence": {
+      "type": "string",
+      "description": "Expected review cadence, for example weekly or daily_or_weekly."
+    },
+    "approved": {
+      "type": "boolean",
+      "description": "Whether scheduled or agent-assisted runs may use this strategy."
+    },
+    "scoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["momentum_weight", "profile_weight", "min_buy_score", "min_hold_score"],
+      "properties": {
+        "momentum_weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Weight of momentum in the final signal score. Momentum plus profile weights must sum to 1."
+        },
+        "profile_weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Weight of profile/QVM quality in the final signal score. Momentum plus profile weights must sum to 1."
+        },
+        "min_buy_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum final score for new buys and top-ups."
+        },
+        "min_hold_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum final score before an existing holding becomes a reduction candidate."
+        }
+      }
+    },
+    "event_guardrail": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Advanced override. Built-in swing strategies use defaults: swing_v1 instead of specifying this block.",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether recent article event scores can veto or boost signals."
+        },
+        "lookback_days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Recent-event lookback window."
+        },
+        "event_veto_score": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1,
+          "description": "Event score at or below which a candidate is vetoed."
+        },
+        "event_boost_score": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1,
+          "description": "Event score at or above which a candidate receives a boost."
+        },
+        "event_boost_amount": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Amount added to the final score after a positive event boost."
+        }
+      }
+    },
+    "portfolio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_positions", "max_position_pct", "min_trade_value", "rebalance"],
+      "properties": {
+        "long_only": {
+          "type": "boolean",
+          "description": "Advanced override. Built-in strategies get long-only behavior from their defaults profile."
+        },
+        "max_positions": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of active holdings after planning."
+        },
+        "max_position_pct": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "Maximum target weight for one holding."
+        },
+        "min_trade_value": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Minimum estimated trade value needed for a proposed trade."
+        },
+        "rebalance": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Planner cadence label, for example daily or weekly."
+        },
+        "listing_region_tilt": {
+          "type": "string",
+          "enum": ["US", "ASX"],
+          "description": "Optional soft starter-selection preference. When preferred exposure is low and scores are close, the planner may prefer this listing region."
+        }
+      }
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "turnover_budget_pct",
+        "max_single_trade_pct",
+        "starter_position_pct",
+        "max_new_positions_per_run",
+        "cash_buffer_pct"
+      ],
+      "properties": {
+        "turnover_budget_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Maximum total absolute trade weight per run."
+        },
+        "max_single_trade_pct": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "Maximum absolute target-weight change for one trade."
+        },
+        "starter_position_pct": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "Default target weight for a new starter position."
+        },
+        "max_new_positions_per_run": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum number of new buy positions per run."
+        },
+        "cash_buffer_pct": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 1,
+          "description": "Minimum portfolio cash weight to preserve."
+        },
+        "protect_unscored_holdings": {
+          "type": "boolean",
+          "description": "Advanced override. Built-in strategies get this from their defaults profile."
+        }
+      }
+    },
+    "backtest": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Advanced override. Built-in strategies get standard backtest assumptions from their defaults profile.",
+      "required": ["initial_cash", "fee_bps", "slippage_bps"],
+      "properties": {
+        "initial_cash": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Starting cash for backtests."
+        },
+        "fee_bps": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Backtest fee assumption in basis points."
+        },
+        "slippage_bps": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Backtest slippage assumption in basis points."
+        }
+      }
+    }
+  }
+}

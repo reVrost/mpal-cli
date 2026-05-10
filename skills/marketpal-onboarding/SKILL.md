@@ -10,6 +10,23 @@ working MarketPal setup. It is for setup and smoke tests, not trade approval.
 Use `marketpal-trader` for actual strategy reviews, validation, vetoes,
 overrides, and journaling.
 
+## Getting Started
+
+When a user asks how to start, give them the shortest safe path:
+
+1. Install `mpal` and `mpal-mcp`, set `MPAL_API_KEY` in the shell or app
+   process that runs the agent, and install the Codex or Claude Code plugin if
+   they want skill-guided setup.
+2. Tell them they can ask their agent:
+   `Run the MarketPal onboarding skill and report the first-run checklist.`
+3. Then follow this skill end-to-end. Check the environment, run read-only
+   smoke tests, verify MCP/plugin wiring, check for the private policy path,
+   and return the first-run checklist with one safe next command.
+
+Do not turn onboarding into a trading review. If the user asks what to trade or
+whether to accept a strategy output, switch to `marketpal-trader` after setup is
+verified.
+
 ## Setup Workflow
 
 1. Check the local environment.
@@ -36,6 +53,10 @@ overrides, and journaling.
      cleanup sells.
    - `engine_quality_swing_rebuild_v1`: manual higher-turnover engine cleanup
      or transition rebuild; do not use as the default weekly strategy.
+   - `momentum_profile_v1`, `momentum_only_v1`, and `simple_score_v1` may also
+     appear in installed strategy lists as general or example configs. Do not
+     recommend them for routine MarketPal swing onboarding unless the user
+     explicitly chose one.
 
 4. Check private portfolio policy.
    - Look for `~/.marketpal/portfolio-policy.md`.
@@ -83,7 +104,7 @@ Report setup status with these fields:
 - If plugin install works but MCP tools fail, check whether `mpal-mcp` is on
   `PATH` for the app process, not just the terminal.
 - If strategy names look stale, run `mpal strategy list --json` and compare
-  against the three current configs above.
+  against the built-in strategy list in `README.md`.
 - If a user asks "what should I trade?", switch to `marketpal-trader` after
   setup is verified.
 

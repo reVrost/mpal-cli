@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+const (
+	listingRegionUS  = "US"
+	listingRegionASX = "ASX"
+
+	defaultListingRegionTiltMinExposure = 0.60
+	defaultListingRegionTiltTolerance   = 0.10
+)
+
 type rebalancePlanner struct {
 	asOf              time.Time
 	portfolio         Portfolio
@@ -127,10 +135,30 @@ func (p *rebalancePlanner) reduceWeakHolding(ticker string, weight float64, scor
 }
 
 func (p *rebalancePlanner) planStarters() {
-	for _, signal := range p.ranked {
+	for _, signal := range p.orderedStarterCandidates() {
 		if p.remainingTurnover <= 0 || p.availableCash() <= 0 {
 			return
 		}
+		if p.newPositions >= p.cfg.Risk.MaxNewPositionsPerRun {
+			p.reject(signal.Ticker, "max_new_positions_per_run reached")
+			continue
+		}
+		if p.activePositions() >= p.cfg.Portfolio.MaxPositions {
+			p.reject(signal.Ticker, "max_positions reached")
+			continue
+		}
+		target := minFloat(p.cfg.Risk.StarterPositionPct, p.cfg.Risk.MaxSingleTradePct, p.cfg.Portfolio.MaxPositionPct, p.remainingTurnover, p.availableCash())
+		if p.addTrade(signal.Ticker, SideBuy, TradeIntentStarter, target, p.starterReason(signal)) {
+			p.newPositions++
+		} else {
+			p.reject(signal.Ticker, "insufficient funding or below min trade value")
+		}
+	}
+}
+
+func (p *rebalancePlanner) orderedStarterCandidates() []SignalResult {
+	candidates := make([]SignalResult, 0, len(p.ranked))
+	for _, signal := range p.ranked {
 		if p.current[signal.Ticker] > 0 {
 			continue
 		}
@@ -146,21 +174,57 @@ func (p *rebalancePlanner) planStarters() {
 			p.reject(signal.Ticker, "ticker not in universe")
 			continue
 		}
-		if p.newPositions >= p.cfg.Risk.MaxNewPositionsPerRun {
-			p.reject(signal.Ticker, "max_new_positions_per_run reached")
+		candidates = append(candidates, signal)
+	}
+	preferred := p.activeListingRegionTilt()
+	if preferred == "" {
+		return candidates
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		leftScore := listingRegionTiltScore(candidates[i], preferred)
+		rightScore := listingRegionTiltScore(candidates[j], preferred)
+		if leftScore == rightScore {
+			leftPreferred := listingRegion(candidates[i].Ticker) == preferred
+			rightPreferred := listingRegion(candidates[j].Ticker) == preferred
+			if leftPreferred != rightPreferred {
+				return leftPreferred
+			}
+			if candidates[i].FinalScore == candidates[j].FinalScore {
+				return candidates[i].Ticker < candidates[j].Ticker
+			}
+			return candidates[i].FinalScore > candidates[j].FinalScore
+		}
+		return leftScore > rightScore
+	})
+	return candidates
+}
+
+func (p *rebalancePlanner) activeListingRegionTilt() string {
+	preferred := normalizeListingRegion(p.cfg.Portfolio.ListingRegionTilt)
+	if preferred == "" || preferredRegionExposure(p.targetWeights, preferred) >= defaultListingRegionTiltMinExposure {
+		return ""
+	}
+	return preferred
+}
+
+func (p *rebalancePlanner) starterReason(signal SignalResult) string {
+	reason := "starter position from top-ranked score above buy threshold"
+	preferred := p.activeListingRegionTilt()
+	if preferred == "" || listingRegion(signal.Ticker) != preferred {
+		return reason
+	}
+	for _, other := range p.ranked {
+		if other.Ticker == signal.Ticker || p.current[other.Ticker] > 0 || !tickerAllowed(p.allowedNew, other.Ticker) || other.FinalScore < p.cfg.Scoring.MinBuyScore || other.EventVeto {
 			continue
 		}
-		if p.activePositions() >= p.cfg.Portfolio.MaxPositions {
-			p.reject(signal.Ticker, "max_positions reached")
+		if listingRegion(other.Ticker) == preferred {
 			continue
 		}
-		target := minFloat(p.cfg.Risk.StarterPositionPct, p.cfg.Risk.MaxSingleTradePct, p.cfg.Portfolio.MaxPositionPct, p.remainingTurnover, p.availableCash())
-		if p.addTrade(signal.Ticker, SideBuy, TradeIntentStarter, target, "starter position from top-ranked score above buy threshold") {
-			p.newPositions++
-		} else {
-			p.reject(signal.Ticker, "insufficient funding or below min trade value")
+		if other.FinalScore > signal.FinalScore && other.FinalScore-signal.FinalScore <= defaultListingRegionTiltTolerance {
+			return fmt.Sprintf("%s; preferred by listing-region tilt toward %s within %.2f score tolerance while %s exposure is below %.0f%%", reason, preferred, defaultListingRegionTiltTolerance, preferred, defaultListingRegionTiltMinExposure*100)
 		}
 	}
+	return reason
 }
 
 func (p *rebalancePlanner) planTopUps() {
@@ -296,6 +360,44 @@ func allowedTickerSet(tickers []string) map[string]struct{} {
 func tickerAllowed(allowed map[string]struct{}, ticker string) bool {
 	_, ok := allowed[strings.ToUpper(strings.TrimSpace(ticker))]
 	return ok
+}
+
+func listingRegionTiltScore(signal SignalResult, preferred string) float64 {
+	score := signal.FinalScore
+	if listingRegion(signal.Ticker) == preferred {
+		score += defaultListingRegionTiltTolerance
+	}
+	return score
+}
+
+func preferredRegionExposure(weights map[string]float64, preferred string) float64 {
+	total := 0.0
+	preferredTotal := 0.0
+	for ticker, weight := range weights {
+		if weight <= 0 {
+			continue
+		}
+		total += weight
+		if listingRegion(ticker) == preferred {
+			preferredTotal += weight
+		}
+	}
+	if total <= 0 {
+		return 0
+	}
+	return preferredTotal / total
+}
+
+func listingRegion(ticker string) string {
+	ticker = strings.ToUpper(strings.TrimSpace(ticker))
+	if strings.HasSuffix(ticker, ".AX") {
+		return listingRegionASX
+	}
+	return listingRegionUS
+}
+
+func normalizeListingRegion(region string) string {
+	return strings.ToUpper(strings.TrimSpace(region))
 }
 
 func cashWeight(portfolio Portfolio) float64 {

@@ -7,6 +7,43 @@ backtesting, and journal capabilities as structured JSON.
 It is not an autonomous trader, not a broker client, and cannot execute live
 orders.
 
+## Getting Started
+
+For Codex or Claude Code, install the CLI and MCP server, make the API key
+available to the agent process, install the plugin, then ask the agent to run
+onboarding:
+
+```sh
+go install github.com/revrost/mpal-cli/cmd/mpal@latest
+go install github.com/revrost/mpal-cli/cmd/mpal-mcp@latest
+export MPAL_API_KEY=mpal_...
+```
+
+Codex plugin:
+
+```sh
+codex plugin marketplace add revrost/mpal-cli --ref main
+```
+
+Then open `/plugins`, choose `MarketPal Plugins`, and install `marketpal`.
+
+Claude Code plugin:
+
+```sh
+claude plugin marketplace add revrost/mpal-cli
+claude plugin install marketpal@marketpal-plugins
+```
+
+After the plugin is installed, ask your agent:
+
+```text
+Run the MarketPal onboarding skill and report the first-run checklist.
+```
+
+The onboarding skill checks `mpal`, `mpal-mcp`, `MPAL_API_KEY`, MCP/plugin
+wiring, approved strategies, and the private portfolio policy path. It only
+runs safe smoke tests and does not approve trades or place orders.
+
 ## Install
 
 ```sh
@@ -51,14 +88,27 @@ show them without needing the source tree:
 - `momentum_only_v1`
 - `simple_score_v1`
 
-For agent-assisted routine full-portfolio reviews, prefer
+For routine full-portfolio review packets, the intended config is
 `portfolio_low_churn_swing_v1`. For weekly MarketPal return-engine sleeve
-reviews, prefer `engine_weekly_swing_v1`. Treat
-`engine_quality_swing_rebuild_v1` as a manual, higher-churn MarketPal engine
-cleanup/rebuild config unless the user explicitly asks for it.
+review packets, the intended config is `engine_weekly_swing_v1`.
+`engine_quality_swing_rebuild_v1` is a manual, higher-churn MarketPal engine
+cleanup/rebuild scenario config.
 
-For the recommended weekly/monthly/quarterly swing-trading workflow, see
-[docs/HOW_TO_SWING_TRADE.md](docs/HOW_TO_SWING_TRADE.md).
+Strategy configs can optionally set `portfolio.listing_region_tilt: US` or
+`ASX`. This is a soft starter-selection preference only: when preferred-region
+exposure is below the built-in threshold and candidates are close in score, the
+planner may prefer that listing region. The built-in tilt is intentionally
+limited to starter ordering: it currently uses a 0.05 score nudge while the
+preferred region is below 55% exposure, and it is disabled when omitted.
+
+Strategy configs remain YAML, with editor validation available through
+`schemas/strategy.schema.json`. Built-in YAML uses `defaults: swing_v1` or
+`defaults: basic_v1` to keep advanced event/backtest/protection knobs out of
+the files users normally read. See
+[docs/STRATEGY_CONFIGS.md](docs/STRATEGY_CONFIGS.md).
+
+For the research-oriented strategy review workflow, see
+[docs/MARKETPAL_REVIEW_WORKFLOW.md](docs/MARKETPAL_REVIEW_WORKFLOW.md).
 
 Users can add custom configs under:
 
