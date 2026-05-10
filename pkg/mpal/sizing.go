@@ -15,6 +15,18 @@ const (
 )
 
 const (
+	SizingBindingKellyTarget       = "kelly_target"
+	SizingBindingKellyMaxFraction  = "kelly_max_fraction"
+	SizingBindingMaxSingleTradePct = "max_single_trade_pct"
+	SizingBindingMaxPositionPct    = "max_position_pct"
+	SizingBindingTurnoverBudgetPct = "turnover_budget_pct"
+	SizingBindingCashBufferPct     = "cash_buffer_pct"
+	SizingBindingMinTradeValue     = "min_trade_value"
+	SizingBindingFixedFallback     = "fixed_fallback"
+	SizingBindingValidationFailure = "validation_failure"
+)
+
+const (
 	defaultKellyFraction           = 0.25
 	defaultKellyMinEdge            = 0.0
 	defaultKellyMaxFraction        = 0.05
@@ -83,9 +95,10 @@ func normalizeKellyMissingEdgePolicy(policy string) string {
 
 func fractionalKellyDecision(signal SignalResult, cfg normalizedSizingConfig) (SizingDecision, bool) {
 	decision := SizingDecision{
-		Method:      SizingMethodFractionalKelly,
-		Source:      "markov",
-		PayoffRatio: round(cfg.KellyDefaultPayoffRatio, 6),
+		Method:            SizingMethodFractionalKelly,
+		Source:            "markov",
+		CalibrationStatus: "heuristic_markov",
+		PayoffRatio:       round(cfg.KellyDefaultPayoffRatio, 6),
 	}
 	if signal.Markov == nil {
 		decision.Warnings = []string{"missing Markov edge data"}
@@ -96,6 +109,8 @@ func fractionalKellyDecision(signal SignalResult, cfg normalizedSizingConfig) (S
 	decision.SampleCount = markov.SampleCount
 	pWin := markov.FavorableProbability
 	pLoss := markov.UnfavorableProbability
+	decision.FavorableProbability = round(pWin, 6)
+	decision.UnfavorableProbability = round(pLoss, 6)
 	if pWin <= 0 || pLoss < 0 || pWin+pLoss <= 0 {
 		decision.Warnings = []string{"Markov favorable/unfavorable probabilities do not provide usable edge data"}
 		return decision, false
@@ -115,10 +130,16 @@ func fractionalKellyDecision(signal SignalResult, cfg normalizedSizingConfig) (S
 		return decision, false
 	}
 	shrunkKelly := math.Max(0, rawKelly*markov.Confidence)
-	fractionalKelly := shrunkKelly * cfg.KellyFraction
-	target := math.Min(fractionalKelly, cfg.KellyMaxFraction)
-	decision.FractionalKelly = round(target, 6)
+	unclampedFractionalKelly := shrunkKelly * cfg.KellyFraction
+	target := math.Min(unclampedFractionalKelly, cfg.KellyMaxFraction)
+	decision.FractionalKelly = round(unclampedFractionalKelly, 6)
 	decision.TargetWeight = round(target, 6)
+	decision.KellyTargetWeight = decision.TargetWeight
+	if unclampedFractionalKelly > cfg.KellyMaxFraction+0.000001 {
+		decision.BindingConstraint = SizingBindingKellyMaxFraction
+	} else {
+		decision.BindingConstraint = SizingBindingKellyTarget
+	}
 	return decision, target > 0
 }
 

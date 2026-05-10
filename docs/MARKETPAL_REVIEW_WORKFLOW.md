@@ -250,7 +250,9 @@ Markov metadata is an explanatory transition read by default; it does not
 authorize trades and does not replace validation. A strategy may explicitly
 enable `risk.sizing_method: fractional_kelly` to use Markov probabilities as a
 conservative sizing input, but proposed trades remain clamped by the fixed risk
-controls.
+controls. When structured sizing is present, read the Kelly target, final target,
+binding constraint, probability inputs, warnings, and calibration status from
+`proposed_trades[].sizing` rather than inferring them from prose.
 
 ### Execution Read
 

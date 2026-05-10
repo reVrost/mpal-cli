@@ -111,10 +111,20 @@ When both are configured, priority is:
 3. The final proposed trade is clamped by the fixed caps from the profile or
    explicit overrides.
 
-In JSON output, `proposed_trades[].sizing.target_weight` is the Kelly target
-before the final risk clamp, while `proposed_trades[].target_weight` is the
-actual proposed final target. If the Kelly target is reduced by caps, the
-`sizing.warnings` field records that clamp.
+In JSON output, `proposed_trades[].sizing.target_weight` and
+`proposed_trades[].sizing.kelly_target_weight` are the Kelly target before the
+final risk clamp and after `risk.kelly_max_fraction`, while
+`proposed_trades[].sizing.fractional_kelly` is the confidence-shrunk fractional
+Kelly estimate before that Kelly max cap. `proposed_trades[].target_weight`
+and `proposed_trades[].sizing.final_target_weight` are the actual proposed
+final target. `proposed_trades[].sizing.binding_constraint` names the active
+sizing limit when available, such as `kelly_target`, `kelly_max_fraction`,
+`max_single_trade_pct`, `max_position_pct`, `turnover_budget_pct`,
+`cash_buffer_pct`, or `fixed_fallback`. Markov-derived Kelly decisions also
+carry the favorable/unfavorable probabilities used for sizing and
+`calibration_status: heuristic_markov` until a calibrated probability model is
+available. If the Kelly target is reduced by caps, the `sizing.warnings` field
+records that clamp.
 
 The hosted MarketPal API currently uses the `hosted_strategy_api_v1` execution
 contract, which supports `momentum_weight` and `profile_weight`. Configs with

@@ -233,7 +233,10 @@ fractional_kelly` sizing overlay. That one setting uses conservative internal
 Kelly defaults; users can tune `risk.kelly_fraction` for 25%, half Kelly, or
 another value in `(0,1]`. Even then, Kelly sizing is only an input and proposed
 trades remain clamped by the strategy's fixed risk controls, including any
-limits supplied by `risk.profile`.
+limits supplied by `risk.profile`. Kelly-sized trades include structured sizing
+audit fields such as `kelly_target_weight`, `final_target_weight`,
+`binding_constraint`, favorable/unfavorable probabilities, and
+`calibration_status`.
 
 Agents may summarize review packets or construct bounded alternative packets,
 but must:

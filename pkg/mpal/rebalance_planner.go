@@ -173,9 +173,10 @@ func (p *rebalancePlanner) addKellyStarter(signal SignalResult) bool {
 		if signal.Markov == nil && p.sizing.KellyMissingEdgePolicy == KellyMissingEdgePolicyFixed {
 			target := minFloat(p.cfg.Risk.StarterPositionPct, p.cfg.Risk.MaxSingleTradePct, p.cfg.Portfolio.MaxPositionPct, p.remainingTurnover, p.availableCash())
 			fallback := SizingDecision{
-				Method:   SizingMethodFixed,
-				Source:   "fixed_fallback",
-				Warnings: decision.Warnings,
+				Method:            SizingMethodFixed,
+				Source:            SizingBindingFixedFallback,
+				BindingConstraint: SizingBindingFixedFallback,
+				Warnings:          decision.Warnings,
 			}
 			reason := p.starterReason(signal) + "; fractional Kelly edge unavailable, fixed sizing fallback"
 			if p.addTradeWithSizing(signal.Ticker, SideBuy, TradeIntentStarter, target, reason, &fallback) {
@@ -187,8 +188,15 @@ func (p *rebalancePlanner) addKellyStarter(signal SignalResult) bool {
 		p.reject(signal.Ticker, kellyRejectionReason(decision, p.sizing))
 		return false
 	}
-	target := minFloat(decision.TargetWeight, p.cfg.Risk.MaxSingleTradePct, p.cfg.Portfolio.MaxPositionPct, p.remainingTurnover, p.availableCash())
-	decision = kellyDecisionWithClampingWarning(decision, target)
+	limit := minSizingLimit(
+		sizingLimit{value: decision.TargetWeight, constraint: decision.BindingConstraint},
+		sizingLimit{value: p.cfg.Risk.MaxSingleTradePct, constraint: SizingBindingMaxSingleTradePct},
+		sizingLimit{value: p.cfg.Portfolio.MaxPositionPct, constraint: SizingBindingMaxPositionPct},
+		sizingLimit{value: p.remainingTurnover, constraint: SizingBindingTurnoverBudgetPct},
+		sizingLimit{value: p.availableCash(), constraint: SizingBindingCashBufferPct},
+	)
+	target := limit.value
+	decision = kellyDecisionWithFinalTarget(decision, target, limit.constraint)
 	reason := kellyAuditReason("starter position", decision, p.sizing)
 	if p.addTradeWithSizing(signal.Ticker, SideBuy, TradeIntentStarter, target, reason, &decision) {
 		return true
@@ -295,9 +303,10 @@ func (p *rebalancePlanner) addKellyTopUp(signal SignalResult, weight float64) {
 		if signal.Markov == nil && p.sizing.KellyMissingEdgePolicy == KellyMissingEdgePolicyFixed {
 			target := weight + minFloat(p.cfg.Portfolio.MaxPositionPct-weight, p.cfg.Risk.MaxSingleTradePct, p.remainingTurnover, p.availableCash())
 			fallback := SizingDecision{
-				Method:   SizingMethodFixed,
-				Source:   "fixed_fallback",
-				Warnings: decision.Warnings,
+				Method:            SizingMethodFixed,
+				Source:            SizingBindingFixedFallback,
+				BindingConstraint: SizingBindingFixedFallback,
+				Warnings:          decision.Warnings,
 			}
 			p.addTradeWithSizing(signal.Ticker, SideBuy, TradeIntentTopUp, target, "top up existing holding with score above buy threshold; fractional Kelly edge unavailable, fixed sizing fallback", &fallback)
 			return
@@ -310,8 +319,15 @@ func (p *rebalancePlanner) addKellyTopUp(signal SignalResult, weight float64) {
 	if decision.TargetWeight <= weight+0.000001 {
 		return
 	}
-	target := weight + minFloat(decision.TargetWeight-weight, p.cfg.Portfolio.MaxPositionPct-weight, p.cfg.Risk.MaxSingleTradePct, p.remainingTurnover, p.availableCash())
-	decision = kellyDecisionWithClampingWarning(decision, target)
+	limit := minSizingLimit(
+		sizingLimit{value: decision.TargetWeight - weight, constraint: decision.BindingConstraint},
+		sizingLimit{value: p.cfg.Portfolio.MaxPositionPct - weight, constraint: SizingBindingMaxPositionPct},
+		sizingLimit{value: p.cfg.Risk.MaxSingleTradePct, constraint: SizingBindingMaxSingleTradePct},
+		sizingLimit{value: p.remainingTurnover, constraint: SizingBindingTurnoverBudgetPct},
+		sizingLimit{value: p.availableCash(), constraint: SizingBindingCashBufferPct},
+	)
+	target := weight + limit.value
+	decision = kellyDecisionWithFinalTarget(decision, target, limit.constraint)
 	p.addTradeWithSizing(signal.Ticker, SideBuy, TradeIntentTopUp, target, kellyAuditReason("top-up", decision, p.sizing), &decision)
 }
 
@@ -355,6 +371,9 @@ func (p *rebalancePlanner) addTradeWithSizing(ticker string, side string, intent
 	}
 	if sizing != nil {
 		sizingCopy := *sizing
+		if sizingCopy.FinalTargetWeight == 0 {
+			sizingCopy.FinalTargetWeight = trade.TargetWeight
+		}
 		trade.Sizing = &sizingCopy
 	}
 	p.trades = append(p.trades, trade)
@@ -440,11 +459,34 @@ func kellyRejectionReason(decision SizingDecision, cfg normalizedSizingConfig) s
 	return reason
 }
 
-func kellyDecisionWithClampingWarning(decision SizingDecision, finalTarget float64) SizingDecision {
+func kellyDecisionWithFinalTarget(decision SizingDecision, finalTarget float64, bindingConstraint string) SizingDecision {
+	decision.FinalTargetWeight = round(finalTarget, 6)
+	if bindingConstraint != "" {
+		decision.BindingConstraint = bindingConstraint
+	}
 	if decision.TargetWeight > finalTarget+0.000001 {
 		decision.Warnings = AppendWarnings(decision.Warnings, fmt.Sprintf("Kelly target %.3f clamped to final target %.3f by risk controls", decision.TargetWeight, finalTarget))
 	}
 	return decision
+}
+
+type sizingLimit struct {
+	value      float64
+	constraint string
+}
+
+func minSizingLimit(limits ...sizingLimit) sizingLimit {
+	if len(limits) == 0 {
+		return sizingLimit{}
+	}
+	minimum := limits[0]
+	for _, limit := range limits[1:] {
+		if limit.value < minimum.value {
+			minimum = limit
+		}
+	}
+	minimum.value = math.Max(0, minimum.value)
+	return minimum
 }
 
 func allowedTickerSet(tickers []string) map[string]struct{} {

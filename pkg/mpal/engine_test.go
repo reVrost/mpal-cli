@@ -887,6 +887,12 @@ func TestPlanPortfolioKellySizingReducesWeakNoisyStarter(t *testing.T) {
 	assert.Equal(t, SizingMethodFractionalKelly, trade.Sizing.Method)
 	assert.Equal(t, 0.1, trade.Sizing.RawKelly)
 	assert.Equal(t, 0.0075, trade.Sizing.TargetWeight)
+	assert.Equal(t, 0.0075, trade.Sizing.KellyTargetWeight)
+	assert.Equal(t, 0.0075, trade.Sizing.FinalTargetWeight)
+	assert.Equal(t, SizingBindingKellyTarget, trade.Sizing.BindingConstraint)
+	assert.Equal(t, 0.55, trade.Sizing.FavorableProbability)
+	assert.Equal(t, 0.45, trade.Sizing.UnfavorableProbability)
+	assert.Equal(t, "heuristic_markov", trade.Sizing.CalibrationStatus)
 	assert.Contains(t, trade.Reason, "starter position sized by fractional Kelly")
 }
 
@@ -909,7 +915,33 @@ func TestPlanPortfolioKellySizingCapsHighEdgeByKellyAndTradeCaps(t *testing.T) {
 	assert.Equal(t, 0.03, trade.TargetWeight)
 	require.NotNil(t, trade.Sizing)
 	assert.Equal(t, 0.08, trade.Sizing.TargetWeight)
+	assert.Equal(t, 0.08, trade.Sizing.KellyTargetWeight)
+	assert.Equal(t, 0.03, trade.Sizing.FinalTargetWeight)
+	assert.Equal(t, SizingBindingMaxSingleTradePct, trade.Sizing.BindingConstraint)
 	assert.Contains(t, trade.Sizing.Warnings, "Kelly target 0.080 clamped to final target 0.030 by risk controls")
+}
+
+func TestPlanPortfolioKellySizingReportsKellyMaxFractionAsBindingConstraint(t *testing.T) {
+	t.Parallel()
+
+	cfg := kellyTestConfig()
+	cfg.Risk.KellyMaxFraction = floatPtr(0.04)
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"AAPL"}},
+		Portfolio{Equity: 100000, Cash: 100000},
+		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.9, 0.1, 1, 100)}},
+		cfg,
+	)
+
+	require.Len(t, plan.ProposedTrades, 1)
+	trade := plan.ProposedTrades[0]
+	assert.Equal(t, 0.04, trade.TargetWeight)
+	require.NotNil(t, trade.Sizing)
+	assert.Equal(t, 0.04, trade.Sizing.KellyTargetWeight)
+	assert.Equal(t, 0.2, trade.Sizing.FractionalKelly)
+	assert.Equal(t, 0.04, trade.Sizing.FinalTargetWeight)
+	assert.Equal(t, SizingBindingKellyMaxFraction, trade.Sizing.BindingConstraint)
 }
 
 func TestPlanPortfolioKellyMissingMarkovFallsBackToFixed(t *testing.T) {
@@ -931,6 +963,8 @@ func TestPlanPortfolioKellyMissingMarkovFallsBackToFixed(t *testing.T) {
 	require.NotNil(t, trade.Sizing)
 	assert.Equal(t, SizingMethodFixed, trade.Sizing.Method)
 	assert.Equal(t, "fixed_fallback", trade.Sizing.Source)
+	assert.Equal(t, 0.02, trade.Sizing.FinalTargetWeight)
+	assert.Equal(t, SizingBindingFixedFallback, trade.Sizing.BindingConstraint)
 	assert.Contains(t, trade.Reason, "fixed sizing fallback")
 }
 
@@ -989,6 +1023,10 @@ func TestPlanPortfolioKellyTopUpDoesNotExceedKellyTarget(t *testing.T) {
 	assert.Equal(t, TradeIntentTopUp, trade.Intent)
 	assert.Equal(t, 0.015, trade.TargetWeight)
 	assert.Equal(t, 0.005, trade.DeltaWeight)
+	require.NotNil(t, trade.Sizing)
+	assert.Equal(t, 0.015, trade.Sizing.KellyTargetWeight)
+	assert.Equal(t, 0.015, trade.Sizing.FinalTargetWeight)
+	assert.Equal(t, SizingBindingKellyTarget, trade.Sizing.BindingConstraint)
 }
 
 func TestPlanPortfolioKellyMinTradeValuePreventsTinyStarter(t *testing.T) {
@@ -1019,12 +1057,16 @@ func TestPlanPortfolioKellyTurnoverBudgetAndCashBufferStillApply(t *testing.T) {
 	turnoverPlan := PlanPortfolio(asOf, Universe{Tickers: []string{"AAPL"}}, Portfolio{Equity: 100000, Cash: 100000}, []SignalResult{signal}, turnoverCfg)
 	require.Len(t, turnoverPlan.ProposedTrades, 1)
 	assert.Equal(t, 0.01, turnoverPlan.ProposedTrades[0].TargetWeight)
+	require.NotNil(t, turnoverPlan.ProposedTrades[0].Sizing)
+	assert.Equal(t, SizingBindingTurnoverBudgetPct, turnoverPlan.ProposedTrades[0].Sizing.BindingConstraint)
 
 	cashCfg := kellyTestConfig()
 	cashCfg.Risk.CashBufferPct = 0.02
 	cashPlan := PlanPortfolio(asOf, Universe{Tickers: []string{"AAPL"}}, Portfolio{Equity: 100000, Cash: 3000}, []SignalResult{signal}, cashCfg)
 	require.Len(t, cashPlan.ProposedTrades, 1)
 	assert.Equal(t, 0.01, cashPlan.ProposedTrades[0].TargetWeight)
+	require.NotNil(t, cashPlan.ProposedTrades[0].Sizing)
+	assert.Equal(t, SizingBindingCashBufferPct, cashPlan.ProposedTrades[0].Sizing.BindingConstraint)
 }
 
 func TestValidateStrategyConfigAcceptsAndRejectsKellySizing(t *testing.T) {

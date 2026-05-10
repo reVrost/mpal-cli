@@ -310,15 +310,21 @@ type ProposedTrade struct {
 }
 
 type SizingDecision struct {
-	Method          string   `json:"method"`
-	Source          string   `json:"source,omitempty"`
-	RawKelly        float64  `json:"raw_kelly,omitempty"`
-	FractionalKelly float64  `json:"fractional_kelly,omitempty"`
-	TargetWeight    float64  `json:"target_weight,omitempty"`
-	PayoffRatio     float64  `json:"payoff_ratio,omitempty"`
-	Confidence      float64  `json:"confidence,omitempty"`
-	SampleCount     int      `json:"sample_count,omitempty"`
-	Warnings        []string `json:"warnings,omitempty"`
+	Method                 string   `json:"method"`
+	Source                 string   `json:"source,omitempty"`
+	RawKelly               float64  `json:"raw_kelly,omitempty"`
+	FractionalKelly        float64  `json:"fractional_kelly,omitempty"`
+	TargetWeight           float64  `json:"target_weight,omitempty"`
+	KellyTargetWeight      float64  `json:"kelly_target_weight,omitempty"`
+	FinalTargetWeight      float64  `json:"final_target_weight,omitempty"`
+	BindingConstraint      string   `json:"binding_constraint,omitempty"`
+	FavorableProbability   float64  `json:"favorable_probability,omitempty"`
+	UnfavorableProbability float64  `json:"unfavorable_probability,omitempty"`
+	CalibrationStatus      string   `json:"calibration_status,omitempty"`
+	PayoffRatio            float64  `json:"payoff_ratio,omitempty"`
+	Confidence             float64  `json:"confidence,omitempty"`
+	SampleCount            int      `json:"sample_count,omitempty"`
+	Warnings               []string `json:"warnings,omitempty"`
 }
 
 type RejectedTicker struct {
