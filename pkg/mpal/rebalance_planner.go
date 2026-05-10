@@ -25,6 +25,7 @@ type rebalancePlanner struct {
 	targetWeights     map[string]float64
 	signalByTicker    map[string]SignalResult
 	ranked            []SignalResult
+	sizing            normalizedSizingConfig
 	remainingTurnover float64
 	cashWeight        float64
 	newPositions      int
@@ -62,6 +63,7 @@ func newRebalancePlanner(asOf time.Time, universe Universe, portfolio Portfolio,
 		targetWeights:     targetWeights,
 		signalByTicker:    signalByTicker,
 		ranked:            ranked,
+		sizing:            normalizeSizingConfig(cfg.Risk),
 		remainingTurnover: math.Max(0, cfg.Risk.TurnoverBudgetPct),
 		cashWeight:        cashWeight(portfolio),
 		rejectedKeys:      map[string]struct{}{},
@@ -150,6 +152,12 @@ func (p *rebalancePlanner) planStarters() {
 			p.reject(signal.Ticker, "max_positions reached")
 			continue
 		}
+		if p.sizing.Method == SizingMethodFractionalKelly {
+			if p.addKellyStarter(signal) {
+				p.newPositions++
+			}
+			continue
+		}
 		target := minFloat(p.cfg.Risk.StarterPositionPct, p.cfg.Risk.MaxSingleTradePct, p.cfg.Portfolio.MaxPositionPct, p.remainingTurnover, p.availableCash())
 		if p.addTrade(signal.Ticker, SideBuy, TradeIntentStarter, target, p.starterReason(signal)) {
 			p.newPositions++
@@ -157,6 +165,36 @@ func (p *rebalancePlanner) planStarters() {
 			p.reject(signal.Ticker, "insufficient funding or below min trade value")
 		}
 	}
+}
+
+func (p *rebalancePlanner) addKellyStarter(signal SignalResult) bool {
+	decision, usable := fractionalKellyDecision(signal, p.sizing)
+	if !usable {
+		if signal.Markov == nil && p.sizing.KellyMissingEdgePolicy == KellyMissingEdgePolicyFixed {
+			target := minFloat(p.cfg.Risk.StarterPositionPct, p.cfg.Risk.MaxSingleTradePct, p.cfg.Portfolio.MaxPositionPct, p.remainingTurnover, p.availableCash())
+			fallback := SizingDecision{
+				Method:   SizingMethodFixed,
+				Source:   "fixed_fallback",
+				Warnings: decision.Warnings,
+			}
+			reason := p.starterReason(signal) + "; fractional Kelly edge unavailable, fixed sizing fallback"
+			if p.addTradeWithSizing(signal.Ticker, SideBuy, TradeIntentStarter, target, reason, &fallback) {
+				return true
+			}
+			p.reject(signal.Ticker, "insufficient funding or below min trade value")
+			return false
+		}
+		p.reject(signal.Ticker, kellyRejectionReason(decision, p.sizing))
+		return false
+	}
+	target := minFloat(decision.TargetWeight, p.cfg.Risk.MaxSingleTradePct, p.cfg.Portfolio.MaxPositionPct, p.remainingTurnover, p.availableCash())
+	decision = kellyDecisionWithClampingWarning(decision, target)
+	reason := kellyAuditReason("starter position", decision, p.sizing)
+	if p.addTradeWithSizing(signal.Ticker, SideBuy, TradeIntentStarter, target, reason, &decision) {
+		return true
+	}
+	p.reject(signal.Ticker, "fractional Kelly target below min trade value or insufficient funding")
+	return false
 }
 
 func (p *rebalancePlanner) orderedStarterCandidates() []SignalResult {
@@ -242,12 +280,46 @@ func (p *rebalancePlanner) planTopUps() {
 		if signal.EventVeto {
 			continue
 		}
+		if p.sizing.Method == SizingMethodFractionalKelly {
+			p.addKellyTopUp(signal, weight)
+			continue
+		}
 		target := weight + minFloat(p.cfg.Portfolio.MaxPositionPct-weight, p.cfg.Risk.MaxSingleTradePct, p.remainingTurnover, p.availableCash())
 		p.addTrade(signal.Ticker, SideBuy, TradeIntentTopUp, target, "top up existing holding with score above buy threshold")
 	}
 }
 
+func (p *rebalancePlanner) addKellyTopUp(signal SignalResult, weight float64) {
+	decision, usable := fractionalKellyDecision(signal, p.sizing)
+	if !usable {
+		if signal.Markov == nil && p.sizing.KellyMissingEdgePolicy == KellyMissingEdgePolicyFixed {
+			target := weight + minFloat(p.cfg.Portfolio.MaxPositionPct-weight, p.cfg.Risk.MaxSingleTradePct, p.remainingTurnover, p.availableCash())
+			fallback := SizingDecision{
+				Method:   SizingMethodFixed,
+				Source:   "fixed_fallback",
+				Warnings: decision.Warnings,
+			}
+			p.addTradeWithSizing(signal.Ticker, SideBuy, TradeIntentTopUp, target, "top up existing holding with score above buy threshold; fractional Kelly edge unavailable, fixed sizing fallback", &fallback)
+			return
+		}
+		if signal.Markov == nil && p.sizing.KellyMissingEdgePolicy == KellyMissingEdgePolicySkip {
+			p.reject(signal.Ticker, kellyRejectionReason(decision, p.sizing))
+		}
+		return
+	}
+	if decision.TargetWeight <= weight+0.000001 {
+		return
+	}
+	target := weight + minFloat(decision.TargetWeight-weight, p.cfg.Portfolio.MaxPositionPct-weight, p.cfg.Risk.MaxSingleTradePct, p.remainingTurnover, p.availableCash())
+	decision = kellyDecisionWithClampingWarning(decision, target)
+	p.addTradeWithSizing(signal.Ticker, SideBuy, TradeIntentTopUp, target, kellyAuditReason("top-up", decision, p.sizing), &decision)
+}
+
 func (p *rebalancePlanner) addTrade(ticker string, side string, intent string, targetWeight float64, reason string) bool {
+	return p.addTradeWithSizing(ticker, side, intent, targetWeight, reason, nil)
+}
+
+func (p *rebalancePlanner) addTradeWithSizing(ticker string, side string, intent string, targetWeight float64, reason string, sizing *SizingDecision) bool {
 	ticker = strings.ToUpper(strings.TrimSpace(ticker))
 	previousTarget := p.targetWeights[ticker]
 	turnoverDelta := math.Abs(targetWeight - previousTarget)
@@ -271,7 +343,7 @@ func (p *rebalancePlanner) addTrade(ticker string, side string, intent string, t
 	currentWeight := p.current[ticker]
 	delta := targetWeight - currentWeight
 	p.targets = append(p.targets, TargetPosition{Ticker: ticker, TargetWeight: round(targetWeight, 6), Reason: reason})
-	p.trades = append(p.trades, ProposedTrade{
+	trade := ProposedTrade{
 		Ticker:         ticker,
 		Side:           side,
 		Intent:         intent,
@@ -280,7 +352,12 @@ func (p *rebalancePlanner) addTrade(ticker string, side string, intent string, t
 		DeltaWeight:    round(delta, 6),
 		EstimatedValue: round(math.Abs(delta)*p.portfolio.Equity, 2),
 		Reason:         reason,
-	})
+	}
+	if sizing != nil {
+		sizingCopy := *sizing
+		trade.Sizing = &sizingCopy
+	}
+	p.trades = append(p.trades, trade)
 	return true
 }
 
@@ -350,6 +427,24 @@ func (p *rebalancePlanner) reject(ticker string, reason string) {
 	}
 	p.rejectedKeys[key] = struct{}{}
 	p.rejected = append(p.rejected, RejectedTicker{Ticker: strings.ToUpper(ticker), Reason: reason})
+}
+
+func kellyRejectionReason(decision SizingDecision, cfg normalizedSizingConfig) string {
+	reason := "fractional Kelly edge unavailable"
+	if len(decision.Warnings) > 0 {
+		reason = reason + ": " + decision.Warnings[0]
+	}
+	if cfg.KellyMissingEdgePolicy == KellyMissingEdgePolicySkip && strings.Contains(reason, "missing Markov edge data") {
+		reason += "; missing_edge_policy=skip"
+	}
+	return reason
+}
+
+func kellyDecisionWithClampingWarning(decision SizingDecision, finalTarget float64) SizingDecision {
+	if decision.TargetWeight > finalTarget+0.000001 {
+		decision.Warnings = AppendWarnings(decision.Warnings, fmt.Sprintf("Kelly target %.3f clamped to final target %.3f by risk controls", decision.TargetWeight, finalTarget))
+	}
+	return decision
 }
 
 func allowedTickerSet(tickers []string) map[string]struct{} {

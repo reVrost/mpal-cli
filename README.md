@@ -227,7 +227,13 @@ weights, proposed model actions, warnings, freshness metadata, strategy ID,
 strategy version, config hash, validation result, and journal entry ID.
 Signals may include optional `markov` metadata with trend-state transition
 probabilities over the strategy rebalance horizon. This metadata is explanatory
-only and does not change scoring, planning, or validation.
+by default and does not change scoring, planning, or validation unless a
+strategy explicitly enables the experimental `risk.sizing_method:
+fractional_kelly` sizing overlay. That one setting uses conservative internal
+Kelly defaults; users can tune `risk.kelly_fraction` for 25%, half Kelly, or
+another value in `(0,1]`. Even then, Kelly sizing is only an input and proposed
+trades remain clamped by the strategy's fixed risk controls, including any
+limits supplied by `risk.profile`.
 
 Agents may summarize review packets or construct bounded alternative packets,
 but must:

@@ -354,6 +354,26 @@ func TestPlanPortfolioReservesCashBufferForStarters(t *testing.T) {
 	assert.InDelta(t, 0.98, total, 0.000001)
 }
 
+func TestPlanPortfolioComparisonFixedVersusFractionalKellySizing(t *testing.T) {
+	t.Parallel()
+
+	asOf := time.Date(2026, 1, 12, 0, 0, 0, 0, time.UTC)
+	universe := Universe{Tickers: []string{"AAPL"}}
+	portfolio := Portfolio{Cash: 100000, Equity: 100000}
+	signals := []SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.55, 0.45, 0.3, 100)}}
+
+	fixedCfg := testConfig()
+	fixedPlan := PlanPortfolio(asOf, universe, portfolio, signals, fixedCfg)
+	require.Len(t, fixedPlan.ProposedTrades, 1)
+	assert.Equal(t, 0.02, fixedPlan.ProposedTrades[0].TargetWeight)
+
+	kellyCfg := kellyTestConfig()
+	kellyPlan := PlanPortfolio(asOf, universe, portfolio, signals, kellyCfg)
+	require.Len(t, kellyPlan.ProposedTrades, 1)
+	assert.Equal(t, 0.0075, kellyPlan.ProposedTrades[0].TargetWeight)
+	assert.NotContains(t, kellyPlan.ProposedTrades[0].Reason, "improves returns")
+}
+
 func TestExecuteBacktestTradesSellsBeforeBuys(t *testing.T) {
 	t.Parallel()
 

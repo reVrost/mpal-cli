@@ -21,8 +21,7 @@ portfolio:
   listing_region_tilt: US
 
 risk:
-  turnover_budget_pct: 0.12
-  max_single_trade_pct: 0.035
-  starter_position_pct: 0.015
+  profile: weekly_swing
+  sizing_method: fractional_kelly
   max_new_positions_per_run: 3
   cash_buffer_pct: 0.02

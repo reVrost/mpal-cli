@@ -120,12 +120,21 @@ type PortfolioConfig struct {
 }
 
 type RiskConfig struct {
-	TurnoverBudgetPct       float64 `json:"turnover_budget_pct" yaml:"turnover_budget_pct"`
-	MaxSingleTradePct       float64 `json:"max_single_trade_pct" yaml:"max_single_trade_pct"`
-	StarterPositionPct      float64 `json:"starter_position_pct" yaml:"starter_position_pct"`
-	MaxNewPositionsPerRun   int     `json:"max_new_positions_per_run" yaml:"max_new_positions_per_run"`
-	CashBufferPct           float64 `json:"cash_buffer_pct" yaml:"cash_buffer_pct"`
-	ProtectUnscoredHoldings bool    `json:"protect_unscored_holdings" yaml:"protect_unscored_holdings"`
+	Profile                 string   `json:"profile,omitempty" yaml:"profile,omitempty"`
+	TurnoverBudgetPct       float64  `json:"turnover_budget_pct" yaml:"turnover_budget_pct"`
+	MaxSingleTradePct       float64  `json:"max_single_trade_pct" yaml:"max_single_trade_pct"`
+	StarterPositionPct      float64  `json:"starter_position_pct" yaml:"starter_position_pct"`
+	MaxNewPositionsPerRun   int      `json:"max_new_positions_per_run" yaml:"max_new_positions_per_run"`
+	CashBufferPct           float64  `json:"cash_buffer_pct" yaml:"cash_buffer_pct"`
+	ProtectUnscoredHoldings bool     `json:"protect_unscored_holdings" yaml:"protect_unscored_holdings"`
+	SizingMethod            string   `json:"sizing_method,omitempty" yaml:"sizing_method,omitempty"`
+	KellyFraction           *float64 `json:"kelly_fraction,omitempty" yaml:"kelly_fraction,omitempty"`
+	KellyMinEdge            *float64 `json:"kelly_min_edge,omitempty" yaml:"kelly_min_edge,omitempty"`
+	KellyMaxFraction        *float64 `json:"kelly_max_fraction,omitempty" yaml:"kelly_max_fraction,omitempty"`
+	KellyDefaultPayoffRatio *float64 `json:"kelly_default_payoff_ratio,omitempty" yaml:"kelly_default_payoff_ratio,omitempty"`
+	KellyMinConfidence      *float64 `json:"kelly_min_confidence,omitempty" yaml:"kelly_min_confidence,omitempty"`
+	KellyMinSampleCount     *int     `json:"kelly_min_sample_count,omitempty" yaml:"kelly_min_sample_count,omitempty"`
+	KellyMissingEdgePolicy  string   `json:"kelly_missing_edge_policy,omitempty" yaml:"kelly_missing_edge_policy,omitempty"`
 }
 
 type BacktestConfig struct {
@@ -289,14 +298,27 @@ type TargetPosition struct {
 }
 
 type ProposedTrade struct {
-	Ticker         string  `json:"ticker"`
-	Side           string  `json:"side"`
-	Intent         string  `json:"intent,omitempty"`
-	CurrentWeight  float64 `json:"current_weight"`
-	TargetWeight   float64 `json:"target_weight"`
-	DeltaWeight    float64 `json:"delta_weight"`
-	EstimatedValue float64 `json:"estimated_value"`
-	Reason         string  `json:"reason"`
+	Ticker         string          `json:"ticker"`
+	Side           string          `json:"side"`
+	Intent         string          `json:"intent,omitempty"`
+	CurrentWeight  float64         `json:"current_weight"`
+	TargetWeight   float64         `json:"target_weight"`
+	DeltaWeight    float64         `json:"delta_weight"`
+	EstimatedValue float64         `json:"estimated_value"`
+	Reason         string          `json:"reason"`
+	Sizing         *SizingDecision `json:"sizing,omitempty"`
+}
+
+type SizingDecision struct {
+	Method          string   `json:"method"`
+	Source          string   `json:"source,omitempty"`
+	RawKelly        float64  `json:"raw_kelly,omitempty"`
+	FractionalKelly float64  `json:"fractional_kelly,omitempty"`
+	TargetWeight    float64  `json:"target_weight,omitempty"`
+	PayoffRatio     float64  `json:"payoff_ratio,omitempty"`
+	Confidence      float64  `json:"confidence,omitempty"`
+	SampleCount     int      `json:"sample_count,omitempty"`
+	Warnings        []string `json:"warnings,omitempty"`
 }
 
 type RejectedTicker struct {
@@ -464,6 +486,7 @@ func CanonicalStrategyConfig(cfg StrategyConfig) StrategyConfig {
 	cfg = ApplyStrategyDefaults(cfg)
 	cfg.Schema = ""
 	cfg.Defaults = ""
+	cfg.Risk.Profile = ""
 	return cfg
 }
 
@@ -490,6 +513,7 @@ func ApplyStrategyDefaults(cfg StrategyConfig) StrategyConfig {
 		applySharedStrategyDefaults(&cfg)
 		cfg.Events = EventGuardrailConfig{}
 	}
+	applyRiskProfileDefaults(&cfg)
 	return cfg
 }
 
@@ -505,6 +529,7 @@ func applySharedStrategyDefaults(cfg *StrategyConfig) {
 
 func ValidateStrategyConfig(cfg StrategyConfig) ValidationResult {
 	var errs []string
+	cfg = applyRiskProfileDefaultsCopy(cfg)
 	if strings.TrimSpace(cfg.ID) == "" {
 		errs = append(errs, "id is required")
 	}
@@ -573,6 +598,50 @@ func ValidateStrategyConfig(cfg StrategyConfig) ValidationResult {
 	}
 	if cfg.Risk.CashBufferPct < 0 || cfg.Risk.CashBufferPct >= 1 {
 		errs = append(errs, "risk.cash_buffer_pct must be in [0,1)")
+	}
+	switch profile := normalizeRiskProfile(cfg.Risk.Profile); profile {
+	case "", RiskProfileBasic, RiskProfileLowChurn, RiskProfileWeeklySwing, RiskProfileRebuild:
+	default:
+		errs = append(errs, "risk.profile must be empty, basic, low_churn, weekly_swing, or rebuild")
+	}
+	sizing := normalizeSizingConfig(cfg.Risk)
+	switch method := normalizeSizingMethod(cfg.Risk.SizingMethod); method {
+	case "", SizingMethodFixed, SizingMethodFractionalKelly:
+	default:
+		errs = append(errs, "risk.sizing_method must be empty, fixed, or fractional_kelly")
+	}
+	switch policy := normalizeKellyMissingEdgePolicy(cfg.Risk.KellyMissingEdgePolicy); policy {
+	case "", KellyMissingEdgePolicyFixed, KellyMissingEdgePolicySkip:
+	default:
+		errs = append(errs, "risk.kelly_missing_edge_policy must be fixed or skip")
+	}
+	if cfg.Risk.KellyFraction != nil || sizing.Method == SizingMethodFractionalKelly {
+		if sizing.KellyFraction <= 0 || sizing.KellyFraction > 1 {
+			errs = append(errs, "risk.kelly_fraction must be in (0,1]")
+		}
+	}
+	if cfg.Risk.KellyMinEdge != nil && sizing.KellyMinEdge < 0 {
+		errs = append(errs, "risk.kelly_min_edge must be >= 0")
+	}
+	if cfg.Risk.KellyMaxFraction != nil || sizing.Method == SizingMethodFractionalKelly {
+		if sizing.KellyMaxFraction <= 0 || sizing.KellyMaxFraction > 1 {
+			errs = append(errs, "risk.kelly_max_fraction must be in (0,1]")
+		}
+	}
+	if cfg.Risk.KellyDefaultPayoffRatio != nil || sizing.Method == SizingMethodFractionalKelly {
+		if sizing.KellyDefaultPayoffRatio <= 0 {
+			errs = append(errs, "risk.kelly_default_payoff_ratio must be > 0")
+		}
+	}
+	if cfg.Risk.KellyMinConfidence != nil || sizing.Method == SizingMethodFractionalKelly {
+		if sizing.KellyMinConfidence < 0 || sizing.KellyMinConfidence > 1 {
+			errs = append(errs, "risk.kelly_min_confidence must be in [0,1]")
+		}
+	}
+	if cfg.Risk.KellyMinSampleCount != nil || sizing.Method == SizingMethodFractionalKelly {
+		if sizing.KellyMinSampleCount < 0 {
+			errs = append(errs, "risk.kelly_min_sample_count must be >= 0")
+		}
 	}
 	return ValidationResult{Valid: len(errs) == 0, Errors: errs}
 }

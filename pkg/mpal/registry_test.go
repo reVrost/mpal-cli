@@ -65,6 +65,62 @@ func TestStrategySchemaRejectsInvalidStrategy(t *testing.T) {
 	require.Error(t, schema.Validate(doc))
 }
 
+func TestStrategySchemaAcceptsMinimalFractionalKellySizing(t *testing.T) {
+	t.Parallel()
+
+	schema := loadStrategySchema(t)
+	doc := loadYAMLDocument(t, filepath.Join("..", "..", "strategies", "engine_weekly_swing_v1.yaml"))
+	risk := doc["risk"].(map[string]any)
+	risk["sizing_method"] = "fractional_kelly"
+
+	require.NoError(t, schema.Validate(doc))
+}
+
+func TestStrategySchemaAcceptsHalfKellyFraction(t *testing.T) {
+	t.Parallel()
+
+	schema := loadStrategySchema(t)
+	doc := loadYAMLDocument(t, filepath.Join("..", "..", "strategies", "engine_weekly_swing_v1.yaml"))
+	risk := doc["risk"].(map[string]any)
+	risk["sizing_method"] = "fractional_kelly"
+	risk["kelly_fraction"] = 0.5
+
+	require.NoError(t, schema.Validate(doc))
+}
+
+func TestStrategySchemaAcceptsRiskProfileWithOverrides(t *testing.T) {
+	t.Parallel()
+
+	schema := loadStrategySchema(t)
+	doc := loadYAMLDocument(t, filepath.Join("..", "..", "strategies", "engine_weekly_swing_v1.yaml"))
+	risk := doc["risk"].(map[string]any)
+	risk["profile"] = "weekly_swing"
+	delete(risk, "turnover_budget_pct")
+	delete(risk, "max_single_trade_pct")
+	delete(risk, "starter_position_pct")
+	risk["turnover_budget_pct"] = 0.10
+
+	require.NoError(t, schema.Validate(doc))
+}
+
+func TestStrategySchemaAcceptsAdvancedKellyOverrides(t *testing.T) {
+	t.Parallel()
+
+	schema := loadStrategySchema(t)
+	doc := loadYAMLDocument(t, filepath.Join("..", "..", "strategies", "engine_weekly_swing_v1.yaml"))
+	risk := doc["risk"].(map[string]any)
+	risk["sizing_method"] = "fractional_kelly"
+	risk["kelly_fraction"] = 0.25
+	risk["kelly_min_edge"] = 0.0
+	risk["kelly_max_fraction"] = 0.05
+	risk["kelly_default_payoff_ratio"] = 1.0
+	risk["kelly_min_confidence"] = 0.25
+	risk["kelly_min_sample_count"] = 30
+	risk["kelly_missing_edge_policy"] = "skip"
+
+	require.NoError(t, schema.Validate(doc))
+}
+
 func TestBuiltInStrategiesUseDefaultsInsteadOfHiddenKnobs(t *testing.T) {
 	t.Parallel()
 
@@ -124,6 +180,70 @@ func TestStrategyDefaultsExpandSlimBuiltIns(t *testing.T) {
 	}
 }
 
+func TestBuiltInRiskProfilesPreserveExpandedSizing(t *testing.T) {
+	t.Parallel()
+
+	expected := map[string]RiskConfig{
+		"engine_quality_swing_rebuild_v1.yaml": {
+			TurnoverBudgetPct:  0.30,
+			MaxSingleTradePct:  0.04,
+			StarterPositionPct: 0.015,
+		},
+		"engine_quality_value_reversion_v1.yaml": {
+			TurnoverBudgetPct:  0.10,
+			MaxSingleTradePct:  0.03,
+			StarterPositionPct: 0.015,
+		},
+		"engine_weekly_swing_v1.yaml": {
+			TurnoverBudgetPct:  0.12,
+			MaxSingleTradePct:  0.035,
+			StarterPositionPct: 0.015,
+		},
+		"momentum_only_v1.yaml": {
+			TurnoverBudgetPct:  0.20,
+			MaxSingleTradePct:  0.05,
+			StarterPositionPct: 0.02,
+		},
+		"momentum_profile_v1.yaml": {
+			TurnoverBudgetPct:  0.20,
+			MaxSingleTradePct:  0.05,
+			StarterPositionPct: 0.02,
+		},
+		"portfolio_low_churn_swing_v1.yaml": {
+			TurnoverBudgetPct:  0.06,
+			MaxSingleTradePct:  0.025,
+			StarterPositionPct: 0.012,
+		},
+		"portfolio_quality_value_reversion_v1.yaml": {
+			TurnoverBudgetPct:  0.08,
+			MaxSingleTradePct:  0.025,
+			StarterPositionPct: 0.012,
+		},
+		"simple_score_v1.yaml": {
+			TurnoverBudgetPct:  0.20,
+			MaxSingleTradePct:  0.05,
+			StarterPositionPct: 0.02,
+		},
+	}
+	matches, err := filepath.Glob(filepath.Join("..", "..", "strategies", "*.yaml"))
+	require.NoError(t, err)
+	require.NotEmpty(t, matches)
+
+	for _, path := range matches {
+		path := path
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			t.Parallel()
+
+			cfg, _, err := LoadStrategyFile(path)
+			require.NoError(t, err)
+			want := expected[filepath.Base(path)]
+			require.Equal(t, want.TurnoverBudgetPct, cfg.Risk.TurnoverBudgetPct)
+			require.Equal(t, want.MaxSingleTradePct, cfg.Risk.MaxSingleTradePct)
+			require.Equal(t, want.StarterPositionPct, cfg.Risk.StarterPositionPct)
+		})
+	}
+}
+
 func TestLoadStrategyBytesPreservesExplicitAdvancedConfigWithoutDefaults(t *testing.T) {
 	t.Parallel()
 
@@ -173,6 +293,37 @@ backtest:
 		BoostAmount:  0.02,
 	}, cfg.Events)
 	require.Equal(t, BacktestConfig{InitialCash: 12345, FeeBps: 1, SlippageBps: 2}, cfg.Backtest)
+}
+
+func TestLoadStrategyBytesExpandsRiskProfileAndKeepsOverrides(t *testing.T) {
+	t.Parallel()
+
+	cfg, _, err := LoadStrategyBytes([]byte(`
+id: risk_profile_strategy
+version: 1.0.0
+approved: true
+scoring:
+  momentum_weight: 0.7
+  profile_weight: 0.3
+  min_buy_score: 0.6
+  min_hold_score: 0.2
+portfolio:
+  max_positions: 5
+  max_position_pct: 0.2
+  min_trade_value: 100
+  rebalance: weekly
+risk:
+  profile: weekly_swing
+  turnover_budget_pct: 0.10
+  max_new_positions_per_run: 2
+  cash_buffer_pct: 0.02
+`))
+	require.NoError(t, err)
+	require.True(t, ValidateStrategyConfig(cfg).Valid)
+	require.Equal(t, RiskProfileWeeklySwing, cfg.Risk.Profile)
+	require.Equal(t, 0.10, cfg.Risk.TurnoverBudgetPct)
+	require.Equal(t, 0.035, cfg.Risk.MaxSingleTradePct)
+	require.Equal(t, 0.015, cfg.Risk.StarterPositionPct)
 }
 
 func TestLoadStrategyBytesUsesCanonicalExpandedHash(t *testing.T) {
@@ -238,6 +389,56 @@ backtest:
 	require.NoError(t, err)
 
 	require.Equal(t, slimHash, expandedHash)
+}
+
+func TestLoadStrategyBytesUsesCanonicalExpandedHashForRiskProfile(t *testing.T) {
+	t.Parallel()
+
+	_, profiledHash, err := LoadStrategyBytes([]byte(`
+id: canonical_risk_profile_strategy
+version: 1.0.0
+approved: true
+scoring:
+  momentum_weight: 0.7
+  profile_weight: 0.3
+  min_buy_score: 0.6
+  min_hold_score: 0.2
+portfolio:
+  max_positions: 5
+  max_position_pct: 0.2
+  min_trade_value: 100
+  rebalance: weekly
+risk:
+  profile: weekly_swing
+  max_new_positions_per_run: 2
+  cash_buffer_pct: 0.02
+`))
+	require.NoError(t, err)
+
+	_, expandedHash, err := LoadStrategyBytes([]byte(`
+id: canonical_risk_profile_strategy
+version: 1.0.0
+approved: true
+scoring:
+  momentum_weight: 0.7
+  profile_weight: 0.3
+  min_buy_score: 0.6
+  min_hold_score: 0.2
+portfolio:
+  max_positions: 5
+  max_position_pct: 0.2
+  min_trade_value: 100
+  rebalance: weekly
+risk:
+  turnover_budget_pct: 0.12
+  max_single_trade_pct: 0.035
+  starter_position_pct: 0.015
+  max_new_positions_per_run: 2
+  cash_buffer_pct: 0.02
+`))
+	require.NoError(t, err)
+
+	require.Equal(t, profiledHash, expandedHash)
 }
 
 func TestLoadStrategyBytesRejectsUnknownFields(t *testing.T) {

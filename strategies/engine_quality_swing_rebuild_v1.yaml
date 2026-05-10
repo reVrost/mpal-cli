@@ -20,8 +20,7 @@ portfolio:
   rebalance: weekly
 
 risk:
-  turnover_budget_pct: 0.30
-  max_single_trade_pct: 0.04
-  starter_position_pct: 0.015
+  profile: rebuild
+  sizing_method: fractional_kelly
   max_new_positions_per_run: 7
   cash_buffer_pct: 0.03

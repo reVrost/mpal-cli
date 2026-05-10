@@ -171,13 +171,19 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "turnover_budget_pct",
-        "max_single_trade_pct",
-        "starter_position_pct",
         "max_new_positions_per_run",
         "cash_buffer_pct"
       ],
+      "anyOf": [
+        { "required": ["profile"] },
+        { "required": ["turnover_budget_pct", "max_single_trade_pct", "starter_position_pct"] }
+      ],
       "properties": {
+        "profile": {
+          "type": "string",
+          "enum": ["basic", "low_churn", "weekly_swing", "rebuild"],
+          "description": "Optional shorthand for fixed risk caps: turnover_budget_pct, max_single_trade_pct, and starter_position_pct. Explicit numeric fields override the profile. These caps still clamp fractional Kelly sizing."
+        },
         "turnover_budget_pct": {
           "type": "number",
           "minimum": 0,
@@ -210,6 +216,49 @@
         "protect_unscored_holdings": {
           "type": "boolean",
           "description": "Advanced override. Built-in strategies get this from their defaults profile."
+        },
+        "sizing_method": {
+          "type": "string",
+          "enum": ["fixed", "fractional_kelly"],
+          "description": "Easy sizing switch. Defaults to fixed. Set to fractional_kelly to use conservative internal Kelly defaults from Markov edge. Kelly computes a desired target; risk.profile and explicit risk controls still clamp the final trade."
+        },
+        "kelly_fraction": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "Easy fractional Kelly tuning knob. Fraction of the confidence-shrunk Kelly estimate to use when sizing_method is fractional_kelly. Defaults to 0.25; common conservative values are 0.25 and 0.50."
+        },
+        "kelly_min_edge": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Advanced override. Minimum raw Kelly edge required before a Kelly target is usable. Defaults to 0."
+        },
+        "kelly_max_fraction": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "Advanced override. Maximum target weight allowed from the Kelly overlay before standard portfolio and trade caps are applied. Defaults to 0.05."
+        },
+        "kelly_default_payoff_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Advanced override. Payoff ratio used in the generalized Kelly calculation when sizing_method is fractional_kelly. Defaults to 1.0."
+        },
+        "kelly_min_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Advanced override. Minimum Markov confidence required for Kelly sizing. Defaults to 0.25."
+        },
+        "kelly_min_sample_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Advanced override. Minimum Markov sample count required for Kelly sizing. Defaults to 30."
+        },
+        "kelly_missing_edge_policy": {
+          "type": "string",
+          "enum": ["fixed", "skip"],
+          "description": "Advanced override. Behavior when Markov edge data is absent under fractional_kelly sizing. fixed falls back to fixed sizing; skip rejects the candidate. Defaults to fixed."
         }
       }
     },

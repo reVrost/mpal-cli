@@ -79,6 +79,30 @@ func testConfig() StrategyConfig {
 	}
 }
 
+func floatPtr(v float64) *float64 {
+	return &v
+}
+
+func intPtr(v int) *int {
+	return &v
+}
+
+func kellyTestConfig() StrategyConfig {
+	cfg := testConfig()
+	cfg.Portfolio.MaxPositions = 5
+	cfg.Risk.SizingMethod = SizingMethodFractionalKelly
+	return cfg
+}
+
+func markovEdge(pWin float64, pLoss float64, confidence float64, sampleCount int) *MarkovRead {
+	return &MarkovRead{
+		FavorableProbability:   pWin,
+		UnfavorableProbability: pLoss,
+		Confidence:             confidence,
+		SampleCount:            sampleCount,
+	}
+}
+
 func testBars(asOf time.Time, past float64, latest float64) []Bar {
 	return []Bar{
 		{Date: asOf.AddDate(0, 0, -80), Close: past},
@@ -731,6 +755,212 @@ func TestPlanPortfolioListingRegionTiltInactiveAbovePreferredExposure(t *testing
 	require.Len(t, plan.ProposedTrades, 1)
 	assert.Equal(t, "AAA.AX", plan.ProposedTrades[0].Ticker)
 	assert.NotContains(t, plan.ProposedTrades[0].Reason, "listing-region tilt")
+}
+
+func TestPlanPortfolioDefaultFixedSizingRemainsUnchanged(t *testing.T) {
+	t.Parallel()
+
+	cfg := testConfig()
+	cfg.Risk.StarterPositionPct = 0.02
+	cfg.Risk.MaxSingleTradePct = 0.2
+	cfg.Portfolio.MaxPositionPct = 0.2
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"AAPL"}},
+		Portfolio{Equity: 100000, Cash: 100000},
+		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.95, 0.05, 1, 100)}},
+		cfg,
+	)
+
+	require.Len(t, plan.ProposedTrades, 1)
+	assert.Equal(t, 0.02, plan.ProposedTrades[0].TargetWeight)
+	assert.Nil(t, plan.ProposedTrades[0].Sizing)
+	assert.Equal(t, "starter position from top-ranked score above buy threshold", plan.ProposedTrades[0].Reason)
+}
+
+func TestPlanPortfolioKellySizingReducesWeakNoisyStarter(t *testing.T) {
+	t.Parallel()
+
+	cfg := kellyTestConfig()
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"AAPL"}},
+		Portfolio{Equity: 100000, Cash: 100000},
+		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.55, 0.45, 0.3, 100)}},
+		cfg,
+	)
+
+	require.Len(t, plan.ProposedTrades, 1)
+	trade := plan.ProposedTrades[0]
+	assert.Equal(t, 0.0075, trade.TargetWeight)
+	require.NotNil(t, trade.Sizing)
+	assert.Equal(t, SizingMethodFractionalKelly, trade.Sizing.Method)
+	assert.Equal(t, 0.1, trade.Sizing.RawKelly)
+	assert.Equal(t, 0.0075, trade.Sizing.TargetWeight)
+	assert.Contains(t, trade.Reason, "starter position sized by fractional Kelly")
+}
+
+func TestPlanPortfolioKellySizingCapsHighEdgeByKellyAndTradeCaps(t *testing.T) {
+	t.Parallel()
+
+	cfg := kellyTestConfig()
+	cfg.Risk.MaxSingleTradePct = 0.03
+	cfg.Risk.KellyMaxFraction = floatPtr(0.08)
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"AAPL"}},
+		Portfolio{Equity: 100000, Cash: 100000},
+		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.9, 0.1, 1, 100)}},
+		cfg,
+	)
+
+	require.Len(t, plan.ProposedTrades, 1)
+	trade := plan.ProposedTrades[0]
+	assert.Equal(t, 0.03, trade.TargetWeight)
+	require.NotNil(t, trade.Sizing)
+	assert.Equal(t, 0.08, trade.Sizing.TargetWeight)
+	assert.Contains(t, trade.Sizing.Warnings, "Kelly target 0.080 clamped to final target 0.030 by risk controls")
+}
+
+func TestPlanPortfolioKellyMissingMarkovFallsBackToFixed(t *testing.T) {
+	t.Parallel()
+
+	cfg := kellyTestConfig()
+	cfg.Risk.KellyMissingEdgePolicy = KellyMissingEdgePolicyFixed
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"AAPL"}},
+		Portfolio{Equity: 100000, Cash: 100000},
+		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9}},
+		cfg,
+	)
+
+	require.Len(t, plan.ProposedTrades, 1)
+	trade := plan.ProposedTrades[0]
+	assert.Equal(t, 0.02, trade.TargetWeight)
+	require.NotNil(t, trade.Sizing)
+	assert.Equal(t, SizingMethodFixed, trade.Sizing.Method)
+	assert.Equal(t, "fixed_fallback", trade.Sizing.Source)
+	assert.Contains(t, trade.Reason, "fixed sizing fallback")
+}
+
+func TestPlanPortfolioKellyMissingMarkovSkipsCandidate(t *testing.T) {
+	t.Parallel()
+
+	cfg := kellyTestConfig()
+	cfg.Risk.KellyMissingEdgePolicy = KellyMissingEdgePolicySkip
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"AAPL"}},
+		Portfolio{Equity: 100000, Cash: 100000},
+		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9}},
+		cfg,
+	)
+
+	assert.Empty(t, plan.ProposedTrades)
+	assert.Contains(t, plan.Rejected, RejectedTicker{Ticker: "AAPL", Reason: "fractional Kelly edge unavailable: missing Markov edge data; missing_edge_policy=skip"})
+}
+
+func TestPlanPortfolioKellyLowConfidenceOrSampleCountDoesNotSize(t *testing.T) {
+	t.Parallel()
+
+	cfg := kellyTestConfig()
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"LOWCONF", "LOWSAMPLE"}},
+		Portfolio{Equity: 100000, Cash: 100000},
+		[]SignalResult{
+			{Ticker: "LOWCONF", FinalScore: 0.9, Markov: markovEdge(0.9, 0.1, 0.1, 100)},
+			{Ticker: "LOWSAMPLE", FinalScore: 0.8, Markov: markovEdge(0.9, 0.1, 1, 10)},
+		},
+		cfg,
+	)
+
+	assert.Empty(t, plan.ProposedTrades)
+	assert.Contains(t, plan.Rejected, RejectedTicker{Ticker: "LOWCONF", Reason: "fractional Kelly edge unavailable: Markov confidence 0.100 below Kelly minimum 0.250"})
+	assert.Contains(t, plan.Rejected, RejectedTicker{Ticker: "LOWSAMPLE", Reason: "fractional Kelly edge unavailable: Markov sample_count 10 below Kelly minimum 30"})
+}
+
+func TestPlanPortfolioKellyTopUpDoesNotExceedKellyTarget(t *testing.T) {
+	t.Parallel()
+
+	cfg := kellyTestConfig()
+	cfg.Risk.TurnoverBudgetPct = 1
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"AAPL"}},
+		Portfolio{Equity: 100000, Cash: 90000, Positions: []Position{{Ticker: "AAPL", MarketValue: 1000, Weight: 0.01}}},
+		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.6, 0.4, 0.3, 100)}},
+		cfg,
+	)
+
+	require.Len(t, plan.ProposedTrades, 1)
+	trade := plan.ProposedTrades[0]
+	assert.Equal(t, TradeIntentTopUp, trade.Intent)
+	assert.Equal(t, 0.015, trade.TargetWeight)
+	assert.Equal(t, 0.005, trade.DeltaWeight)
+}
+
+func TestPlanPortfolioKellyMinTradeValuePreventsTinyStarter(t *testing.T) {
+	t.Parallel()
+
+	cfg := kellyTestConfig()
+	cfg.Portfolio.MinTradeValue = 1000
+	plan := PlanPortfolio(
+		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Universe{Tickers: []string{"AAPL"}},
+		Portfolio{Equity: 100000, Cash: 100000},
+		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.55, 0.45, 0.3, 100)}},
+		cfg,
+	)
+
+	assert.Empty(t, plan.ProposedTrades)
+	assert.Contains(t, plan.Rejected, RejectedTicker{Ticker: "AAPL", Reason: "fractional Kelly target below min trade value or insufficient funding"})
+}
+
+func TestPlanPortfolioKellyTurnoverBudgetAndCashBufferStillApply(t *testing.T) {
+	t.Parallel()
+
+	asOf := time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC)
+	signal := SignalResult{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.9, 0.1, 1, 100)}
+
+	turnoverCfg := kellyTestConfig()
+	turnoverCfg.Risk.TurnoverBudgetPct = 0.01
+	turnoverPlan := PlanPortfolio(asOf, Universe{Tickers: []string{"AAPL"}}, Portfolio{Equity: 100000, Cash: 100000}, []SignalResult{signal}, turnoverCfg)
+	require.Len(t, turnoverPlan.ProposedTrades, 1)
+	assert.Equal(t, 0.01, turnoverPlan.ProposedTrades[0].TargetWeight)
+
+	cashCfg := kellyTestConfig()
+	cashCfg.Risk.CashBufferPct = 0.02
+	cashPlan := PlanPortfolio(asOf, Universe{Tickers: []string{"AAPL"}}, Portfolio{Equity: 100000, Cash: 3000}, []SignalResult{signal}, cashCfg)
+	require.Len(t, cashPlan.ProposedTrades, 1)
+	assert.Equal(t, 0.01, cashPlan.ProposedTrades[0].TargetWeight)
+}
+
+func TestValidateStrategyConfigAcceptsAndRejectsKellySizing(t *testing.T) {
+	t.Parallel()
+
+	valid := kellyTestConfig()
+	valid.Risk.KellyMissingEdgePolicy = KellyMissingEdgePolicySkip
+	assert.True(t, ValidateStrategyConfig(valid).Valid)
+
+	invalid := kellyTestConfig()
+	invalid.Risk.SizingMethod = "kelly"
+	invalid.Risk.KellyFraction = floatPtr(0)
+	invalid.Risk.KellyMaxFraction = floatPtr(2)
+	invalid.Risk.KellyDefaultPayoffRatio = floatPtr(0)
+	invalid.Risk.KellyMinConfidence = floatPtr(2)
+	invalid.Risk.KellyMinSampleCount = intPtr(-1)
+	invalid.Risk.KellyMissingEdgePolicy = "reject"
+	result := ValidateStrategyConfig(invalid)
+	require.False(t, result.Valid)
+	assert.Contains(t, result.Errors, "risk.sizing_method must be empty, fixed, or fractional_kelly")
+	assert.Contains(t, result.Errors, "risk.kelly_fraction must be in (0,1]")
+	assert.Contains(t, result.Errors, "risk.kelly_max_fraction must be in (0,1]")
+	assert.Contains(t, result.Errors, "risk.kelly_default_payoff_ratio must be > 0")
+	assert.Contains(t, result.Errors, "risk.kelly_min_confidence must be in [0,1]")
+	assert.Contains(t, result.Errors, "risk.kelly_min_sample_count must be >= 0")
+	assert.Contains(t, result.Errors, "risk.kelly_missing_edge_policy must be fixed or skip")
 }
 
 func TestValidateStrategyConfigRejectsUnknownListingRegionTilt(t *testing.T) {

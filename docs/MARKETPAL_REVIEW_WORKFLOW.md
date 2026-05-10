@@ -246,8 +246,11 @@ Inspect:
 
 The current swing configs use momentum as the primary entry signal and
 profile-QVM as a quality/holdability check.
-Markov metadata is an explanatory transition read only; it does not authorize
-or resize trades and does not replace validation.
+Markov metadata is an explanatory transition read by default; it does not
+authorize trades and does not replace validation. A strategy may explicitly
+enable `risk.sizing_method: fractional_kelly` to use Markov probabilities as a
+conservative sizing input, but proposed trades remain clamped by the fixed risk
+controls.
 
 ### Execution Read
 

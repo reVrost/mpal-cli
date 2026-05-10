@@ -368,6 +368,7 @@ func PlanPortfolio(
 	signals []SignalResult,
 	cfg StrategyConfig,
 ) PortfolioPlanResult {
+	cfg = applyRiskProfileDefaultsCopy(cfg)
 	planner := newRebalancePlanner(asOf, universe, portfolio, signals, cfg)
 	planner.planReductions()
 	planner.planStarters()
@@ -377,6 +378,7 @@ func PlanPortfolio(
 
 func ValidatePlan(plan PortfolioPlanResult, universe Universe, portfolio Portfolio, cfg StrategyConfig) ValidationResult {
 	var errs []string
+	cfg = applyRiskProfileDefaultsCopy(cfg)
 	if !cfg.Approved {
 		errs = append(errs, "strategy config is not approved")
 	}
