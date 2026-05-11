@@ -28,6 +28,7 @@ type API interface {
 	GetTickerInsiders(ctx context.Context, msg *marketpalv1.MpalTickerDataRequest) (string, error)
 	GetTickerOwnership(ctx context.Context, msg *marketpalv1.MpalTickerDataRequest) (string, error)
 	GetPortfolioSnapshot(ctx context.Context, msg *marketpalv1.MpalPortfolioSnapshotRequest) (string, error)
+	GetPortfolioTransactions(ctx context.Context, msg *marketpalv1.MpalPortfolioTransactionsRequest) (string, error)
 	GetWatchlist(ctx context.Context, msg *marketpalv1.MpalWatchlistRequest) (string, error)
 	RunStrategy(ctx context.Context, msg *marketpalv1.MpalStrategyRunRequest) (string, error)
 	RunBacktest(ctx context.Context, msg *marketpalv1.MpalBacktestRunRequest) (string, error)
@@ -84,6 +85,11 @@ func (c *Client) GetTickerOwnership(ctx context.Context, msg *marketpalv1.MpalTi
 
 func (c *Client) GetPortfolioSnapshot(ctx context.Context, msg *marketpalv1.MpalPortfolioSnapshotRequest) (string, error) {
 	resp, err := c.client.GetPortfolioSnapshot(ctx, authRequest(c.apiKey, msg))
+	return payload(resp, err)
+}
+
+func (c *Client) GetPortfolioTransactions(ctx context.Context, msg *marketpalv1.MpalPortfolioTransactionsRequest) (string, error) {
+	resp, err := c.client.GetPortfolioTransactions(ctx, authRequest(c.apiKey, msg))
 	return payload(resp, err)
 }
 

@@ -57,6 +57,11 @@ type portfolioValidateInput struct {
 	ConfigJSON    string `json:"config_json,omitempty" jsonschema:"Inline strategy YAML/JSON config."`
 }
 
+type portfolioTransactionsInput struct {
+	Page  int32 `json:"page,omitempty" jsonschema:"Transaction page. Defaults server-side."`
+	Limit int32 `json:"limit,omitempty" jsonschema:"Maximum transactions to return. Defaults server-side and is capped by MarketPal."`
+}
+
 type backtestRunInput struct {
 	Start          string `json:"start" jsonschema:"Start date in YYYY-MM-DD format."`
 	End            string `json:"end" jsonschema:"End date in YYYY-MM-DD format."`

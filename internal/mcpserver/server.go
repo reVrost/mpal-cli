@@ -172,6 +172,17 @@ func registerTools(server *mcp.Server, cfg Config) {
 		out, err := decodePayload(payload)
 		return nil, out, err
 	})
+	mcp.AddTool(server, readOnlyTool("mpal_portfolio_transactions", "Fetch the authenticated user's MarketPal portfolio transactions."), func(ctx context.Context, req *mcp.CallToolRequest, in portfolioTransactionsInput) (*mcp.CallToolResult, any, error) {
+		payload, err := cfg.Client.GetPortfolioTransactions(ctx, &marketpalv1.MpalPortfolioTransactionsRequest{
+			Page:  in.Page,
+			Limit: in.Limit,
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+		out, err := decodePayload(payload)
+		return nil, out, err
+	})
 	mcp.AddTool(server, readOnlyTool("mpal_watchlist_get", "Fetch the authenticated user's current MarketPal watchlist universe."), func(ctx context.Context, req *mcp.CallToolRequest, in noInput) (*mcp.CallToolResult, any, error) {
 		payload, err := cfg.Client.GetWatchlist(ctx, &marketpalv1.MpalWatchlistRequest{})
 		if err != nil {

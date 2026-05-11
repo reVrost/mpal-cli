@@ -54,6 +54,10 @@ func (f *fakeAPI) GetPortfolioSnapshot(context.Context, *marketpalv1.MpalPortfol
 	return `{"cash":1000,"equity":1000,"positions":[]}`, nil
 }
 
+func (f *fakeAPI) GetPortfolioTransactions(context.Context, *marketpalv1.MpalPortfolioTransactionsRequest) (string, error) {
+	return `{"kind":"portfolio_transactions","transactions":[]}`, nil
+}
+
 func (f *fakeAPI) GetWatchlist(context.Context, *marketpalv1.MpalWatchlistRequest) (string, error) {
 	return `{"tickers":["AAPL"]}`, nil
 }
@@ -80,6 +84,7 @@ func TestServerExposesCapabilityTools(t *testing.T) {
 	}
 	require.True(t, slices.Contains(toolNames, "mpal_capabilities"))
 	require.True(t, slices.Contains(toolNames, "mpal_strategy_run"))
+	require.True(t, slices.Contains(toolNames, "mpal_portfolio_transactions"))
 	require.True(t, slices.Contains(toolNames, "mpal_decision_gate"))
 	require.False(t, slices.Contains(toolNames, "mpal_execute_trade"))
 }
@@ -96,6 +101,7 @@ func TestCapabilitiesToolReturnsNoLiveTrading(t *testing.T) {
 
 	payload := result.StructuredContent.(map[string]any)
 	require.Equal(t, false, payload["live_trade_execution"])
+	require.Contains(t, payload["mcp_tools"], "mpal_portfolio_transactions")
 	require.Contains(t, payload["mcp_tools"], "mpal_portfolio_validate")
 	require.Contains(t, payload["mcp_tools"], "mpal_decision_gate")
 }

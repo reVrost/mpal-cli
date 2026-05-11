@@ -478,6 +478,58 @@ func (*MpalPortfolioSnapshotRequest) Descriptor() ([]byte, []int) {
 	return file_marketpal_v1_mpal_proto_rawDescGZIP(), []int{7}
 }
 
+type MpalPortfolioTransactionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MpalPortfolioTransactionsRequest) Reset() {
+	*x = MpalPortfolioTransactionsRequest{}
+	mi := &file_marketpal_v1_mpal_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MpalPortfolioTransactionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MpalPortfolioTransactionsRequest) ProtoMessage() {}
+
+func (x *MpalPortfolioTransactionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_marketpal_v1_mpal_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MpalPortfolioTransactionsRequest.ProtoReflect.Descriptor instead.
+func (*MpalPortfolioTransactionsRequest) Descriptor() ([]byte, []int) {
+	return file_marketpal_v1_mpal_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *MpalPortfolioTransactionsRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *MpalPortfolioTransactionsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
 type MpalWatchlistRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -486,7 +538,7 @@ type MpalWatchlistRequest struct {
 
 func (x *MpalWatchlistRequest) Reset() {
 	*x = MpalWatchlistRequest{}
-	mi := &file_marketpal_v1_mpal_proto_msgTypes[8]
+	mi := &file_marketpal_v1_mpal_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -498,7 +550,7 @@ func (x *MpalWatchlistRequest) String() string {
 func (*MpalWatchlistRequest) ProtoMessage() {}
 
 func (x *MpalWatchlistRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_marketpal_v1_mpal_proto_msgTypes[8]
+	mi := &file_marketpal_v1_mpal_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -511,7 +563,7 @@ func (x *MpalWatchlistRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MpalWatchlistRequest.ProtoReflect.Descriptor instead.
 func (*MpalWatchlistRequest) Descriptor() ([]byte, []int) {
-	return file_marketpal_v1_mpal_proto_rawDescGZIP(), []int{8}
+	return file_marketpal_v1_mpal_proto_rawDescGZIP(), []int{9}
 }
 
 type MpalStrategyRunRequest struct {
@@ -528,7 +580,7 @@ type MpalStrategyRunRequest struct {
 
 func (x *MpalStrategyRunRequest) Reset() {
 	*x = MpalStrategyRunRequest{}
-	mi := &file_marketpal_v1_mpal_proto_msgTypes[9]
+	mi := &file_marketpal_v1_mpal_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -540,7 +592,7 @@ func (x *MpalStrategyRunRequest) String() string {
 func (*MpalStrategyRunRequest) ProtoMessage() {}
 
 func (x *MpalStrategyRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_marketpal_v1_mpal_proto_msgTypes[9]
+	mi := &file_marketpal_v1_mpal_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -553,7 +605,7 @@ func (x *MpalStrategyRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MpalStrategyRunRequest.ProtoReflect.Descriptor instead.
 func (*MpalStrategyRunRequest) Descriptor() ([]byte, []int) {
-	return file_marketpal_v1_mpal_proto_rawDescGZIP(), []int{9}
+	return file_marketpal_v1_mpal_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *MpalStrategyRunRequest) GetDate() *timestamppb.Timestamp {
@@ -615,7 +667,7 @@ type MpalBacktestRunRequest struct {
 
 func (x *MpalBacktestRunRequest) Reset() {
 	*x = MpalBacktestRunRequest{}
-	mi := &file_marketpal_v1_mpal_proto_msgTypes[10]
+	mi := &file_marketpal_v1_mpal_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -627,7 +679,7 @@ func (x *MpalBacktestRunRequest) String() string {
 func (*MpalBacktestRunRequest) ProtoMessage() {}
 
 func (x *MpalBacktestRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_marketpal_v1_mpal_proto_msgTypes[10]
+	mi := &file_marketpal_v1_mpal_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -640,7 +692,7 @@ func (x *MpalBacktestRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MpalBacktestRunRequest.ProtoReflect.Descriptor instead.
 func (*MpalBacktestRunRequest) Descriptor() ([]byte, []int) {
-	return file_marketpal_v1_mpal_proto_rawDescGZIP(), []int{10}
+	return file_marketpal_v1_mpal_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *MpalBacktestRunRequest) GetStart() *timestamppb.Timestamp {
@@ -742,7 +794,10 @@ const file_marketpal_v1_mpal_proto_rawDesc = "" +
 	"\atickers\x18\x01 \x03(\tR\atickers\x12\x12\n" +
 	"\x04days\x18\x02 \x01(\x05R\x04days\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\"\x1e\n" +
-	"\x1cMpalPortfolioSnapshotRequest\"\x16\n" +
+	"\x1cMpalPortfolioSnapshotRequest\"L\n" +
+	" MpalPortfolioTransactionsRequest\x12\x12\n" +
+	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\"\x16\n" +
 	"\x14MpalWatchlistRequest\"\xf7\x01\n" +
 	"\x16MpalStrategyRunRequest\x12.\n" +
 	"\x04date\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x04date\x12#\n" +
@@ -766,7 +821,7 @@ const file_marketpal_v1_mpal_proto_rawDesc = "" +
 	"\x0fallow_untrusted\x18\a \x01(\bR\x0eallowUntrusted\x12\x1c\n" +
 	"\tbenchmark\x18\b \x01(\tR\tbenchmark\x12\x1f\n" +
 	"\vconfig_hash\x18\t \x01(\tR\n" +
-	"configHash2\xca\b\n" +
+	"configHash2\xb6\t\n" +
 	"\vMpalService\x12X\n" +
 	"\x0fGetCapabilities\x12%.marketpal.v1.MpalCapabilitiesRequest\x1a\x1e.marketpal.v1.MpalJSONResponse\x12X\n" +
 	"\x0fGetTickerEvents\x12%.marketpal.v1.MpalTickerEventsRequest\x1a\x1e.marketpal.v1.MpalJSONResponse\x12T\n" +
@@ -776,7 +831,8 @@ const file_marketpal_v1_mpal_proto_rawDesc = "" +
 	"\x15GetTickerFundamentals\x12#.marketpal.v1.MpalTickerDataRequest\x1a\x1e.marketpal.v1.MpalJSONResponse\x12X\n" +
 	"\x11GetTickerInsiders\x12#.marketpal.v1.MpalTickerDataRequest\x1a\x1e.marketpal.v1.MpalJSONResponse\x12Y\n" +
 	"\x12GetTickerOwnership\x12#.marketpal.v1.MpalTickerDataRequest\x1a\x1e.marketpal.v1.MpalJSONResponse\x12b\n" +
-	"\x14GetPortfolioSnapshot\x12*.marketpal.v1.MpalPortfolioSnapshotRequest\x1a\x1e.marketpal.v1.MpalJSONResponse\x12R\n" +
+	"\x14GetPortfolioSnapshot\x12*.marketpal.v1.MpalPortfolioSnapshotRequest\x1a\x1e.marketpal.v1.MpalJSONResponse\x12j\n" +
+	"\x18GetPortfolioTransactions\x12..marketpal.v1.MpalPortfolioTransactionsRequest\x1a\x1e.marketpal.v1.MpalJSONResponse\x12R\n" +
 	"\fGetWatchlist\x12\".marketpal.v1.MpalWatchlistRequest\x1a\x1e.marketpal.v1.MpalJSONResponse\x12S\n" +
 	"\vRunStrategy\x12$.marketpal.v1.MpalStrategyRunRequest\x1a\x1e.marketpal.v1.MpalJSONResponse\x12S\n" +
 	"\vRunBacktest\x12$.marketpal.v1.MpalBacktestRunRequest\x1a\x1e.marketpal.v1.MpalJSONResponseB:Z8github.com/revrost/mpal-cli/gen/marketpal/v1;marketpalv1b\x06proto3"
@@ -793,28 +849,29 @@ func file_marketpal_v1_mpal_proto_rawDescGZIP() []byte {
 	return file_marketpal_v1_mpal_proto_rawDescData
 }
 
-var file_marketpal_v1_mpal_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_marketpal_v1_mpal_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_marketpal_v1_mpal_proto_goTypes = []any{
-	(*MpalCapabilitiesRequest)(nil),      // 0: marketpal.v1.MpalCapabilitiesRequest
-	(*MpalJSONResponse)(nil),             // 1: marketpal.v1.MpalJSONResponse
-	(*MpalTickerEventsRequest)(nil),      // 2: marketpal.v1.MpalTickerEventsRequest
-	(*MpalTickerBarsRequest)(nil),        // 3: marketpal.v1.MpalTickerBarsRequest
-	(*MpalTickerProfileRequest)(nil),     // 4: marketpal.v1.MpalTickerProfileRequest
-	(*MpalTickerFinancialsRequest)(nil),  // 5: marketpal.v1.MpalTickerFinancialsRequest
-	(*MpalTickerDataRequest)(nil),        // 6: marketpal.v1.MpalTickerDataRequest
-	(*MpalPortfolioSnapshotRequest)(nil), // 7: marketpal.v1.MpalPortfolioSnapshotRequest
-	(*MpalWatchlistRequest)(nil),         // 8: marketpal.v1.MpalWatchlistRequest
-	(*MpalStrategyRunRequest)(nil),       // 9: marketpal.v1.MpalStrategyRunRequest
-	(*MpalBacktestRunRequest)(nil),       // 10: marketpal.v1.MpalBacktestRunRequest
-	(*timestamppb.Timestamp)(nil),        // 11: google.protobuf.Timestamp
+	(*MpalCapabilitiesRequest)(nil),          // 0: marketpal.v1.MpalCapabilitiesRequest
+	(*MpalJSONResponse)(nil),                 // 1: marketpal.v1.MpalJSONResponse
+	(*MpalTickerEventsRequest)(nil),          // 2: marketpal.v1.MpalTickerEventsRequest
+	(*MpalTickerBarsRequest)(nil),            // 3: marketpal.v1.MpalTickerBarsRequest
+	(*MpalTickerProfileRequest)(nil),         // 4: marketpal.v1.MpalTickerProfileRequest
+	(*MpalTickerFinancialsRequest)(nil),      // 5: marketpal.v1.MpalTickerFinancialsRequest
+	(*MpalTickerDataRequest)(nil),            // 6: marketpal.v1.MpalTickerDataRequest
+	(*MpalPortfolioSnapshotRequest)(nil),     // 7: marketpal.v1.MpalPortfolioSnapshotRequest
+	(*MpalPortfolioTransactionsRequest)(nil), // 8: marketpal.v1.MpalPortfolioTransactionsRequest
+	(*MpalWatchlistRequest)(nil),             // 9: marketpal.v1.MpalWatchlistRequest
+	(*MpalStrategyRunRequest)(nil),           // 10: marketpal.v1.MpalStrategyRunRequest
+	(*MpalBacktestRunRequest)(nil),           // 11: marketpal.v1.MpalBacktestRunRequest
+	(*timestamppb.Timestamp)(nil),            // 12: google.protobuf.Timestamp
 }
 var file_marketpal_v1_mpal_proto_depIdxs = []int32{
-	11, // 0: marketpal.v1.MpalTickerBarsRequest.start:type_name -> google.protobuf.Timestamp
-	11, // 1: marketpal.v1.MpalTickerBarsRequest.end:type_name -> google.protobuf.Timestamp
-	11, // 2: marketpal.v1.MpalTickerProfileRequest.date:type_name -> google.protobuf.Timestamp
-	11, // 3: marketpal.v1.MpalStrategyRunRequest.date:type_name -> google.protobuf.Timestamp
-	11, // 4: marketpal.v1.MpalBacktestRunRequest.start:type_name -> google.protobuf.Timestamp
-	11, // 5: marketpal.v1.MpalBacktestRunRequest.end:type_name -> google.protobuf.Timestamp
+	12, // 0: marketpal.v1.MpalTickerBarsRequest.start:type_name -> google.protobuf.Timestamp
+	12, // 1: marketpal.v1.MpalTickerBarsRequest.end:type_name -> google.protobuf.Timestamp
+	12, // 2: marketpal.v1.MpalTickerProfileRequest.date:type_name -> google.protobuf.Timestamp
+	12, // 3: marketpal.v1.MpalStrategyRunRequest.date:type_name -> google.protobuf.Timestamp
+	12, // 4: marketpal.v1.MpalBacktestRunRequest.start:type_name -> google.protobuf.Timestamp
+	12, // 5: marketpal.v1.MpalBacktestRunRequest.end:type_name -> google.protobuf.Timestamp
 	0,  // 6: marketpal.v1.MpalService.GetCapabilities:input_type -> marketpal.v1.MpalCapabilitiesRequest
 	2,  // 7: marketpal.v1.MpalService.GetTickerEvents:input_type -> marketpal.v1.MpalTickerEventsRequest
 	3,  // 8: marketpal.v1.MpalService.GetTickerBars:input_type -> marketpal.v1.MpalTickerBarsRequest
@@ -824,23 +881,25 @@ var file_marketpal_v1_mpal_proto_depIdxs = []int32{
 	6,  // 12: marketpal.v1.MpalService.GetTickerInsiders:input_type -> marketpal.v1.MpalTickerDataRequest
 	6,  // 13: marketpal.v1.MpalService.GetTickerOwnership:input_type -> marketpal.v1.MpalTickerDataRequest
 	7,  // 14: marketpal.v1.MpalService.GetPortfolioSnapshot:input_type -> marketpal.v1.MpalPortfolioSnapshotRequest
-	8,  // 15: marketpal.v1.MpalService.GetWatchlist:input_type -> marketpal.v1.MpalWatchlistRequest
-	9,  // 16: marketpal.v1.MpalService.RunStrategy:input_type -> marketpal.v1.MpalStrategyRunRequest
-	10, // 17: marketpal.v1.MpalService.RunBacktest:input_type -> marketpal.v1.MpalBacktestRunRequest
-	1,  // 18: marketpal.v1.MpalService.GetCapabilities:output_type -> marketpal.v1.MpalJSONResponse
-	1,  // 19: marketpal.v1.MpalService.GetTickerEvents:output_type -> marketpal.v1.MpalJSONResponse
-	1,  // 20: marketpal.v1.MpalService.GetTickerBars:output_type -> marketpal.v1.MpalJSONResponse
-	1,  // 21: marketpal.v1.MpalService.GetTickerProfile:output_type -> marketpal.v1.MpalJSONResponse
-	1,  // 22: marketpal.v1.MpalService.GetTickerFinancials:output_type -> marketpal.v1.MpalJSONResponse
-	1,  // 23: marketpal.v1.MpalService.GetTickerFundamentals:output_type -> marketpal.v1.MpalJSONResponse
-	1,  // 24: marketpal.v1.MpalService.GetTickerInsiders:output_type -> marketpal.v1.MpalJSONResponse
-	1,  // 25: marketpal.v1.MpalService.GetTickerOwnership:output_type -> marketpal.v1.MpalJSONResponse
-	1,  // 26: marketpal.v1.MpalService.GetPortfolioSnapshot:output_type -> marketpal.v1.MpalJSONResponse
-	1,  // 27: marketpal.v1.MpalService.GetWatchlist:output_type -> marketpal.v1.MpalJSONResponse
-	1,  // 28: marketpal.v1.MpalService.RunStrategy:output_type -> marketpal.v1.MpalJSONResponse
-	1,  // 29: marketpal.v1.MpalService.RunBacktest:output_type -> marketpal.v1.MpalJSONResponse
-	18, // [18:30] is the sub-list for method output_type
-	6,  // [6:18] is the sub-list for method input_type
+	8,  // 15: marketpal.v1.MpalService.GetPortfolioTransactions:input_type -> marketpal.v1.MpalPortfolioTransactionsRequest
+	9,  // 16: marketpal.v1.MpalService.GetWatchlist:input_type -> marketpal.v1.MpalWatchlistRequest
+	10, // 17: marketpal.v1.MpalService.RunStrategy:input_type -> marketpal.v1.MpalStrategyRunRequest
+	11, // 18: marketpal.v1.MpalService.RunBacktest:input_type -> marketpal.v1.MpalBacktestRunRequest
+	1,  // 19: marketpal.v1.MpalService.GetCapabilities:output_type -> marketpal.v1.MpalJSONResponse
+	1,  // 20: marketpal.v1.MpalService.GetTickerEvents:output_type -> marketpal.v1.MpalJSONResponse
+	1,  // 21: marketpal.v1.MpalService.GetTickerBars:output_type -> marketpal.v1.MpalJSONResponse
+	1,  // 22: marketpal.v1.MpalService.GetTickerProfile:output_type -> marketpal.v1.MpalJSONResponse
+	1,  // 23: marketpal.v1.MpalService.GetTickerFinancials:output_type -> marketpal.v1.MpalJSONResponse
+	1,  // 24: marketpal.v1.MpalService.GetTickerFundamentals:output_type -> marketpal.v1.MpalJSONResponse
+	1,  // 25: marketpal.v1.MpalService.GetTickerInsiders:output_type -> marketpal.v1.MpalJSONResponse
+	1,  // 26: marketpal.v1.MpalService.GetTickerOwnership:output_type -> marketpal.v1.MpalJSONResponse
+	1,  // 27: marketpal.v1.MpalService.GetPortfolioSnapshot:output_type -> marketpal.v1.MpalJSONResponse
+	1,  // 28: marketpal.v1.MpalService.GetPortfolioTransactions:output_type -> marketpal.v1.MpalJSONResponse
+	1,  // 29: marketpal.v1.MpalService.GetWatchlist:output_type -> marketpal.v1.MpalJSONResponse
+	1,  // 30: marketpal.v1.MpalService.RunStrategy:output_type -> marketpal.v1.MpalJSONResponse
+	1,  // 31: marketpal.v1.MpalService.RunBacktest:output_type -> marketpal.v1.MpalJSONResponse
+	19, // [19:32] is the sub-list for method output_type
+	6,  // [6:19] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
 	6,  // [6:6] is the sub-list for extension extendee
 	0,  // [0:6] is the sub-list for field type_name
@@ -857,7 +916,7 @@ func file_marketpal_v1_mpal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_marketpal_v1_mpal_proto_rawDesc), len(file_marketpal_v1_mpal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

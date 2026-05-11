@@ -60,6 +60,9 @@ const (
 	// MpalServiceGetPortfolioSnapshotProcedure is the fully-qualified name of the MpalService's
 	// GetPortfolioSnapshot RPC.
 	MpalServiceGetPortfolioSnapshotProcedure = "/marketpal.v1.MpalService/GetPortfolioSnapshot"
+	// MpalServiceGetPortfolioTransactionsProcedure is the fully-qualified name of the MpalService's
+	// GetPortfolioTransactions RPC.
+	MpalServiceGetPortfolioTransactionsProcedure = "/marketpal.v1.MpalService/GetPortfolioTransactions"
 	// MpalServiceGetWatchlistProcedure is the fully-qualified name of the MpalService's GetWatchlist
 	// RPC.
 	MpalServiceGetWatchlistProcedure = "/marketpal.v1.MpalService/GetWatchlist"
@@ -80,6 +83,7 @@ type MpalServiceClient interface {
 	GetTickerInsiders(context.Context, *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	GetTickerOwnership(context.Context, *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	GetPortfolioSnapshot(context.Context, *connect.Request[v1.MpalPortfolioSnapshotRequest]) (*connect.Response[v1.MpalJSONResponse], error)
+	GetPortfolioTransactions(context.Context, *connect.Request[v1.MpalPortfolioTransactionsRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	GetWatchlist(context.Context, *connect.Request[v1.MpalWatchlistRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	RunStrategy(context.Context, *connect.Request[v1.MpalStrategyRunRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	RunBacktest(context.Context, *connect.Request[v1.MpalBacktestRunRequest]) (*connect.Response[v1.MpalJSONResponse], error)
@@ -150,6 +154,12 @@ func NewMpalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(mpalServiceMethods.ByName("GetPortfolioSnapshot")),
 			connect.WithClientOptions(opts...),
 		),
+		getPortfolioTransactions: connect.NewClient[v1.MpalPortfolioTransactionsRequest, v1.MpalJSONResponse](
+			httpClient,
+			baseURL+MpalServiceGetPortfolioTransactionsProcedure,
+			connect.WithSchema(mpalServiceMethods.ByName("GetPortfolioTransactions")),
+			connect.WithClientOptions(opts...),
+		),
 		getWatchlist: connect.NewClient[v1.MpalWatchlistRequest, v1.MpalJSONResponse](
 			httpClient,
 			baseURL+MpalServiceGetWatchlistProcedure,
@@ -173,18 +183,19 @@ func NewMpalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // mpalServiceClient implements MpalServiceClient.
 type mpalServiceClient struct {
-	getCapabilities       *connect.Client[v1.MpalCapabilitiesRequest, v1.MpalJSONResponse]
-	getTickerEvents       *connect.Client[v1.MpalTickerEventsRequest, v1.MpalJSONResponse]
-	getTickerBars         *connect.Client[v1.MpalTickerBarsRequest, v1.MpalJSONResponse]
-	getTickerProfile      *connect.Client[v1.MpalTickerProfileRequest, v1.MpalJSONResponse]
-	getTickerFinancials   *connect.Client[v1.MpalTickerFinancialsRequest, v1.MpalJSONResponse]
-	getTickerFundamentals *connect.Client[v1.MpalTickerDataRequest, v1.MpalJSONResponse]
-	getTickerInsiders     *connect.Client[v1.MpalTickerDataRequest, v1.MpalJSONResponse]
-	getTickerOwnership    *connect.Client[v1.MpalTickerDataRequest, v1.MpalJSONResponse]
-	getPortfolioSnapshot  *connect.Client[v1.MpalPortfolioSnapshotRequest, v1.MpalJSONResponse]
-	getWatchlist          *connect.Client[v1.MpalWatchlistRequest, v1.MpalJSONResponse]
-	runStrategy           *connect.Client[v1.MpalStrategyRunRequest, v1.MpalJSONResponse]
-	runBacktest           *connect.Client[v1.MpalBacktestRunRequest, v1.MpalJSONResponse]
+	getCapabilities          *connect.Client[v1.MpalCapabilitiesRequest, v1.MpalJSONResponse]
+	getTickerEvents          *connect.Client[v1.MpalTickerEventsRequest, v1.MpalJSONResponse]
+	getTickerBars            *connect.Client[v1.MpalTickerBarsRequest, v1.MpalJSONResponse]
+	getTickerProfile         *connect.Client[v1.MpalTickerProfileRequest, v1.MpalJSONResponse]
+	getTickerFinancials      *connect.Client[v1.MpalTickerFinancialsRequest, v1.MpalJSONResponse]
+	getTickerFundamentals    *connect.Client[v1.MpalTickerDataRequest, v1.MpalJSONResponse]
+	getTickerInsiders        *connect.Client[v1.MpalTickerDataRequest, v1.MpalJSONResponse]
+	getTickerOwnership       *connect.Client[v1.MpalTickerDataRequest, v1.MpalJSONResponse]
+	getPortfolioSnapshot     *connect.Client[v1.MpalPortfolioSnapshotRequest, v1.MpalJSONResponse]
+	getPortfolioTransactions *connect.Client[v1.MpalPortfolioTransactionsRequest, v1.MpalJSONResponse]
+	getWatchlist             *connect.Client[v1.MpalWatchlistRequest, v1.MpalJSONResponse]
+	runStrategy              *connect.Client[v1.MpalStrategyRunRequest, v1.MpalJSONResponse]
+	runBacktest              *connect.Client[v1.MpalBacktestRunRequest, v1.MpalJSONResponse]
 }
 
 // GetCapabilities calls marketpal.v1.MpalService.GetCapabilities.
@@ -232,6 +243,11 @@ func (c *mpalServiceClient) GetPortfolioSnapshot(ctx context.Context, req *conne
 	return c.getPortfolioSnapshot.CallUnary(ctx, req)
 }
 
+// GetPortfolioTransactions calls marketpal.v1.MpalService.GetPortfolioTransactions.
+func (c *mpalServiceClient) GetPortfolioTransactions(ctx context.Context, req *connect.Request[v1.MpalPortfolioTransactionsRequest]) (*connect.Response[v1.MpalJSONResponse], error) {
+	return c.getPortfolioTransactions.CallUnary(ctx, req)
+}
+
 // GetWatchlist calls marketpal.v1.MpalService.GetWatchlist.
 func (c *mpalServiceClient) GetWatchlist(ctx context.Context, req *connect.Request[v1.MpalWatchlistRequest]) (*connect.Response[v1.MpalJSONResponse], error) {
 	return c.getWatchlist.CallUnary(ctx, req)
@@ -258,6 +274,7 @@ type MpalServiceHandler interface {
 	GetTickerInsiders(context.Context, *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	GetTickerOwnership(context.Context, *connect.Request[v1.MpalTickerDataRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	GetPortfolioSnapshot(context.Context, *connect.Request[v1.MpalPortfolioSnapshotRequest]) (*connect.Response[v1.MpalJSONResponse], error)
+	GetPortfolioTransactions(context.Context, *connect.Request[v1.MpalPortfolioTransactionsRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	GetWatchlist(context.Context, *connect.Request[v1.MpalWatchlistRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	RunStrategy(context.Context, *connect.Request[v1.MpalStrategyRunRequest]) (*connect.Response[v1.MpalJSONResponse], error)
 	RunBacktest(context.Context, *connect.Request[v1.MpalBacktestRunRequest]) (*connect.Response[v1.MpalJSONResponse], error)
@@ -324,6 +341,12 @@ func NewMpalServiceHandler(svc MpalServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(mpalServiceMethods.ByName("GetPortfolioSnapshot")),
 		connect.WithHandlerOptions(opts...),
 	)
+	mpalServiceGetPortfolioTransactionsHandler := connect.NewUnaryHandler(
+		MpalServiceGetPortfolioTransactionsProcedure,
+		svc.GetPortfolioTransactions,
+		connect.WithSchema(mpalServiceMethods.ByName("GetPortfolioTransactions")),
+		connect.WithHandlerOptions(opts...),
+	)
 	mpalServiceGetWatchlistHandler := connect.NewUnaryHandler(
 		MpalServiceGetWatchlistProcedure,
 		svc.GetWatchlist,
@@ -362,6 +385,8 @@ func NewMpalServiceHandler(svc MpalServiceHandler, opts ...connect.HandlerOption
 			mpalServiceGetTickerOwnershipHandler.ServeHTTP(w, r)
 		case MpalServiceGetPortfolioSnapshotProcedure:
 			mpalServiceGetPortfolioSnapshotHandler.ServeHTTP(w, r)
+		case MpalServiceGetPortfolioTransactionsProcedure:
+			mpalServiceGetPortfolioTransactionsHandler.ServeHTTP(w, r)
 		case MpalServiceGetWatchlistProcedure:
 			mpalServiceGetWatchlistHandler.ServeHTTP(w, r)
 		case MpalServiceRunStrategyProcedure:
@@ -411,6 +436,10 @@ func (UnimplementedMpalServiceHandler) GetTickerOwnership(context.Context, *conn
 
 func (UnimplementedMpalServiceHandler) GetPortfolioSnapshot(context.Context, *connect.Request[v1.MpalPortfolioSnapshotRequest]) (*connect.Response[v1.MpalJSONResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketpal.v1.MpalService.GetPortfolioSnapshot is not implemented"))
+}
+
+func (UnimplementedMpalServiceHandler) GetPortfolioTransactions(context.Context, *connect.Request[v1.MpalPortfolioTransactionsRequest]) (*connect.Response[v1.MpalJSONResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketpal.v1.MpalService.GetPortfolioTransactions is not implemented"))
 }
 
 func (UnimplementedMpalServiceHandler) GetWatchlist(context.Context, *connect.Request[v1.MpalWatchlistRequest]) (*connect.Response[v1.MpalJSONResponse], error) {

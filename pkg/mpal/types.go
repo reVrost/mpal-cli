@@ -166,6 +166,10 @@ type ProfileScore struct {
 	Ticker        string                  `json:"ticker"`
 	AsOf          time.Time               `json:"as_of"`
 	ProfileScore  float64                 `json:"profile_score"`
+	CurrentPrice  *float64                `json:"current_price,omitempty"`
+	Currency      string                  `json:"currency,omitempty"`
+	QuoteTime     *time.Time              `json:"quote_time,omitempty"`
+	MarketState   string                  `json:"market_state,omitempty"`
 	MomentumScore *float64                `json:"momentum_score,omitempty"`
 	QualityScore  *float64                `json:"quality_score,omitempty"`
 	ValueScore    *float64                `json:"value_score,omitempty"`

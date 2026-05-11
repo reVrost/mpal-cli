@@ -49,6 +49,11 @@ message MpalTickerDataRequest {
 
 message MpalPortfolioSnapshotRequest {}
 
+message MpalPortfolioTransactionsRequest {
+  int32 page = 1;
+  int32 limit = 2;
+}
+
 message MpalWatchlistRequest {}
 
 message MpalStrategyRunRequest {
@@ -82,6 +87,7 @@ service MpalService {
   rpc GetTickerInsiders(MpalTickerDataRequest) returns (MpalJSONResponse);
   rpc GetTickerOwnership(MpalTickerDataRequest) returns (MpalJSONResponse);
   rpc GetPortfolioSnapshot(MpalPortfolioSnapshotRequest) returns (MpalJSONResponse);
+  rpc GetPortfolioTransactions(MpalPortfolioTransactionsRequest) returns (MpalJSONResponse);
   rpc GetWatchlist(MpalWatchlistRequest) returns (MpalJSONResponse);
   rpc RunStrategy(MpalStrategyRunRequest) returns (MpalJSONResponse);
   rpc RunBacktest(MpalBacktestRunRequest) returns (MpalJSONResponse);

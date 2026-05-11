@@ -186,24 +186,9 @@ func (a *app) strategyRunCommand(ctx context.Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := mpal.EnsureHostedStrategyAPICompatible(cfg); err != nil {
-				return err
-			}
-			wireConfig := mpal.CanonicalStrategyConfig(cfg)
-			payload, err := a.client.RunStrategy(ctx, &marketpalv1.MpalStrategyRunRequest{
-				Date:          timestamppb.New(asOf),
-				UniverseJson:  mustJSON(universe),
-				PortfolioJson: mustJSON(portfolio),
-				ConfigJson:    mustJSON(wireConfig),
-				ConfigPath:    configPath,
-				ConfigHash:    hash,
-			})
+			run, err := a.runStrategy(ctx, asOf, universe, portfolio, cfg, configPath, hash)
 			if err != nil {
 				return err
-			}
-			run, err := mpal.LoadStrategyRunResult(payload)
-			if err != nil {
-				return fmt.Errorf("strategy run returned JSON that could not be auto-journaled: %w", err)
 			}
 			if run.AsOf.IsZero() {
 				run.AsOf = asOf
@@ -249,10 +234,60 @@ func (a *app) strategyRunCommand(ctx context.Context) *cobra.Command {
 	return cmd
 }
 
+func (a *app) runStrategy(
+	ctx context.Context,
+	asOf time.Time,
+	universe mpal.Universe,
+	portfolio mpal.Portfolio,
+	cfg mpal.StrategyConfig,
+	configPath string,
+	hash string,
+) (mpal.StrategyRunResult, error) {
+	if compatibility := mpal.ValidateHostedStrategyAPICompatibility(cfg); compatibility.Valid {
+		wireConfig := mpal.CanonicalStrategyConfig(cfg)
+		payload, err := a.client.RunStrategy(ctx, &marketpalv1.MpalStrategyRunRequest{
+			Date:          timestamppb.New(asOf),
+			UniverseJson:  mustJSON(universe),
+			PortfolioJson: mustJSON(portfolio),
+			ConfigJson:    mustJSON(wireConfig),
+			ConfigPath:    configPath,
+			ConfigHash:    hash,
+		})
+		if err != nil {
+			return mpal.StrategyRunResult{}, err
+		}
+		run, err := mpal.LoadStrategyRunResult(payload)
+		if err != nil {
+			return mpal.StrategyRunResult{}, fmt.Errorf("strategy run returned JSON that could not be auto-journaled: %w", err)
+		}
+		return run, nil
+	}
+
+	engine := mpal.Engine{
+		Prices:   apiMarketData{client: a.client},
+		Profiles: newAPIProfileScores(a.client),
+	}
+	ref := mpal.StrategyRef{
+		ID:         cfg.ID,
+		Version:    cfg.Version,
+		ConfigHash: hash,
+		Approved:   cfg.Approved,
+		Source:     "local",
+		Path:       configPath,
+	}
+	run, err := engine.StrategyRun(ctx, asOf, universe, portfolio, cfg, ref)
+	if err != nil {
+		return mpal.StrategyRunResult{}, err
+	}
+	run.Warnings = mpal.AppendWarnings(run.Warnings, "strategy executed locally because hosted_strategy_api_v1 does not support "+mpal.StrategyScoringContract(cfg))
+	return run, nil
+}
+
 func (a *app) portfolioCommand(ctx context.Context) *cobra.Command {
 	cmd := parentCommand("portfolio", "missing portfolio subcommand")
 	cmd.AddCommand(
 		a.portfolioSnapshotCommand(ctx),
+		a.portfolioTransactionsCommand(ctx),
 		a.portfolioValidateCommand(),
 	)
 	return cmd
@@ -269,6 +304,27 @@ func (a *app) portfolioSnapshotCommand(ctx context.Context) *cobra.Command {
 			return writePayload(a.out, payload)
 		},
 	}
+	addJSONFlag(cmd)
+	return cmd
+}
+
+func (a *app) portfolioTransactionsCommand(ctx context.Context) *cobra.Command {
+	var page, limit int32
+	cmd := &cobra.Command{
+		Use: "transactions",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			payload, err := a.client.GetPortfolioTransactions(ctx, &marketpalv1.MpalPortfolioTransactionsRequest{
+				Page:  page,
+				Limit: limit,
+			})
+			if err != nil {
+				return err
+			}
+			return writePayload(a.out, payload)
+		},
+	}
+	cmd.Flags().Int32Var(&page, "page", 0, "transaction page; defaults server-side")
+	cmd.Flags().Int32Var(&limit, "limit", 0, "maximum transactions to return; defaults server-side")
 	addJSONFlag(cmd)
 	return cmd
 }
@@ -607,7 +663,7 @@ func mpalCapabilityCommands() []string {
 		"doctor", "capabilities", "strategy list", "strategy show", "strategy validate", "strategy run",
 		"ticker events", "ticker bars", "ticker profile", "ticker financials",
 		"ticker fundamentals", "ticker insiders", "ticker ownership",
-		"portfolio snapshot", "portfolio validate", "watchlist get", "backtest run", "decision gate",
+		"portfolio snapshot", "portfolio transactions", "portfolio validate", "watchlist get", "backtest run", "decision gate",
 		"report", "journal start", "journal finalize", "journal list", "journal get",
 	}
 }

@@ -18,9 +18,11 @@ import (
 var _ client.API = fakeMpalAPI{}
 
 type fakeMpalAPI struct {
-	strategyPayload     string
-	tickerBarsPayload   string
-	fundamentalsPayload string
+	strategyPayload      string
+	tickerBarsPayload    string
+	tickerProfilePayload string
+	fundamentalsPayload  string
+	transactionsPayload  string
 }
 
 func (f fakeMpalAPI) GetTickerEvents(context.Context, *marketpalv1.MpalTickerEventsRequest) (string, error) {
@@ -33,6 +35,9 @@ func (f fakeMpalAPI) GetTickerBars(context.Context, *marketpalv1.MpalTickerBarsR
 	return `{}`, nil
 }
 func (f fakeMpalAPI) GetTickerProfile(context.Context, *marketpalv1.MpalTickerProfileRequest) (string, error) {
+	if f.tickerProfilePayload != "" {
+		return f.tickerProfilePayload, nil
+	}
 	return `{}`, nil
 }
 func (f fakeMpalAPI) GetTickerFinancials(context.Context, *marketpalv1.MpalTickerFinancialsRequest) (string, error) {
@@ -53,6 +58,12 @@ func (f fakeMpalAPI) GetTickerOwnership(context.Context, *marketpalv1.MpalTicker
 func (f fakeMpalAPI) GetPortfolioSnapshot(context.Context, *marketpalv1.MpalPortfolioSnapshotRequest) (string, error) {
 	return `{}`, nil
 }
+func (f fakeMpalAPI) GetPortfolioTransactions(context.Context, *marketpalv1.MpalPortfolioTransactionsRequest) (string, error) {
+	if f.transactionsPayload != "" {
+		return f.transactionsPayload, nil
+	}
+	return `{}`, nil
+}
 func (f fakeMpalAPI) GetWatchlist(context.Context, *marketpalv1.MpalWatchlistRequest) (string, error) {
 	return `{}`, nil
 }
@@ -71,6 +82,16 @@ type recordingProfileAPI struct {
 func (f *recordingProfileAPI) GetTickerProfile(_ context.Context, req *marketpalv1.MpalTickerProfileRequest) (string, error) {
 	f.req = req
 	return `{"ok":true}`, nil
+}
+
+type recordingTransactionsAPI struct {
+	fakeMpalAPI
+	req *marketpalv1.MpalPortfolioTransactionsRequest
+}
+
+func (f *recordingTransactionsAPI) GetPortfolioTransactions(_ context.Context, req *marketpalv1.MpalPortfolioTransactionsRequest) (string, error) {
+	f.req = req
+	return `{"kind":"portfolio_transactions","transactions":[]}`, nil
 }
 
 func TestCapabilitiesReturnsValidJSON(t *testing.T) {
@@ -94,6 +115,7 @@ func TestCapabilitiesReturnsValidJSON(t *testing.T) {
 	require.Contains(t, commands, "ticker insiders")
 	require.Contains(t, commands, "ticker ownership")
 	require.Contains(t, commands, "portfolio snapshot")
+	require.Contains(t, commands, "portfolio transactions")
 	require.Contains(t, commands, "portfolio validate")
 	require.Contains(t, commands, "decision gate")
 	require.Contains(t, commands, "journal start")
@@ -112,6 +134,26 @@ func TestCapabilitiesReturnsValidJSON(t *testing.T) {
 	require.NotContains(t, commands, "admin api-keys backfill")
 	require.NotContains(t, commands, "admin portfolios backfill")
 	require.NotContains(t, commands, "admin portfolios compare")
+}
+
+func TestPortfolioTransactionsCommandPassesLimit(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	api := &recordingTransactionsAPI{}
+	a := &app{
+		out:    &out,
+		errOut: &bytes.Buffer{},
+		client: api,
+	}
+	cmd := a.rootCommand(context.Background())
+	cmd.SetArgs([]string{"portfolio", "transactions", "--page", "2", "--limit", "50", "--json"})
+
+	require.NoError(t, cmd.Execute())
+	require.NotNil(t, api.req)
+	require.Equal(t, int32(2), api.req.Page)
+	require.Equal(t, int32(50), api.req.Limit)
+	require.Contains(t, out.String(), `"kind":"portfolio_transactions"`)
 }
 
 func TestDoctorReportsMissingAPIKey(t *testing.T) {
@@ -460,7 +502,7 @@ backtest:
 	require.Contains(t, string(reportHTML), "manual review note")
 }
 
-func TestStrategyRunRejectsHostedIncompatibleConfig(t *testing.T) {
+func TestStrategyRunExecutesAdvancedScoringLocally(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -500,7 +542,31 @@ backtest:
 	require.NoError(t, os.WriteFile(portfolioPath, []byte(`{"cash":100000,"equity":100000,"positions":[]}`), 0o600))
 
 	var out bytes.Buffer
-	a := &app{out: &out, client: fakeMpalAPI{strategyPayload: `{"result":"TRADE"}`}}
+	a := &app{
+		out:               &out,
+		reviewJournalPath: filepath.Join(dir, "mpal.db"),
+		client: fakeMpalAPI{
+			tickerBarsPayload: `{
+  "ticker": "AAPL",
+  "start": "2025-05-03T00:00:00Z",
+  "end": "2026-05-03T00:00:00Z",
+  "bars": [
+    {"date":"2025-09-01T00:00:00Z","open":100,"high":100,"low":100,"close":100,"volume":1000},
+    {"date":"2026-05-03T00:00:00Z","open":75,"high":75,"low":75,"close":75,"volume":1000}
+  ],
+  "freshness": {"source":"marketpal_historical_prices","provider":"marketpal","storage":"marketpal_api","stale":false}
+}`,
+			tickerProfilePayload: `{
+  "ticker": "AAPL",
+  "as_of": "2026-05-03T00:00:00Z",
+  "profile_score": 0.1,
+  "momentum_score": 0.2,
+  "quality_score": 0.9,
+  "value_score": 0.8,
+  "score_source": "qvm_components"
+}`,
+		},
+	}
 	cmd := a.strategyRunCommand(context.Background())
 	cmd.SetArgs([]string{
 		"--date", "2026-05-03",
@@ -510,7 +576,21 @@ backtest:
 		"--json",
 	})
 
-	err := cmd.Execute()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "not compatible with hosted_strategy_api_v1")
+	require.NoError(t, cmd.Execute())
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(out.Bytes(), &payload))
+	require.Equal(t, "TRADE", payload["result"])
+	require.Equal(t, "TRADE", payload["model_result"])
+	require.Equal(t, "TRADE", payload["execution_result"])
+	require.Contains(t, payload["warnings"], "strategy executed locally because hosted_strategy_api_v1 does not support scoring_v2_quality_value_reversion")
+
+	signals := payload["signals"].([]any)
+	require.Len(t, signals, 1)
+	signal := signals[0].(map[string]any)
+	require.Equal(t, "AAPL", signal["ticker"])
+	require.Equal(t, 0.9, signal["quality_score"])
+	require.Equal(t, 0.8, signal["value_score"])
+	require.Equal(t, 1.0, signal["reversion_score"])
+	require.Equal(t, 0.775, signal["final_score"])
 }
