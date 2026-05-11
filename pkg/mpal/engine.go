@@ -36,18 +36,11 @@ type PortfolioReader interface {
 	Watchlist(ctx context.Context, userID string) (Universe, error)
 }
 
-type JournalStore interface {
-	Append(ctx context.Context, entry JournalEntry) (JournalEntry, error)
-	List(ctx context.Context, limit int) ([]JournalEntry, error)
-	Get(ctx context.Context, id string) (JournalEntry, error)
-}
-
 type Engine struct {
 	Prices            PriceData
 	Profiles          ProfileScorer
 	Factors           FactorSnapshotReader
 	Events            EventScoreReader
-	Journal           JournalStore
 	SignalConcurrency int
 }
 
@@ -401,24 +394,6 @@ func (e Engine) StrategyRun(
 		BaselinePlan:    plan,
 		Validation:      validation,
 		Warnings:        warnings,
-	}
-	if e.Journal != nil {
-		entry, err := e.Journal.Append(ctx, JournalEntry{
-			ID:        RunID("jrnl", asOf),
-			RunID:     result.RunID,
-			Type:      JournalTypeBaselinePlan,
-			CreatedAt: time.Now().UTC(),
-			AsOf:      &asOf,
-			Strategy:  &ref,
-			Input:     map[string]any{"universe": universe, "portfolio": portfolio},
-			Output:    result,
-			Warnings:  result.Warnings,
-		})
-		if err != nil {
-			result.Warnings = append(result.Warnings, "journal append failed: "+err.Error())
-		} else {
-			result.JournalEntryID = entry.ID
-		}
 	}
 	return result, nil
 }

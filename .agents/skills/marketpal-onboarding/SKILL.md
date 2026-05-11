@@ -19,7 +19,10 @@ When a user asks how to start, give them the shortest safe path:
    they want skill-guided setup.
 2. Tell them they can ask their agent:
    `Run the MarketPal onboarding skill and report the first-run checklist.`
-3. Then follow this skill end-to-end. Check the environment, run read-only
+3. Run `mpal doctor --json` when available. Use `mpal doctor --skip-api --json`
+   for a local-only check or `mpal doctor --strict --json` when setup failures
+   should return a non-zero exit code.
+4. Then follow this skill end-to-end. Check the environment, run read-only
    smoke tests, verify MCP/plugin wiring, check for the private policy path,
    and return the first-run checklist with one safe next command.
 
@@ -38,6 +41,10 @@ verified.
      explicit `source .envrc` for development runs.
 
 2. Smoke-test the CLI.
+   - Run `mpal doctor --json` when `mpal` is on `PATH`; otherwise use
+     `go run ./cmd/mpal doctor --json` from the repo.
+   - If the API key or hosted API is not available yet, run
+     `mpal doctor --skip-api --json` for the local setup checks.
    - Run `mpal capabilities --json` when `mpal` is on `PATH`; otherwise use
      `go run ./cmd/mpal capabilities --json` from the repo.
    - Run `mpal strategy list --json` and confirm the expected approved configs
@@ -103,6 +110,8 @@ Report setup status with these fields:
 
 - If API calls fail as unauthenticated, first check whether `MPAL_API_KEY` is
   actually present in the shell running Codex or Claude Code.
+- If the user is unsure what is missing, run `mpal doctor --json` and inspect
+  `errors`, `warnings`, and `next_steps`.
 - If `strategy run` fails on a missing date, pass an explicit `--date
   YYYY-MM-DD`.
 - If plugin install works but MCP tools fail, check whether `mpal-mcp` is on

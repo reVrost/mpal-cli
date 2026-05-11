@@ -87,11 +87,15 @@ type decisionGateInput struct {
 	LookbackDays         int    `json:"lookback_days,omitempty" jsonschema:"Historical calendar days for Markov context. Defaults to 365."`
 }
 
-type journalAppendInput struct {
-	Type              string `json:"type" jsonschema:"Journal entry type, for example agent_final_action, agent_veto, or agent_override."`
-	BaselineJournalID string `json:"baseline_journal_id,omitempty" jsonschema:"Baseline journal entry ID from mpal_strategy_run."`
-	InputPath         string `json:"input_path,omitempty" jsonschema:"Path to structured final-action JSON."`
-	InputJSON         string `json:"input_json,omitempty" jsonschema:"Inline structured final-action JSON."`
+type journalStartInput struct {
+	InputPath string `json:"input_path,omitempty" jsonschema:"Path to trade review start JSON."`
+	InputJSON string `json:"input_json,omitempty" jsonschema:"Inline trade review start JSON."`
+}
+
+type journalFinalizeInput struct {
+	ID        string `json:"id" jsonschema:"Trade review ID to finalize."`
+	InputPath string `json:"input_path,omitempty" jsonschema:"Path to trade review finalize JSON."`
+	InputJSON string `json:"input_json,omitempty" jsonschema:"Inline trade review finalize JSON."`
 }
 
 type journalListInput struct {

@@ -14,11 +14,13 @@ import (
 )
 
 const (
-	JournalTypeBaselinePlan     = "baseline_plan"
-	JournalTypeAgentFinalAction = "agent_final_action"
-	JournalTypeAgentVeto        = "agent_veto"
-	JournalTypeAgentOverride    = "agent_override"
-	JournalTypeBacktest         = "backtest"
+	JournalTypeBaselinePlan       = "baseline_plan"
+	JournalTypeAgentFinalAction   = "agent_final_action"
+	JournalTypeAgentVeto          = "agent_veto"
+	JournalTypeAgentOverride      = "agent_override"
+	JournalTypeWeeklyTradeReview  = "weekly_trade_review"
+	JournalTypeWeeklyTradeOutcome = "weekly_trade_outcome"
+	JournalTypeBacktest           = "backtest"
 )
 
 type JournalEntry struct {

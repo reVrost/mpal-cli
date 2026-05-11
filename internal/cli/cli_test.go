@@ -81,6 +81,7 @@ func TestCapabilitiesReturnsValidJSON(t *testing.T) {
 	require.Equal(t, false, payload["live_trade_execution"])
 	commands, ok := payload["commands"].([]any)
 	require.True(t, ok)
+	require.Contains(t, commands, "doctor")
 	require.Contains(t, commands, "ticker events")
 	require.Contains(t, commands, "ticker bars")
 	require.Contains(t, commands, "ticker profile")
@@ -92,7 +93,8 @@ func TestCapabilitiesReturnsValidJSON(t *testing.T) {
 	require.Contains(t, commands, "portfolio snapshot")
 	require.Contains(t, commands, "portfolio validate")
 	require.Contains(t, commands, "decision gate")
-	require.Contains(t, commands, "journal append")
+	require.Contains(t, commands, "journal start")
+	require.Contains(t, commands, "journal finalize")
 	require.NotContains(t, commands, "data bars")
 	require.NotContains(t, commands, "profile score")
 	require.NotContains(t, commands, "signal score")
@@ -107,6 +109,116 @@ func TestCapabilitiesReturnsValidJSON(t *testing.T) {
 	require.NotContains(t, commands, "admin api-keys backfill")
 	require.NotContains(t, commands, "admin portfolios backfill")
 	require.NotContains(t, commands, "admin portfolios compare")
+}
+
+func TestDoctorReportsMissingAPIKey(t *testing.T) {
+	t.Setenv("MPAL_API_KEY", "")
+	t.Setenv("MPAL_API_KEYS", "")
+	t.Setenv("MPAL_JOURNAL", filepath.Join(t.TempDir(), "journal.jsonl"))
+
+	var out bytes.Buffer
+	a := &app{
+		out:      &out,
+		errOut:   &bytes.Buffer{},
+		registry: mpal.DefaultStrategyRegistry(),
+		journal:  mpal.FileJournal{Path: os.Getenv("MPAL_JOURNAL")},
+		client:   fakeMpalAPI{},
+	}
+	cmd := a.rootCommand(context.Background())
+	cmd.SetArgs([]string{"doctor", "--skip-api", "--json"})
+
+	require.NoError(t, cmd.Execute())
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(out.Bytes(), &payload))
+	require.Equal(t, "doctor", payload["mode"])
+	require.Equal(t, false, payload["ok"])
+	require.NotEmpty(t, payload["errors"])
+	require.NotEmpty(t, payload["next_steps"])
+}
+
+func TestDoctorStrictFailsWhenUnhealthy(t *testing.T) {
+	t.Setenv("MPAL_API_KEY", "")
+	t.Setenv("MPAL_API_KEYS", "")
+	t.Setenv("MPAL_JOURNAL", filepath.Join(t.TempDir(), "journal.jsonl"))
+
+	var out bytes.Buffer
+	a := &app{
+		out:      &out,
+		errOut:   &bytes.Buffer{},
+		registry: mpal.DefaultStrategyRegistry(),
+		journal:  mpal.FileJournal{Path: os.Getenv("MPAL_JOURNAL")},
+		client:   fakeMpalAPI{},
+	}
+	cmd := a.rootCommand(context.Background())
+	cmd.SetArgs([]string{"doctor", "--skip-api", "--strict", "--json"})
+
+	require.Error(t, cmd.Execute())
+	require.Contains(t, out.String(), `"ok": false`)
+}
+
+func TestJournalStartFinalizeListGetUsesSQLiteReviewJournal(t *testing.T) {
+	t.Setenv("MPAL_REVIEW_JOURNAL", filepath.Join(t.TempDir(), "mpal.db"))
+
+	startInput := `{
+		"id":"review_cli",
+		"as_of":"2026-05-11",
+		"strategy_id":"engine_weekly_swing_v1",
+		"strategy_config_text":"id: engine_weekly_swing_v1\n",
+		"portfolio_scope":"engine",
+		"universe_tickers":["MU","META"],
+		"user_requested_tickers":["DOCN"],
+		"execution_result":"TRADE",
+		"agent_harness":"codex",
+		"agent_model":"gpt-5",
+		"agent_skill":"marketpal-trader",
+		"user_prompt_text":"review my engine",
+		"chat_history_text":"agent reviewed the strategy output",
+		"agent_summary":"Accept MU and watch DOCN.",
+		"positions":[
+			{"ticker":"MU","model_bucket":"proposed","model_intent":"STARTER","model_score":0.92,"model_weight":0.015,"agent_decision":"trade","agent_weight":0.01,"agent_reason":"clean enough"}
+		]
+	}`
+	var startOut bytes.Buffer
+	startCode := Main([]string{"journal", "start", "--input", startInput, "--json"}, &startOut, &bytes.Buffer{})
+	require.Equal(t, 0, startCode, startOut.String())
+
+	var startPayload map[string]any
+	require.NoError(t, json.Unmarshal(startOut.Bytes(), &startPayload))
+	review := startPayload["review"].(map[string]any)
+	require.Equal(t, "review_cli", review["id"])
+	require.Equal(t, "engine_weekly_swing_v1", review["strategy_id"])
+
+	finalInput := `{
+		"final_decision":"trade",
+		"human_reasoning_text":"Accepted the agent plan with smaller sizing.",
+		"final_validation_valid":true,
+		"final_validation_summary":"Validated.",
+		"positions":[
+			{"ticker":"MU","human_decision":"trade","human_weight":0.01,"human_reason":"final human call"}
+		]
+	}`
+	var finalOut bytes.Buffer
+	finalCode := Main([]string{"journal", "finalize", "--id", "review_cli", "--input", finalInput, "--json"}, &finalOut, &bytes.Buffer{})
+	require.Equal(t, 0, finalCode, finalOut.String())
+
+	var finalPayload map[string]any
+	require.NoError(t, json.Unmarshal(finalOut.Bytes(), &finalPayload))
+	finalReview := finalPayload["review"].(map[string]any)
+	require.Equal(t, "trade", finalReview["final_decision"])
+	positions := finalPayload["positions"].([]any)
+	require.Len(t, positions, 1)
+	require.Equal(t, "trade", positions[0].(map[string]any)["human_decision"])
+
+	var listOut bytes.Buffer
+	require.Equal(t, 0, Main([]string{"journal", "list", "--limit", "1", "--json"}, &listOut, &bytes.Buffer{}))
+	var listPayload map[string]any
+	require.NoError(t, json.Unmarshal(listOut.Bytes(), &listPayload))
+	require.Len(t, listPayload["reviews"], 1)
+
+	var getOut bytes.Buffer
+	require.Equal(t, 0, Main([]string{"journal", "get", "--id", "review_cli", "--json"}, &getOut, &bytes.Buffer{}))
+	require.Contains(t, getOut.String(), `"id": "review_cli"`)
 }
 
 func TestDecisionGateCommandReturnsEvidence(t *testing.T) {
@@ -302,11 +414,34 @@ backtest:
 
 	var out bytes.Buffer
 	a := &app{
-		out: &out,
+		out:               &out,
+		reviewJournalPath: filepath.Join(dir, "mpal.db"),
 		client: fakeMpalAPI{strategyPayload: `{
   "result": "TRADE",
   "model_result": "TRADE",
   "execution_result": "TRADE",
+  "baseline_plan": {
+    "result": "TRADE",
+    "proposed_trades": [{
+      "ticker": "AAPL",
+      "side": "BUY",
+      "intent": "STARTER",
+      "target_weight": 0.015,
+      "delta_weight": 0.015,
+      "estimated_value": 1500,
+      "reason": "starter position",
+      "sizing": {
+        "method": "fractional_kelly",
+        "raw_kelly": 0.08,
+        "fractional_kelly": 0.02,
+        "kelly_target_weight": 0.02,
+        "final_target_weight": 0.015,
+        "binding_constraint": "max_single_trade_pct",
+        "calibration_status": "heuristic_markov"
+      }
+    }]
+  },
+  "signals": [{"ticker":"AAPL","final_score":0.91,"action_hint":"BUY"}],
   "validation": {"valid": true}
 }`},
 	}
@@ -325,9 +460,24 @@ backtest:
 	require.Equal(t, "TRADE", payload["result"])
 	require.Equal(t, "TRADE", payload["model_result"])
 	require.Equal(t, "TRADE", payload["execution_result"])
+	journalID, ok := payload["journal_entry_id"].(string)
+	require.True(t, ok)
+	require.NotEmpty(t, journalID)
 	validation, ok := payload["validation"].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, true, validation["valid"])
+
+	out.Reset()
+	reportPath := filepath.Join(dir, "review.html")
+	reportCmd := a.reportCommand(context.Background())
+	reportCmd.SetArgs([]string{journalID, "--output", reportPath, "--notes", "manual review note", "--json"})
+	require.NoError(t, reportCmd.Execute())
+	require.FileExists(t, reportPath)
+	reportHTML, err := os.ReadFile(reportPath)
+	require.NoError(t, err)
+	require.Contains(t, string(reportHTML), "<th>Ticker</th>")
+	require.Contains(t, string(reportHTML), "<th class=\"num\">Raw Kelly</th>")
+	require.Contains(t, string(reportHTML), "manual review note")
 }
 
 func TestStrategyRunRejectsHostedIncompatibleConfig(t *testing.T) {

@@ -18,11 +18,12 @@ import (
 )
 
 type app struct {
-	out      io.Writer
-	errOut   io.Writer
-	registry mpal.StrategyRegistry
-	journal  mpal.FileJournal
-	client   client.API
+	out               io.Writer
+	errOut            io.Writer
+	registry          mpal.StrategyRegistry
+	journal           mpal.FileJournal
+	reviewJournalPath string
+	client            client.API
 }
 
 func Main(args []string, out, errOut io.Writer) int {
@@ -45,11 +46,12 @@ func newApp(out, errOut io.Writer) (*app, func()) {
 	registry := mpal.DefaultStrategyRegistry()
 	journal := mpal.FileJournal{Path: firstNonEmpty(os.Getenv("MPAL_JOURNAL"), mpal.DefaultJournalPath())}
 	return &app{
-		out:      out,
-		errOut:   errOut,
-		registry: registry,
-		journal:  journal,
-		client:   client.NewFromEnv(),
+		out:               out,
+		errOut:            errOut,
+		registry:          registry,
+		journal:           journal,
+		reviewJournalPath: firstNonEmpty(os.Getenv("MPAL_REVIEW_JOURNAL"), os.Getenv("MPAL_DB"), mpal.DefaultReviewJournalPath()),
+		client:            client.NewFromEnv(),
 	}, nil
 }
 
@@ -64,6 +66,7 @@ func (a *app) rootCommand(ctx context.Context) *cobra.Command {
 		},
 	}
 	cmd.AddCommand(
+		a.doctorCommand(ctx),
 		a.capabilitiesCommand(),
 		a.strategyCommand(ctx),
 		a.tickerCommand(ctx),
@@ -71,6 +74,7 @@ func (a *app) rootCommand(ctx context.Context) *cobra.Command {
 		a.watchlistCommand(ctx),
 		a.backtestCommand(ctx),
 		a.decisionCommand(ctx),
+		a.reportCommand(ctx),
 		a.journalCommand(ctx),
 	)
 	return cmd
@@ -178,11 +182,15 @@ func (a *app) strategyRunCommand(ctx context.Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			configRaw, err := os.ReadFile(configPath)
+			if err != nil {
+				return err
+			}
 			if err := mpal.EnsureHostedStrategyAPICompatible(cfg); err != nil {
 				return err
 			}
 			wireConfig := mpal.CanonicalStrategyConfig(cfg)
-			result, err := a.client.RunStrategy(ctx, &marketpalv1.MpalStrategyRunRequest{
+			payload, err := a.client.RunStrategy(ctx, &marketpalv1.MpalStrategyRunRequest{
 				Date:          timestamppb.New(asOf),
 				UniverseJson:  mustJSON(universe),
 				PortfolioJson: mustJSON(portfolio),
@@ -193,7 +201,44 @@ func (a *app) strategyRunCommand(ctx context.Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return writePayload(a.out, result)
+			run, err := mpal.LoadStrategyRunResult(payload)
+			if err != nil {
+				return fmt.Errorf("strategy run returned JSON that could not be auto-journaled: %w", err)
+			}
+			if run.AsOf.IsZero() {
+				run.AsOf = asOf
+			}
+			if run.Strategy.ID == "" {
+				run.Strategy.ID = cfg.ID
+			}
+			if run.Strategy.Version == "" {
+				run.Strategy.Version = cfg.Version
+			}
+			if run.Strategy.ConfigHash == "" {
+				run.Strategy.ConfigHash = hash
+			}
+			run.Strategy.Approved = run.Strategy.Approved || cfg.Approved
+			if run.ExecutionResult == "" {
+				run.ExecutionResult = firstNonEmpty(run.Result, run.BaselinePlan.Result, mpal.ResultNoTrade)
+			}
+			if run.Result == "" {
+				run.Result = run.ExecutionResult
+			}
+			reviewInput := mpal.TradeReviewStartInputFromStrategyRun(run, cfg, string(configRaw), universe, asOf)
+			review, positions, err := reviewInput.ToCreateParams(time.Now().UTC())
+			if err != nil {
+				return err
+			}
+			journal, err := a.openReviewJournal(ctx)
+			if err != nil {
+				return err
+			}
+			defer journal.Close()
+			if err := journal.AppendReview(ctx, review, positions); err != nil {
+				return err
+			}
+			run.JournalEntryID = review.ID
+			return writeJSON(a.out, run)
 		},
 	}
 	cmd.Flags().StringVar(&dateArg, "date", "", "as-of date")
@@ -348,41 +393,119 @@ func (a *app) backtestRunCommand(ctx context.Context) *cobra.Command {
 	return cmd
 }
 
+func (a *app) reportCommand(ctx context.Context) *cobra.Command {
+	var outputPath, notes string
+	cmd := &cobra.Command{
+		Use:   "report <trade_review_id>",
+		Short: "Generate a deterministic HTML trade review report from the SQLite journal",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id := strings.TrimSpace(args[0])
+			journal, err := a.openReviewJournal(ctx)
+			if err != nil {
+				return err
+			}
+			defer journal.Close()
+			review, positions, err := journal.GetReview(ctx, id)
+			if err != nil {
+				return err
+			}
+			result, err := mpal.WriteTradeReviewHTMLReport(review, positions, mpal.TradeReviewReportOptions{
+				OutputPath: outputPath,
+				Notes:      notes,
+			})
+			if err != nil {
+				return err
+			}
+			if err := journal.SetReportPath(ctx, id, result.ReportPath); err != nil {
+				return err
+			}
+			return writeJSON(a.out, result)
+		},
+	}
+	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "output HTML path")
+	cmd.Flags().StringVar(&notes, "notes", "", "additional report notes")
+	addJSONFlag(cmd)
+	return cmd
+}
+
 func (a *app) journalCommand(ctx context.Context) *cobra.Command {
 	cmd := parentCommand("journal", "missing journal subcommand")
 	cmd.AddCommand(
-		a.journalAppendCommand(ctx),
+		a.journalStartCommand(ctx),
+		a.journalFinalizeCommand(ctx),
 		a.journalListCommand(ctx),
 		a.journalGetCommand(ctx),
 	)
 	return cmd
 }
 
-func (a *app) journalAppendCommand(ctx context.Context) *cobra.Command {
-	var entryType, baselineID, inputArg string
+func (a *app) journalStartCommand(ctx context.Context) *cobra.Command {
+	var inputArg string
 	cmd := &cobra.Command{
-		Use: "append",
+		Use:   "start",
+		Short: "Start a durable trade review journal entry from model and agent review data",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			input, err := readJSONArg(inputArg)
+			var input mpal.TradeReviewStartInput
+			if err := readJSONArgInto(inputArg, &input); err != nil {
+				return err
+			}
+			now := time.Now().UTC()
+			review, positions, err := input.ToCreateParams(now)
 			if err != nil {
 				return err
 			}
-			entry, err := a.journal.Append(ctx, mpal.JournalEntry{
-				ID:                mpal.RunID("jrnl", time.Now().UTC()),
-				Type:              entryType,
-				BaselineJournalID: baselineID,
-				CreatedAt:         time.Now().UTC(),
-				Input:             input,
-			})
+			journal, err := a.openReviewJournal(ctx)
 			if err != nil {
 				return err
 			}
-			return writeJSON(a.out, entry)
+			defer journal.Close()
+			if err := journal.AppendReview(ctx, review, positions); err != nil {
+				return err
+			}
+			got, gotPositions, err := journal.GetReview(ctx, review.ID)
+			if err != nil {
+				return err
+			}
+			return writeJSON(a.out, mpal.ReviewJournalOutput(got, gotPositions))
 		},
 	}
-	cmd.Flags().StringVar(&entryType, "type", "", "entry type")
-	cmd.Flags().StringVar(&baselineID, "baseline-journal-id", "", "baseline journal id")
-	cmd.Flags().StringVar(&inputArg, "input", "", "input path or json")
+	cmd.Flags().StringVar(&inputArg, "input", "", "trade review start input path or json")
+	addJSONFlag(cmd)
+	return cmd
+}
+
+func (a *app) journalFinalizeCommand(ctx context.Context) *cobra.Command {
+	var id, inputArg string
+	cmd := &cobra.Command{
+		Use:   "finalize",
+		Short: "Finalize a trade review journal entry with the human decision",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var input mpal.TradeReviewFinalizeInput
+			if err := readJSONArgInto(inputArg, &input); err != nil {
+				return err
+			}
+			final, positions, err := input.ToFinalizeParams(id, time.Now().UTC())
+			if err != nil {
+				return err
+			}
+			journal, err := a.openReviewJournal(ctx)
+			if err != nil {
+				return err
+			}
+			defer journal.Close()
+			if err := journal.FinalizeReview(ctx, final, positions); err != nil {
+				return err
+			}
+			got, gotPositions, err := journal.GetReview(ctx, id)
+			if err != nil {
+				return err
+			}
+			return writeJSON(a.out, mpal.ReviewJournalOutput(got, gotPositions))
+		},
+	}
+	cmd.Flags().StringVar(&id, "id", "", "trade review id")
+	cmd.Flags().StringVar(&inputArg, "input", "", "trade review finalize input path or json")
 	addJSONFlag(cmd)
 	return cmd
 }
@@ -392,11 +515,16 @@ func (a *app) journalListCommand(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "list",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			entries, err := a.journal.List(ctx, limit)
+			journal, err := a.openReviewJournal(ctx)
 			if err != nil {
 				return err
 			}
-			return writeJSON(a.out, map[string]any{"entries": entries})
+			defer journal.Close()
+			reviews, err := journal.ListReviews(ctx, int64(limit))
+			if err != nil {
+				return err
+			}
+			return writeJSON(a.out, mpal.ReviewListOutput(reviews))
 		},
 	}
 	cmd.Flags().IntVar(&limit, "limit", 20, "limit")
@@ -409,16 +537,33 @@ func (a *app) journalGetCommand(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "get",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			entry, err := a.journal.Get(ctx, id)
+			journal, err := a.openReviewJournal(ctx)
 			if err != nil {
 				return err
 			}
-			return writeJSON(a.out, entry)
+			defer journal.Close()
+			review, positions, err := journal.GetReview(ctx, id)
+			if err != nil {
+				return err
+			}
+			return writeJSON(a.out, mpal.ReviewJournalOutput(review, positions))
 		},
 	}
-	cmd.Flags().StringVar(&id, "id", "", "journal id")
+	cmd.Flags().StringVar(&id, "id", "", "trade review id")
 	addJSONFlag(cmd)
 	return cmd
+}
+
+func (a *app) openReviewJournal(ctx context.Context) (*mpal.SQLiteReviewJournal, error) {
+	journal, err := mpal.OpenSQLiteReviewJournal(a.reviewJournalPath)
+	if err != nil {
+		return nil, err
+	}
+	if err := journal.Migrate(ctx); err != nil {
+		_ = journal.Close()
+		return nil, err
+	}
+	return journal, nil
 }
 
 func addJSONFlag(cmd *cobra.Command) {
@@ -459,11 +604,11 @@ func mustJSON(value any) string {
 
 func mpalCapabilityCommands() []string {
 	return []string{
-		"capabilities", "strategy list", "strategy show", "strategy validate", "strategy run",
+		"doctor", "capabilities", "strategy list", "strategy show", "strategy validate", "strategy run",
 		"ticker events", "ticker bars", "ticker profile", "ticker financials",
 		"ticker fundamentals", "ticker insiders", "ticker ownership", "ticker markov",
 		"portfolio snapshot", "portfolio validate", "watchlist get", "backtest run", "decision gate",
-		"journal append", "journal list", "journal get",
+		"report", "journal start", "journal finalize", "journal list", "journal get",
 	}
 }
 
@@ -484,6 +629,18 @@ func readJSONArg(pathOrJSON string) (any, error) {
 		return nil, err
 	}
 	return value, nil
+}
+
+func readJSONArgInto(pathOrJSON string, dest any) error {
+	value, err := readJSONArg(pathOrJSON)
+	if err != nil {
+		return err
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(raw, dest)
 }
 
 func firstNonEmpty(values ...string) string {

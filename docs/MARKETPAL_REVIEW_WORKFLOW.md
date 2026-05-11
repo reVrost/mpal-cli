@@ -302,32 +302,58 @@ The command fetches hosted price bars and computes local transition metadata.
 It is not part of the executable baseline plan and should not be used to bypass
 `execution_result` or validation.
 
-## Journal The Review
+## Journal And Report The Review
 
-Journal final review artifacts so future reviews can see the model output,
-validation status, event context, and human or agent interpretation.
+`mpal strategy run` auto-journals the deterministic first-pass strategy packet
+to SQLite and returns `journal_entry_id`. Do not journal ticker event calls,
+Markov calls, DD fetches, or smoke tests as separate review rows.
+
+The review journal flow is:
+
+1. `mpal strategy run`: records the strategy config, universe, execution result,
+   model packet, proposed/rejected tickers, and Kelly sizing fields.
+2. `mpal report <trade_review_id>`: renders the deterministic HTML first pass
+   and updates `report_path` on the review.
+3. `mpal journal finalize`: after the user decides, records the final human
+   decision, final validation, and per-ticker human call.
 
 Example:
 
 ```sh
-mpal journal append \
-  --type agent_final_action \
-  --input tmp/mpal-runs/final-action.json \
+mpal report review_... \
+  --notes "Optional agent or human notes." \
+  --json
+
+mpal journal finalize \
+  --id review_... \
+  --input tmp/mpal-runs/trade-review-finalize.json \
   --json
 ```
 
-Good journal entries include:
+Good started review entries include:
 
-- strategy id and config hash;
+- strategy id and full reviewed config text;
 - date;
-- portfolio input;
-- universe input;
-- model result and execution result;
-- proposed actions from the baseline plan;
-- rejected candidates;
-- event read;
-- final human or agent interpretation;
-- what evidence would change the interpretation.
+- portfolio scope;
+- universe tickers;
+- user-requested tickers;
+- execution result;
+- agent harness/model/skill;
+- user prompt and chat history;
+- per-ticker model bucket, sizing read, agent decision, and agent reason.
+
+Good finalized review entries include:
+
+- final human decision;
+- human reasoning;
+- final validation result;
+- per-ticker human decision, final weight, execution price/date when known, and
+  human reason.
+
+Use a deterministic raw-model fill assumption for outcomes: paper-fill raw
+model trades at the next market open after the review timestamp using the
+strategy's fee/slippage assumptions. This keeps model-only versus human-overlay
+attribution auditable instead of anecdotal.
 
 ## Common Review Errors
 

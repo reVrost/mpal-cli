@@ -1,0 +1,11 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    schema: "pkg/mpal/sqlitejournal/schema.sql"
+    queries: "pkg/mpal/sqlitejournal/queries.sql"
+    gen:
+      go:
+        package: "sqlitejournal"
+        out: "pkg/mpal/sqlitejournal"
+        emit_interface: true
+        emit_json_tags: true

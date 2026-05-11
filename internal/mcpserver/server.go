@@ -18,16 +18,18 @@ import (
 const Version = "0.1.0"
 
 type Config struct {
-	Registry mpal.StrategyRegistry
-	Journal  mpal.FileJournal
-	Client   client.API
+	Registry          mpal.StrategyRegistry
+	Journal           mpal.FileJournal
+	ReviewJournalPath string
+	Client            client.API
 }
 
 func DefaultConfig() Config {
 	return Config{
-		Registry: mpal.DefaultStrategyRegistry(),
-		Journal:  mpal.FileJournal{Path: firstNonEmpty(os.Getenv("MPAL_JOURNAL"), mpal.DefaultJournalPath())},
-		Client:   client.NewFromEnv(),
+		Registry:          mpal.DefaultStrategyRegistry(),
+		Journal:           mpal.FileJournal{Path: firstNonEmpty(os.Getenv("MPAL_JOURNAL"), mpal.DefaultJournalPath())},
+		ReviewJournalPath: firstNonEmpty(os.Getenv("MPAL_REVIEW_JOURNAL"), os.Getenv("MPAL_DB"), mpal.DefaultReviewJournalPath()),
+		Client:            client.NewFromEnv(),
 	}
 }
 
@@ -41,6 +43,9 @@ func New(cfg Config) *mcp.Server {
 	}
 	if cfg.Journal.Path == "" {
 		cfg.Journal = mpal.FileJournal{Path: mpal.DefaultJournalPath()}
+	}
+	if cfg.ReviewJournalPath == "" {
+		cfg.ReviewJournalPath = mpal.DefaultReviewJournalPath()
 	}
 	if cfg.Client == nil {
 		cfg.Client = client.NewFromEnv()
@@ -81,7 +86,7 @@ func registerTools(server *mcp.Server, cfg Config) {
 			"config_hash_algorithm": mpal.StrategyConfigHashAlgorithm,
 		}), nil
 	})
-	mcp.AddTool(server, additiveTool("mpal_strategy_run", "Run an explicit versioned MarketPal strategy config and return the baseline plan. This can append a MarketPal journal entry, but cannot execute live trades."), func(ctx context.Context, req *mcp.CallToolRequest, in strategyRunInput) (*mcp.CallToolResult, any, error) {
+	mcp.AddTool(server, additiveTool("mpal_strategy_run", "Run an explicit versioned MarketPal strategy config, auto-journal the baseline packet, and return the baseline plan. This cannot execute live trades."), func(ctx context.Context, req *mcp.CallToolRequest, in strategyRunInput) (*mcp.CallToolResult, any, error) {
 		asOf, err := mpal.ParseDate(in.Date)
 		if err != nil {
 			return nil, nil, err
@@ -95,6 +100,10 @@ func registerTools(server *mcp.Server, cfg Config) {
 			return nil, nil, err
 		}
 		strategy, hash, err := loadStrategy(in.ConfigPath, in.ConfigJSON)
+		if err != nil {
+			return nil, nil, err
+		}
+		strategyText, err := loadStrategyText(in.ConfigPath, in.ConfigJSON)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -116,8 +125,44 @@ func registerTools(server *mcp.Server, cfg Config) {
 		if err != nil {
 			return nil, nil, err
 		}
-		out, err := decodePayload(payload)
-		return nil, out, err
+		run, err := mpal.LoadStrategyRunResult(payload)
+		if err != nil {
+			return nil, nil, fmt.Errorf("strategy run returned JSON that could not be auto-journaled: %w", err)
+		}
+		if run.AsOf.IsZero() {
+			run.AsOf = asOf
+		}
+		if run.Strategy.ID == "" {
+			run.Strategy.ID = strategy.ID
+		}
+		if run.Strategy.Version == "" {
+			run.Strategy.Version = strategy.Version
+		}
+		if run.Strategy.ConfigHash == "" {
+			run.Strategy.ConfigHash = hash
+		}
+		run.Strategy.Approved = run.Strategy.Approved || strategy.Approved
+		if run.ExecutionResult == "" {
+			run.ExecutionResult = firstNonEmpty(run.Result, run.BaselinePlan.Result, mpal.ResultNoTrade)
+		}
+		if run.Result == "" {
+			run.Result = run.ExecutionResult
+		}
+		reviewInput := mpal.TradeReviewStartInputFromStrategyRun(run, strategy, strategyText, universe, asOf)
+		review, positions, err := reviewInput.ToCreateParams(time.Now().UTC())
+		if err != nil {
+			return nil, nil, err
+		}
+		journal, err := openReviewJournal(ctx, cfg.ReviewJournalPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		defer journal.Close()
+		if err := journal.AppendReview(ctx, review, positions); err != nil {
+			return nil, nil, err
+		}
+		run.JournalEntryID = review.ID
+		return nil, object(run), nil
 	})
 	mcp.AddTool(server, readOnlyTool("mpal_portfolio_snapshot", "Fetch the authenticated user's current MarketPal portfolio snapshot."), func(ctx context.Context, req *mcp.CallToolRequest, in noInput) (*mcp.CallToolResult, any, error) {
 		payload, err := cfg.Client.GetPortfolioSnapshot(ctx, &marketpalv1.MpalPortfolioSnapshotRequest{})
@@ -297,35 +342,94 @@ func registerTools(server *mcp.Server, cfg Config) {
 		}
 		return nil, object(mpal.BuildDecisionGateEvidence(run, opts)), nil
 	})
-	mcp.AddTool(server, additiveTool("mpal_journal_append", "Append a local structured MarketPal agent decision journal entry."), func(ctx context.Context, req *mcp.CallToolRequest, in journalAppendInput) (*mcp.CallToolResult, any, error) {
-		input, err := readJSONInput(in.InputPath, in.InputJSON)
+	mcp.AddTool(server, additiveTool("mpal_journal_start", "Start a durable SQLite trade review journal entry from model and agent review data."), func(ctx context.Context, req *mcp.CallToolRequest, in journalStartInput) (*mcp.CallToolResult, any, error) {
+		raw, err := readJSONInput(in.InputPath, in.InputJSON)
 		if err != nil {
 			return nil, nil, err
 		}
-		entry, err := cfg.Journal.Append(ctx, mpal.JournalEntry{
-			ID:                mpal.RunID("jrnl", time.Now().UTC()),
-			Type:              in.Type,
-			BaselineJournalID: in.BaselineJournalID,
-			CreatedAt:         time.Now().UTC(),
-			Input:             input,
-		})
+		var input mpal.TradeReviewStartInput
+		if err := decodeObject(raw, &input); err != nil {
+			return nil, nil, err
+		}
+		review, positions, err := input.ToCreateParams(time.Now().UTC())
 		if err != nil {
 			return nil, nil, err
 		}
-		return nil, object(entry), nil
+		journal, err := openReviewJournal(ctx, cfg.ReviewJournalPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		defer journal.Close()
+		if err := journal.AppendReview(ctx, review, positions); err != nil {
+			return nil, nil, err
+		}
+		got, gotPositions, err := journal.GetReview(ctx, review.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, object(mpal.ReviewJournalOutput(got, gotPositions)), nil
+	})
+	mcp.AddTool(server, additiveTool("mpal_journal_finalize", "Finalize a durable SQLite trade review journal entry with the human decision."), func(ctx context.Context, req *mcp.CallToolRequest, in journalFinalizeInput) (*mcp.CallToolResult, any, error) {
+		raw, err := readJSONInput(in.InputPath, in.InputJSON)
+		if err != nil {
+			return nil, nil, err
+		}
+		var input mpal.TradeReviewFinalizeInput
+		if err := decodeObject(raw, &input); err != nil {
+			return nil, nil, err
+		}
+		final, positions, err := input.ToFinalizeParams(in.ID, time.Now().UTC())
+		if err != nil {
+			return nil, nil, err
+		}
+		journal, err := openReviewJournal(ctx, cfg.ReviewJournalPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		defer journal.Close()
+		if err := journal.FinalizeReview(ctx, final, positions); err != nil {
+			return nil, nil, err
+		}
+		got, gotPositions, err := journal.GetReview(ctx, in.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, object(mpal.ReviewJournalOutput(got, gotPositions)), nil
 	})
 	mcp.AddTool(server, readOnlyTool("mpal_journal_list", "List recent local MarketPal journal entries."), func(ctx context.Context, req *mcp.CallToolRequest, in journalListInput) (*mcp.CallToolResult, any, error) {
-		entries, err := cfg.Journal.List(ctx, in.Limit)
+		journal, err := openReviewJournal(ctx, cfg.ReviewJournalPath)
 		if err != nil {
 			return nil, nil, err
 		}
-		return nil, object(map[string]any{"entries": entries}), nil
+		defer journal.Close()
+		reviews, err := journal.ListReviews(ctx, int64(in.Limit))
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, object(mpal.ReviewListOutput(reviews)), nil
 	})
 	mcp.AddTool(server, readOnlyTool("mpal_journal_get", "Get a local MarketPal journal entry by ID."), func(ctx context.Context, req *mcp.CallToolRequest, in journalGetInput) (*mcp.CallToolResult, any, error) {
-		entry, err := cfg.Journal.Get(ctx, in.ID)
+		journal, err := openReviewJournal(ctx, cfg.ReviewJournalPath)
 		if err != nil {
 			return nil, nil, err
 		}
-		return nil, object(entry), nil
+		defer journal.Close()
+		review, positions, err := journal.GetReview(ctx, in.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, object(mpal.ReviewJournalOutput(review, positions)), nil
 	})
+}
+
+func openReviewJournal(ctx context.Context, path string) (*mpal.SQLiteReviewJournal, error) {
+	journal, err := mpal.OpenSQLiteReviewJournal(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := journal.Migrate(ctx); err != nil {
+		_ = journal.Close()
+		return nil, err
+	}
+	return journal, nil
 }

@@ -33,6 +33,7 @@ export MPAL_API_KEY=mpal_...
 Smoke test:
 
 ```sh
+mpal doctor --json
 mpal capabilities --json
 mpal strategy list --json
 ```
@@ -57,6 +58,150 @@ Claude Code:
 claude plugin marketplace add revrost/mpal-cli
 claude plugin install marketpal@marketpal-plugins
 ```
+
+## Simplest Human Workflow
+
+Use MarketPal as a review system, not as a trading bot. The normal human loop is:
+
+```text
+set up once
+-> run a strategy review
+-> inspect evidence and DD
+-> validate the final human plan
+-> journal what the model said vs what you did
+-> later journal the outcome
+```
+
+### Which skill should I start with?
+
+Start with `marketpal-onboarding` when you are installing MarketPal, checking a
+fresh repo, wiring MCP/plugin tools, setting `MPAL_API_KEY`, smoke-testing
+`mpal`, or confirming approved strategy configs.
+
+Use `marketpal-trader` for the actual weekly or monthly review. This is the
+main human-in-the-loop workflow: it runs the baseline strategy, reads the
+decision gate, checks recent events, applies portfolio policy, validates any
+override, and journals the final reviewed action.
+
+Use `equity-dd-analyst` when you want deeper public-equity DD on a narrowed set
+of names, a thematic comparison, or a source-backed investment memo. In the
+normal workflow, run the strategy review first, then deepen DD on the proposed
+trades, alternates, or user-requested tickers that still look relevant.
+
+### First-time setup
+
+1. Install `mpal` and `mpal-mcp`.
+2. Set `MPAL_API_KEY` in the same shell or app environment that runs the agent.
+3. Install the Codex or Claude Code plugin if you want skill-guided reviews.
+4. Run:
+
+```sh
+mpal doctor --json
+```
+
+Use `mpal doctor --skip-api --json` for a local-only check, or
+`mpal doctor --strict --json` in CI when missing required setup should return a
+non-zero exit code.
+
+5. Ask your agent:
+
+```text
+Run the MarketPal onboarding skill and report the first-run checklist.
+```
+
+6. Optional but recommended: create a private portfolio policy at:
+
+```text
+~/.marketpal/portfolio-policy.md
+```
+
+That file is where you describe sleeves, fixed/core holdings, contribution
+rules, high-conviction holdings, review cadence, and whether reviews should be
+full-portfolio or engine-only. Keep private holdings out of repo-tracked files.
+
+### Normal weekly or monthly review
+
+Ask your agent something like:
+
+```text
+Use the MarketPal trader skill to run my weekly engine review with
+engine_weekly_swing_v1. Use my private portfolio policy if available. Show the
+baseline, decision gate, alternates, validation result, and journal the final
+review.
+```
+
+For a lower-churn full-portfolio review:
+
+```text
+Use the MarketPal trader skill to run a low-churn full-portfolio swing review
+with portfolio_low_churn_swing_v1. Separate the raw model plan from my final
+human action in the journal.
+```
+
+The trader workflow should do this:
+
+1. Load `~/.marketpal/portfolio-policy.md` when present.
+2. Choose an approved strategy config with `mpal strategy list/show`.
+3. Run the baseline with `mpal strategy run`; the command auto-journals the
+   deterministic first pass and returns `journal_entry_id`.
+4. Pull recent source-backed context with `mpal ticker events`.
+5. Read the deterministic evidence packet with `mpal decision gate`.
+6. Explain model result, executable result, sizing, warnings, and alternates.
+7. Validate the baseline or any human override with `mpal portfolio validate`.
+8. Generate the deterministic HTML first pass with `mpal report <journal_entry_id>`.
+9. Finalize the same journal entry with `mpal journal finalize` after the human decision.
+
+### Where DD fits
+
+Use DD after the model has narrowed the field, not before every review. A good
+prompt is:
+
+```text
+Use the equity DD analyst skill on the proposed trades and top alternates from
+the latest MarketPal review. Compare financials, scale, valuation, catalysts,
+and risks. Keep the conclusion simple and source-backed.
+```
+
+DD can support a human veto, delay, resize, or bounded replacement, but the
+final changed plan still needs `mpal portfolio validate` before it is journaled
+as the reviewed action.
+
+### What gets journaled?
+
+Journal one accountable review in two phases:
+
+- `mpal journal start`: records the strategy output, agent context, and
+  per-ticker model/agent read.
+- `mpal journal finalize`: records the final human decision, final validation,
+  and final per-ticker human call.
+
+This separation lets you measure whether the human overlay helped or hurt the
+model over time without logging every intermediate command.
+
+### Mental model
+
+- `mpal strategy run`: the raw model packet.
+- `mpal decision gate`: deterministic evidence, sizing, rejections, and
+  alternates from the completed run.
+- `marketpal-trader`: the human portfolio-manager review process.
+- `mpal portfolio validate`: checks whether the final concrete plan obeys the
+  strategy and portfolio rules.
+- `mpal journal start/finalize`: records the accountable review decision in the
+  SQLite journal.
+
+The durable SQLite review-journal schema is documented in
+[docs/REVIEW_JOURNAL_SQLITE.md](docs/REVIEW_JOURNAL_SQLITE.md). It stores
+accountable review decisions, not every intermediate command or cache payload.
+
+### Contributing map
+
+- CLI commands live in `internal/cli/`.
+- MCP tool wrappers live in `internal/mcpserver/`.
+- Core engine, strategy, decision-gate, validation, and journal types live in
+  `pkg/mpal/`.
+- Agent skills live in `skills/`.
+- Longer workflow docs live in `docs/`.
+- Run `go test ./...` before opening a PR.
 
 ## Configuration
 
@@ -116,6 +261,7 @@ The full review workflow is in
 Inspect capabilities and configs:
 
 ```sh
+mpal doctor --json
 mpal capabilities --json
 mpal strategy list --json
 mpal strategy show --id engine_weekly_swing_v1 --json
@@ -170,7 +316,8 @@ mpal portfolio validate \
   --config strategies/engine_weekly_swing_v1.yaml \
   --json
 
-mpal journal append --type agent_final_action --input examples/final_action.json --json
+mpal journal start --input examples/trade_review_start.json --json
+mpal journal finalize --id review_... --input examples/trade_review_finalize.json --json
 mpal journal list --limit 20 --json
 ```
 
@@ -196,7 +343,8 @@ A normal research packet is:
 4. Add event context with `mpal ticker events`.
 5. Validate any concrete baseline or alternative packet with
    `mpal portfolio validate`.
-6. Journal the reviewed artifact with `mpal journal append`.
+6. Start the review journal with `mpal journal start`.
+7. Finalize it with `mpal journal finalize` after the human decision.
 
 Scheduled or autonomous agent runs should only use approved configs. Agents
 must not silently modify configs or invent one-off strategy parameters.
@@ -233,7 +381,7 @@ There is no MCP tool for live order placement.
 
 `mpal strategy run` is the source of truth for model output: signals, target
 weights, proposed model actions, warnings, freshness metadata, strategy ID,
-strategy version, config hash, validation result, and journal entry ID.
+strategy version, config hash, and validation result.
 Signals may include optional `markov` metadata with trend-state transition
 probabilities over the strategy rebalance horizon. This metadata is explanatory
 by default and does not change scoring, planning, or validation unless a
@@ -256,7 +404,8 @@ but must:
 - use `mpal` JSON as source of truth
 - not invent model actions outside `mpal` output
 - validate alternative packets with `mpal portfolio validate`
-- journal review artifacts with `mpal journal append`
+- start review artifacts with `mpal journal start`
+- finalize human decisions with `mpal journal finalize`
 - never execute live trades or call broker/order-placement tools
 
 ## Development

@@ -215,11 +215,10 @@ func TestValidateStrategyConfig(t *testing.T) {
 	assert.Contains(t, result.Errors, "scoring weights must sum to 1")
 }
 
-func TestStrategyRunTradeResultAndJournal(t *testing.T) {
+func TestStrategyRunTradeResultDoesNotAutoJournal(t *testing.T) {
 	t.Parallel()
 
 	asOf := time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC)
-	journal := FileJournal{Path: t.TempDir() + "/journal.jsonl"}
 	engine := Engine{
 		Prices: fakePrices{bars: BarsResult{Bars: []Bar{
 			{Date: asOf.AddDate(0, 0, -80), Close: 100},
@@ -231,7 +230,6 @@ func TestStrategyRunTradeResultAndJournal(t *testing.T) {
 			ProfileScore: 0.8,
 			ScoreSource:  "qvm_score",
 		}},
-		Journal: journal,
 	}
 
 	result, err := engine.StrategyRun(
@@ -247,18 +245,9 @@ func TestStrategyRunTradeResultAndJournal(t *testing.T) {
 	require.Equal(t, ResultTrade, result.ModelResult)
 	require.Equal(t, ResultTrade, result.ExecutionResult)
 	require.True(t, result.Validation.Valid)
-	require.NotEmpty(t, result.JournalEntryID)
+	require.Empty(t, result.JournalEntryID)
 	require.Len(t, result.BaselinePlan.ProposedTrades, 1)
 	assert.Equal(t, SideBuy, result.BaselinePlan.ProposedTrades[0].Side)
-
-	entry, err := journal.Get(context.Background(), result.JournalEntryID)
-	require.NoError(t, err)
-	assert.Equal(t, JournalTypeBaselinePlan, entry.Type)
-	output, ok := entry.Output.(map[string]any)
-	require.True(t, ok)
-	validation, ok := output["validation"].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, true, validation["valid"])
 }
 
 func TestStrategyRunNoTradeResult(t *testing.T) {
@@ -1160,8 +1149,12 @@ func TestJournalAppendListGet(t *testing.T) {
 	journal := FileJournal{Path: t.TempDir() + "/journal.jsonl"}
 	entry, err := journal.Append(context.Background(), JournalEntry{
 		ID:        "jrnl_test",
-		Type:      JournalTypeAgentOverride,
+		Type:      JournalTypeWeeklyTradeReview,
 		CreatedAt: time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		Input: map[string]any{
+			"raw_model_plan":   map[string]any{},
+			"human_final_plan": map[string]any{},
+		},
 	})
 	require.NoError(t, err)
 	require.Equal(t, "jrnl_test", entry.ID)
@@ -1172,7 +1165,7 @@ func TestJournalAppendListGet(t *testing.T) {
 
 	got, err := journal.Get(context.Background(), "jrnl_test")
 	require.NoError(t, err)
-	assert.Equal(t, JournalTypeAgentOverride, got.Type)
+	assert.Equal(t, JournalTypeWeeklyTradeReview, got.Type)
 }
 
 func TestJournalListHandlesLargeEntries(t *testing.T) {

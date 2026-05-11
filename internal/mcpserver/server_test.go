@@ -204,26 +204,41 @@ func TestStrategyRunToolSendsConfigHash(t *testing.T) {
 
 	payload := result.StructuredContent.(map[string]any)
 	require.Equal(t, "TRADE", payload["result"])
-	require.Equal(t, "jrnl_test", payload["journal_entry_id"])
+	journalID, ok := payload["journal_entry_id"].(string)
+	require.True(t, ok)
+	require.Contains(t, journalID, "review_")
 }
 
-func TestJournalToolsAppendListGet(t *testing.T) {
+func TestJournalToolsStartFinalizeListGet(t *testing.T) {
 	t.Parallel()
 
 	session, closeSession := testSession(t, &fakeAPI{})
 	defer closeSession()
 
-	appendResult, err := session.CallTool(context.Background(), &mcp.CallToolParams{
-		Name: "mpal_journal_append",
+	startResult, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "mpal_journal_start",
 		Arguments: map[string]any{
-			"type":       "agent_final_action",
-			"input_json": `{"decision":"agent_final_action","final_action":"NO_TRADE"}`,
+			"input_json": `{"id":"review_mcp","as_of":"2026-05-11","strategy_id":"engine_weekly_swing_v1","strategy_config_text":"id: engine_weekly_swing_v1\n","universe_tickers":["MU","META"],"execution_result":"TRADE","agent_harness":"codex","positions":[{"ticker":"MU","model_bucket":"proposed","agent_decision":"trade"}]}`,
 		},
 	})
 	require.NoError(t, err)
-	require.False(t, appendResult.IsError)
-	entry := appendResult.StructuredContent.(map[string]any)
-	id := entry["id"].(string)
+	require.False(t, startResult.IsError)
+	startPayload := startResult.StructuredContent.(map[string]any)
+	review := startPayload["review"].(map[string]any)
+	require.Equal(t, "review_mcp", review["id"])
+
+	finalizeResult, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "mpal_journal_finalize",
+		Arguments: map[string]any{
+			"id":         "review_mcp",
+			"input_json": `{"final_decision":"trade","human_reasoning_text":"accepted","final_validation_valid":true,"positions":[{"ticker":"MU","human_decision":"trade","human_weight":0.01}]}`,
+		},
+	})
+	require.NoError(t, err)
+	require.False(t, finalizeResult.IsError)
+	finalPayload := finalizeResult.StructuredContent.(map[string]any)
+	finalReview := finalPayload["review"].(map[string]any)
+	require.Equal(t, "trade", finalReview["final_decision"])
 
 	listResult, err := session.CallTool(context.Background(), &mcp.CallToolParams{
 		Name:      "mpal_journal_list",
@@ -232,16 +247,17 @@ func TestJournalToolsAppendListGet(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, listResult.IsError)
 	listPayload := listResult.StructuredContent.(map[string]any)
-	require.Len(t, listPayload["entries"], 1)
+	require.Len(t, listPayload["reviews"], 1)
 
 	getResult, err := session.CallTool(context.Background(), &mcp.CallToolParams{
 		Name:      "mpal_journal_get",
-		Arguments: map[string]any{"id": id},
+		Arguments: map[string]any{"id": "review_mcp"},
 	})
 	require.NoError(t, err)
 	require.False(t, getResult.IsError)
 	got := getResult.StructuredContent.(map[string]any)
-	require.Equal(t, id, got["id"])
+	gotReview := got["review"].(map[string]any)
+	require.Equal(t, "review_mcp", gotReview["id"])
 }
 
 func testSession(t *testing.T, api *fakeAPI) (*mcp.ClientSession, func()) {
@@ -250,9 +266,10 @@ func testSession(t *testing.T, api *fakeAPI) (*mcp.ClientSession, func()) {
 	ctx := context.Background()
 	serverTransport, clientTransport := mcp.NewInMemoryTransports()
 	server := New(Config{
-		Registry: mpal.DefaultStrategyRegistry(),
-		Journal:  mpal.FileJournal{Path: filepath.Join(t.TempDir(), "journal.jsonl")},
-		Client:   api,
+		Registry:          mpal.DefaultStrategyRegistry(),
+		Journal:           mpal.FileJournal{Path: filepath.Join(t.TempDir(), "journal.jsonl")},
+		ReviewJournalPath: filepath.Join(t.TempDir(), "mpal.db"),
+		Client:            api,
 	})
 	serverSession, err := server.Connect(ctx, serverTransport, nil)
 	require.NoError(t, err)

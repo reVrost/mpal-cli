@@ -80,6 +80,14 @@ func object(value any) any {
 	return map[string]any{"payload": out}
 }
 
+func decodeObject(value any, dest any) error {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(raw, dest)
+}
+
 func loadStrategy(path, inline string) (mpal.StrategyConfig, string, error) {
 	if strings.TrimSpace(inline) != "" {
 		return mpal.LoadStrategyBytes([]byte(inline))
@@ -88,6 +96,20 @@ func loadStrategy(path, inline string) (mpal.StrategyConfig, string, error) {
 		return mpal.StrategyConfig{}, "", fmt.Errorf("expected config_path or config_json")
 	}
 	return mpal.LoadStrategyFile(path)
+}
+
+func loadStrategyText(path, inline string) (string, error) {
+	if strings.TrimSpace(inline) != "" {
+		return strings.TrimSpace(inline), nil
+	}
+	if strings.TrimSpace(path) == "" {
+		return "", fmt.Errorf("expected config_path or config_json")
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
 }
 
 func loadUniverse(path, inline string) (mpal.Universe, error) {
@@ -255,7 +277,7 @@ func mpalCapabilityCommands() []string {
 		"ticker events", "ticker bars", "ticker profile", "ticker financials",
 		"ticker fundamentals", "ticker insiders", "ticker ownership", "ticker markov",
 		"portfolio snapshot", "portfolio validate", "watchlist get", "backtest run", "decision gate",
-		"journal append", "journal list", "journal get",
+		"journal start", "journal finalize", "journal list", "journal get",
 	}
 }
 
@@ -264,6 +286,6 @@ func mpalMCPTools() []string {
 		"mpal_capabilities", "mpal_strategy_list", "mpal_strategy_show", "mpal_strategy_validate",
 		"mpal_strategy_run", "mpal_portfolio_snapshot", "mpal_watchlist_get", "mpal_ticker_bars",
 		"mpal_ticker_profile", "mpal_ticker_markov", "mpal_ticker_events", "mpal_portfolio_validate", "mpal_backtest_run", "mpal_decision_gate",
-		"mpal_journal_append", "mpal_journal_list", "mpal_journal_get",
+		"mpal_journal_start", "mpal_journal_finalize", "mpal_journal_list", "mpal_journal_get",
 	}
 }

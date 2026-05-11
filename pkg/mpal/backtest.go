@@ -103,7 +103,6 @@ func (e Engine) BacktestRun(
 		result.TrustStatus = "untrusted"
 		result.TrustReasons = append(result.TrustReasons, result.DataQuality.Blockers...)
 	}
-	result = e.appendBacktestJournal(ctx, result, universe)
 	if opts.TrustedOnly && !opts.AllowUntrusted && !result.Trusted {
 		return result, UntrustedBacktestError{Reasons: result.TrustReasons}
 	}
@@ -142,28 +141,6 @@ func (e Engine) attachBenchmark(ctx context.Context, result BacktestResult, tick
 		TotalReturn:  round(totalReturn, 6),
 		ExcessReturn: round(result.Metrics.TotalReturn-totalReturn, 6),
 	}
-	return result
-}
-
-func (e Engine) appendBacktestJournal(ctx context.Context, result BacktestResult, universe Universe) BacktestResult {
-	if e.Journal == nil {
-		return result
-	}
-	entry, err := e.Journal.Append(ctx, JournalEntry{
-		ID:        RunID("jrnl", result.End),
-		RunID:     result.RunID,
-		Type:      JournalTypeBacktest,
-		CreatedAt: time.Now().UTC(),
-		Strategy:  &result.Strategy,
-		Input:     map[string]any{"start": result.Start, "end": result.End, "universe": universe},
-		Output:    result,
-		Warnings:  result.Warnings,
-	})
-	if err != nil {
-		result.Warnings = append(result.Warnings, "journal append failed: "+err.Error())
-		return result
-	}
-	result.JournalEntryID = entry.ID
 	return result
 }
 

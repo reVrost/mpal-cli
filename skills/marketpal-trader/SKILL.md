@@ -25,7 +25,7 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
 3. Run the baseline plan.
    - Call `mpal strategy run --date <date> --universe <path> --portfolio <path> --config <path> --json`.
    - If MarketPal is installed as an MCP server, call `mpal_strategy_run` with the same date, universe, portfolio, and explicit config inputs.
-   - Treat the returned JSON as the source of truth for model result, execution result, validation, signals, target weights, proposed trades, warnings, freshness metadata, config hash, and journal entry id.
+   - Treat the returned JSON as the source of truth for model result, execution result, validation, signals, target weights, proposed trades, warnings, freshness metadata, and config hash.
    - Read `model_result` as the raw signal read and `execution_result`/top-level `result` as the executable rebalance decision.
    - For real current-portfolio reviews, the approved strategy configs use a transition rebalance policy by default: sizing method, turnover budget, max single-trade size, starter position size or Kelly fallback, new-position limit, cash buffer, and protected unscored holdings.
    - Inspect `strategy.config.risk.sizing_method`, `proposed_trades[].sizing`, `proposed_trades[].reason`, `proposed_trades[].target_weight`, and `proposed_trades[].delta_weight`. If `mpal` returns a structured sizing decision, explain it as part of the baseline; do not fall back to old fixed-starter language.
@@ -78,7 +78,7 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
    - Start with a compact baseline brief: strategy, date, portfolio source, universe, model result, execution result, proposed trades, selected signal scores, rejected tickers, and the scoring rule/threshold.
    - Include an "alternate buy candidates" section with up to five candidates. If the risk/reward gate already found and validated a superior bounded override, state the override directly instead of asking a follow-up question.
    - Include a sizing and Markov context section for proposed trades and alternates. Report structured `mpal` sizing fields when present, including horizon, binding constraint, final target, warnings, and calibration status. Show daily/weekly Markov only when available or requested, and label it as context unless `mpal` exposes a deterministic gate.
-   - Include warnings, freshness/staleness notes, strategy id/version/config hash, and journal entry id.
+   - Include warnings, freshness/staleness notes, strategy id/version/config hash, and the SQLite review id when journaled.
    - Do not add trades that are absent from `mpal` output.
 
 8. For final action, vetoes, or overrides.
@@ -86,8 +86,9 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
    - Give an investor-readable rationale, not just a terse error string.
    - Validate any override or final executable plan with `mpal portfolio validate --plan <path-or-json> --portfolio <path> --universe <path> --config <path> --json`.
    - If using MCP, validate with `mpal_portfolio_validate`.
-   - Journal the final action with `mpal journal append --type agent_veto|agent_override|agent_final_action --baseline-journal-id <id> --input <path-or-json> --json`.
-   - If using MCP, journal with `mpal_journal_append`.
+   - During the agent review, start the durable journal with `mpal journal start --input <path-or-json> --json`.
+   - After the human chooses the final action, finalize the same review with `mpal journal finalize --id <review-id> --input <path-or-json> --json`.
+   - If using MCP, use `mpal_journal_start` and `mpal_journal_finalize`.
 
 ## Hybrid Trader / Quality-Swing Overlay
 
@@ -257,55 +258,74 @@ When evaluating whether a Kelly-enabled strategy version improves the system, re
 
 ## Journal Payload Shape
 
-For `agent_veto`, `agent_override`, and `agent_final_action`, journal a JSON object with these fields:
+Journal only accountable review decisions. Do not journal every strategy run, ticker event call, Markov call, DD fetch, or smoke test.
+
+Use the two-phase SQLite journal:
+
+1. `mpal journal start`: during the agent review, record the reviewed strategy config, universe, execution result, agent context, requested tickers, and per-ticker model/agent reads.
+2. `mpal journal finalize`: after the human decides, record the final human decision, final validation, and per-ticker human call.
+
+Start payload shape:
 
 ```json
 {
-  "decision": "agent_veto",
-  "decision_gate_evidence_hash": "sha256:example",
-  "baseline_brief": {
-    "strategy": "momentum_profile_v1",
-    "date": "2026-05-06",
-    "portfolio": "synthetic $100k cash, no positions",
-    "universe": ["AAPL", "AMZN", "GOOGL", "META", "MSFT", "NVDA", "TSLA"],
-    "model_result": "TRADE",
-    "execution_result": "NO_TRADE",
-    "proposed_trades": [],
-    "alternate_buy_candidates": [],
-    "selected_signals": [],
-    "rejected": [],
-    "strategy_logic": "70% momentum / 30% profile-QVM, buy threshold 0.60"
-  },
-  "sizing_audit": [
+  "id": "review_20260511_engine",
+  "as_of": "2026-05-11",
+  "strategy_id": "engine_weekly_swing_v1",
+  "strategy_config_text": "id: engine_weekly_swing_v1\n...",
+  "portfolio_scope": "engine",
+  "universe_tickers": ["AAPL", "MSFT", "NVDA"],
+  "user_requested_tickers": ["DOCN"],
+  "execution_result": "TRADE",
+  "agent_harness": "codex",
+  "agent_model": "gpt-5",
+  "agent_skill": "marketpal-trader",
+  "user_prompt_text": "Use the trader skill to run my weekly engine review.",
+  "chat_history_text": "Relevant review chat and decision context.",
+  "agent_summary": "Accept AAPL starter, keep DOCN on watchlist.",
+  "positions": [
     {
       "ticker": "AAPL",
-      "source": "mpal_strategy_run",
-      "method": "fractional_kelly",
-      "horizon": "weekly",
-      "horizon_bars": 5,
-      "favorable_probability": 0.42,
-      "unfavorable_probability": 0.33,
-      "confidence": 0.55,
-      "sample_count": 45,
-      "raw_kelly": 0.12,
-      "fractional_kelly": 0.0165,
-      "kelly_target_weight": 0.0165,
+      "model_bucket": "proposed",
+      "model_intent": "STARTER",
+      "model_score": 0.91,
+      "model_weight": 0.015,
+      "model_delta_weight": 0.015,
+      "model_reason": "starter position sized by deterministic strategy output",
+      "sizing_method": "fractional_kelly",
       "final_target_weight": 0.015,
       "binding_constraint": "max_single_trade_pct",
       "calibration_status": "heuristic_markov",
-      "warnings": ["Kelly target clamped by risk controls"]
+      "agent_decision": "trade",
+      "agent_weight": 0.01,
+      "agent_reason": "Validated, but reduced sizing due to event timing risk."
     }
-  ],
-  "signal_read": "The model found attractive names, but this is not the same as an executable trade.",
-  "risk_read": "The proposed allocation violates the approved turnover guardrail.",
-  "validation": { "valid": false, "errors": ["plan exceeds max turnover per run"] },
-  "investor_rationale": "Clear, human-readable reason for approve/veto/override.",
-  "final_action": "NO_TRADE",
-  "what_would_change_the_decision": "Resize and revalidate under the approved turnover rule."
+  ]
 }
 ```
 
-Keep the journal concise but useful for future review. Prefer numbers, thresholds, and explicit tradeoffs over generic wording.
+Finalize payload shape:
+
+```json
+{
+  "final_decision": "trade",
+  "human_reasoning_text": "Accepted the agent-reviewed trade at smaller size.",
+  "final_validation_valid": true,
+  "final_validation_summary": "Final plan validated.",
+  "positions": [
+    {
+      "ticker": "AAPL",
+      "human_decision": "trade",
+      "human_weight": 0.01,
+      "execution_price": null,
+      "execution_date": null,
+      "human_reason": "Accepted starter but capped size."
+    }
+  ]
+}
+```
+
+Keep the journal concise but useful for future attribution; prefer numbers, thresholds, and explicit tradeoffs over generic wording.
 
 ## Veto Example
 
