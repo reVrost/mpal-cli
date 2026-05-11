@@ -4,7 +4,7 @@ Track reusable DD data needs that are not currently covered by `mpal-cli`. Use c
 
 ## Covered By Current mpal
 
-- `mpal ticker fundamentals --tickers <csv> --json` covers compact profile-backed DD fields, including price, market cap, enterprise value, valuation multiples, forward/trailing EPS, selected estimates, DCF/target-price payloads where available, and selected credit fields.
+- `mpal ticker fundamentals --tickers <csv> --json` covers compact profile-backed DD fields, including quick metrics for P/E, P/S, short interest, YoY revenue growth, price, market cap, enterprise value, valuation multiples, forward/trailing EPS, selected estimates, DCF/target-price payloads where available, and selected credit fields.
 - `mpal ticker financials --tickers <csv> --years <n> --include-ttm --json` covers historical financial statements and TTM context where MarketPal has stored data.
 - `mpal ticker events --tickers <csv> --days <n> --json` covers recent source-backed events, including filings, ASX announcements, press releases, insider activity, institutional activity, and enriched article or announcement summaries where available.
 - `mpal ticker insiders --tickers <csv> --days <n> --limit <n> --json` covers insider transaction feeds where available.

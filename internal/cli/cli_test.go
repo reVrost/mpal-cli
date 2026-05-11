@@ -18,8 +18,9 @@ import (
 var _ client.API = fakeMpalAPI{}
 
 type fakeMpalAPI struct {
-	strategyPayload   string
-	tickerBarsPayload string
+	strategyPayload     string
+	tickerBarsPayload   string
+	fundamentalsPayload string
 }
 
 func (f fakeMpalAPI) GetTickerEvents(context.Context, *marketpalv1.MpalTickerEventsRequest) (string, error) {
@@ -38,6 +39,9 @@ func (f fakeMpalAPI) GetTickerFinancials(context.Context, *marketpalv1.MpalTicke
 	return `{}`, nil
 }
 func (f fakeMpalAPI) GetTickerFundamentals(context.Context, *marketpalv1.MpalTickerDataRequest) (string, error) {
+	if f.fundamentalsPayload != "" {
+		return f.fundamentalsPayload, nil
+	}
 	return `{}`, nil
 }
 func (f fakeMpalAPI) GetTickerInsiders(context.Context, *marketpalv1.MpalTickerDataRequest) (string, error) {
@@ -154,6 +158,27 @@ func TestDoctorStrictFailsWhenUnhealthy(t *testing.T) {
 
 	require.Error(t, cmd.Execute())
 	require.Contains(t, out.String(), `"ok": false`)
+}
+
+func TestTickerFundamentalsCommandPassesThroughCompactMetrics(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	a := &app{
+		out:    &out,
+		errOut: &bytes.Buffer{},
+		client: fakeMpalAPI{
+			fundamentalsPayload: `{"kind":"ticker_fundamentals","fundamentals":{"AAPL":{"ticker":"AAPL","pe":24.5,"ps":6.7,"short_interest":0.62,"revenue_growth_yoy":0.0834,"revenue_growth_yoy_pct":8.34}}}`,
+		},
+	}
+	cmd := a.rootCommand(context.Background())
+	cmd.SetArgs([]string{"ticker", "fundamentals", "--tickers", "AAPL", "--json"})
+
+	require.NoError(t, cmd.Execute())
+	require.Contains(t, out.String(), `"pe":24.5`)
+	require.Contains(t, out.String(), `"ps":6.7`)
+	require.Contains(t, out.String(), `"short_interest":0.62`)
+	require.Contains(t, out.String(), `"revenue_growth_yoy_pct":8.34`)
 }
 
 func TestJournalStartFinalizeListGetUsesSQLiteReviewJournal(t *testing.T) {

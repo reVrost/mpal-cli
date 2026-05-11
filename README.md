@@ -289,7 +289,7 @@ enough price history. Those fields are sizing evidence only; final fractional
 Kelly sizing still happens inside the strategy planner and remains clamped by
 portfolio/risk controls.
 
-`mpal ticker fundamentals` is a compact profile-backed DD packet. It includes valuation fields (`price`, `market_cap`, `enterprise_value`, `pe`, `forward_pe`, `pb`, `ps`, `ev_to_ebit`, `ev_to_fcf`, `fcf_yield`, DCF and target-price payloads), estimate fields (`forward_eps`, `trailing_eps`, `eps_growth`, projections, growth pattern, earnings date), and credit fields (`debt_to_equity`, `solvency_ratio`, Altman Z-score, latest debt/cash/working-capital fields from stored financials).
+`mpal ticker fundamentals` is a compact profile-backed DD packet. It includes top-level quick metrics (`pe`, `ps`, `short_interest`, `revenue_growth_yoy`, `revenue_growth_yoy_pct`), valuation fields (`price`, `market_cap`, `enterprise_value`, `pe`, `forward_pe`, `pb`, `ps`, `ev_to_ebit`, `ev_to_fcf`, `fcf_yield`, DCF and target-price payloads), estimate fields (`forward_eps`, `trailing_eps`, `eps_growth`, projections, growth pattern, earnings date), and credit fields (`debt_to_equity`, `solvency_ratio`, Altman Z-score, latest debt/cash/working-capital fields from stored financials).
 
 Run a strategy review packet:
 
