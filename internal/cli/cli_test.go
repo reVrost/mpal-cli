@@ -91,6 +91,7 @@ func TestCapabilitiesReturnsValidJSON(t *testing.T) {
 	require.Contains(t, commands, "ticker markov")
 	require.Contains(t, commands, "portfolio snapshot")
 	require.Contains(t, commands, "portfolio validate")
+	require.Contains(t, commands, "decision gate")
 	require.Contains(t, commands, "journal append")
 	require.NotContains(t, commands, "data bars")
 	require.NotContains(t, commands, "profile score")
@@ -106,6 +107,53 @@ func TestCapabilitiesReturnsValidJSON(t *testing.T) {
 	require.NotContains(t, commands, "admin api-keys backfill")
 	require.NotContains(t, commands, "admin portfolios backfill")
 	require.NotContains(t, commands, "admin portfolios compare")
+}
+
+func TestDecisionGateCommandReturnsEvidence(t *testing.T) {
+	t.Parallel()
+
+	run := mpal.StrategyRunResult{
+		RunID:           "strategy_run_cli_test",
+		Mode:            "strategy_run",
+		AsOf:            time.Date(2026, 5, 11, 0, 0, 0, 0, time.UTC),
+		Strategy:        mpal.StrategyRef{ID: "test_strategy", Version: "1.0.0", Approved: true},
+		Result:          mpal.ResultTrade,
+		ModelResult:     mpal.ResultTrade,
+		ExecutionResult: mpal.ResultTrade,
+		Signals: []mpal.SignalResult{
+			{Ticker: "AAPL", FinalScore: 0.9, ActionHint: "BUY_CANDIDATE"},
+			{Ticker: "MSFT", FinalScore: 0.8, ActionHint: "BUY_CANDIDATE"},
+		},
+		BaselinePlan: mpal.PortfolioPlanResult{
+			Result: mpal.ResultTrade,
+			ProposedTrades: []mpal.ProposedTrade{{
+				Ticker:       "AAPL",
+				Side:         mpal.SideBuy,
+				Intent:       mpal.TradeIntentStarter,
+				TargetWeight: 0.02,
+				DeltaWeight:  0.02,
+				Reason:       "starter position from top-ranked score above buy threshold",
+			}},
+		},
+		Validation: mpal.ValidationResult{Valid: true},
+	}
+	dir := t.TempDir()
+	runPath := filepath.Join(dir, "run.json")
+	require.NoError(t, os.WriteFile(runPath, []byte(mustJSON(run)), 0o600))
+
+	var out bytes.Buffer
+	code := Main([]string{"decision", "gate", "--run", runPath, "--alternates", "1", "--json"}, &out, &bytes.Buffer{})
+	require.Equal(t, 0, code)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(out.Bytes(), &payload))
+	require.Equal(t, "decision_gate", payload["mode"])
+	require.Equal(t, "strategy_run_cli_test", payload["source_run_id"])
+	require.NotEmpty(t, payload["evidence_hash"])
+	items := payload["items"].([]any)
+	require.Len(t, items, 2)
+	require.Equal(t, "proposed_trade", items[0].(map[string]any)["role"])
+	require.Equal(t, "alternate_signal", items[1].(map[string]any)["role"])
 }
 
 func TestTickerProfileCommandAcceptsBatchTickers(t *testing.T) {

@@ -70,6 +70,7 @@ func (a *app) rootCommand(ctx context.Context) *cobra.Command {
 		a.portfolioCommand(ctx),
 		a.watchlistCommand(ctx),
 		a.backtestCommand(ctx),
+		a.decisionCommand(ctx),
 		a.journalCommand(ctx),
 	)
 	return cmd
@@ -461,7 +462,7 @@ func mpalCapabilityCommands() []string {
 		"capabilities", "strategy list", "strategy show", "strategy validate", "strategy run",
 		"ticker events", "ticker bars", "ticker profile", "ticker financials",
 		"ticker fundamentals", "ticker insiders", "ticker ownership", "ticker markov",
-		"portfolio snapshot", "portfolio validate", "watchlist get", "backtest run",
+		"portfolio snapshot", "portfolio validate", "watchlist get", "backtest run", "decision gate",
 		"journal append", "journal list", "journal get",
 	}
 }

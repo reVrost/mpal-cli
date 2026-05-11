@@ -98,6 +98,8 @@ func kellyTestConfig() StrategyConfig {
 
 func markovEdge(pWin float64, pLoss float64, confidence float64, sampleCount int) *MarkovRead {
 	return &MarkovRead{
+		Horizon:                "weekly",
+		HorizonBars:            5,
 		FavorableProbability:   pWin,
 		UnfavorableProbability: pLoss,
 		Confidence:             confidence,
@@ -885,6 +887,8 @@ func TestPlanPortfolioKellySizingReducesWeakNoisyStarter(t *testing.T) {
 	assert.Equal(t, 0.0075, trade.TargetWeight)
 	require.NotNil(t, trade.Sizing)
 	assert.Equal(t, SizingMethodFractionalKelly, trade.Sizing.Method)
+	assert.Equal(t, "weekly", trade.Sizing.Horizon)
+	assert.Equal(t, 5, trade.Sizing.HorizonBars)
 	assert.Equal(t, 0.1, trade.Sizing.RawKelly)
 	assert.Equal(t, 0.0075, trade.Sizing.TargetWeight)
 	assert.Equal(t, 0.0075, trade.Sizing.KellyTargetWeight)

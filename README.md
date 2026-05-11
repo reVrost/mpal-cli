@@ -151,6 +151,15 @@ mpal strategy run \
   --json
 ```
 
+Build an evidence-bound decision gate from a completed strategy run:
+
+```sh
+mpal decision gate \
+  --run tmp/mpal-runs/strategy-run.json \
+  --alternates 5 \
+  --json
+```
+
 Validate and journal a reviewed packet:
 
 ```sh
@@ -234,9 +243,12 @@ Kelly defaults; users can tune `risk.kelly_fraction` for 25%, half Kelly, or
 another value in `(0,1]`. Even then, Kelly sizing is only an input and proposed
 trades remain clamped by the strategy's fixed risk controls, including any
 limits supplied by `risk.profile`. Kelly-sized trades include structured sizing
-audit fields such as `kelly_target_weight`, `final_target_weight`,
-`binding_constraint`, favorable/unfavorable probabilities, and
-`calibration_status`.
+audit fields such as `kelly_target_weight`, `final_target_weight`, `horizon`,
+`horizon_bars`, `binding_constraint`, favorable/unfavorable probabilities, and
+`calibration_status`. `mpal decision gate` packages those fields with rejected
+tickers, alternate signal context, validation state, and an evidence hash so an
+agent can approve, veto, delay, downsize, or propose a validated override
+without inventing hidden model inputs.
 
 Agents may summarize review packets or construct bounded alternative packets,
 but must:

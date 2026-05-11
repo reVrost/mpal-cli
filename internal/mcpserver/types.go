@@ -75,6 +75,18 @@ type backtestRunInput struct {
 	AllowUntrusted bool   `json:"allow_untrusted,omitempty" jsonschema:"Return diagnostics even when trust checks fail."`
 }
 
+type decisionGateInput struct {
+	RunPath              string `json:"run_path,omitempty" jsonschema:"Path to a previous mpal strategy run JSON output."`
+	RunJSON              string `json:"run_json,omitempty" jsonschema:"Inline previous mpal strategy run JSON output."`
+	ConfigPath           string `json:"config_path,omitempty" jsonschema:"Path to strategy YAML/JSON config. Required when include_markov_context is set."`
+	ConfigJSON           string `json:"config_json,omitempty" jsonschema:"Inline strategy YAML/JSON config. Required when include_markov_context is set."`
+	EventsPath           string `json:"events_path,omitempty" jsonschema:"Path to ticker events JSON context."`
+	EventsJSON           string `json:"events_json,omitempty" jsonschema:"Inline ticker events JSON context."`
+	Alternates           *int   `json:"alternates,omitempty" jsonschema:"Maximum alternate signal candidates. Defaults to 5. Use 0 to suppress alternates."`
+	IncludeMarkovContext string `json:"include_markov_context,omitempty" jsonschema:"Comma-separated Markov context horizons: daily, weekly, monthly."`
+	LookbackDays         int    `json:"lookback_days,omitempty" jsonschema:"Historical calendar days for Markov context. Defaults to 365."`
+}
+
 type journalAppendInput struct {
 	Type              string `json:"type" jsonschema:"Journal entry type, for example agent_final_action, agent_veto, or agent_override."`
 	BaselineJournalID string `json:"baseline_journal_id,omitempty" jsonschema:"Baseline journal entry ID from mpal_strategy_run."`

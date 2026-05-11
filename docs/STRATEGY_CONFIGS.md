@@ -117,8 +117,10 @@ final risk clamp and after `risk.kelly_max_fraction`, while
 `proposed_trades[].sizing.fractional_kelly` is the confidence-shrunk fractional
 Kelly estimate before that Kelly max cap. `proposed_trades[].target_weight`
 and `proposed_trades[].sizing.final_target_weight` are the actual proposed
-final target. `proposed_trades[].sizing.binding_constraint` names the active
-sizing limit when available, such as `kelly_target`, `kelly_max_fraction`,
+final target. `proposed_trades[].sizing.horizon` and `horizon_bars` identify
+the Markov horizon that produced the executable Kelly target.
+`proposed_trades[].sizing.binding_constraint` names the active sizing limit
+when available, such as `kelly_target`, `kelly_max_fraction`,
 `max_single_trade_pct`, `max_position_pct`, `turnover_budget_pct`,
 `cash_buffer_pct`, or `fixed_fallback`. Markov-derived Kelly decisions also
 carry the favorable/unfavorable probabilities used for sizing and

@@ -105,6 +105,8 @@ func fractionalKellyDecision(signal SignalResult, cfg normalizedSizingConfig) (S
 		return decision, false
 	}
 	markov := signal.Markov
+	decision.Horizon = markov.Horizon
+	decision.HorizonBars = markov.HorizonBars
 	decision.Confidence = round(markov.Confidence, 6)
 	decision.SampleCount = markov.SampleCount
 	pWin := markov.FavorableProbability

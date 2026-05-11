@@ -251,8 +251,11 @@ authorize trades and does not replace validation. A strategy may explicitly
 enable `risk.sizing_method: fractional_kelly` to use Markov probabilities as a
 conservative sizing input, but proposed trades remain clamped by the fixed risk
 controls. When structured sizing is present, read the Kelly target, final target,
-binding constraint, probability inputs, warnings, and calibration status from
-`proposed_trades[].sizing` rather than inferring them from prose.
+horizon, binding constraint, probability inputs, warnings, and calibration
+status from `proposed_trades[].sizing` rather than inferring them from prose.
+Use `mpal decision gate` after `strategy run` to package proposed trades,
+rejections, alternate signal context, validation state, sizing evidence, and a
+stable evidence hash for an agent review gate.
 
 ### Execution Read
 

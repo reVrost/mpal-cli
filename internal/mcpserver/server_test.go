@@ -81,6 +81,7 @@ func TestServerExposesCapabilityTools(t *testing.T) {
 	require.True(t, slices.Contains(toolNames, "mpal_capabilities"))
 	require.True(t, slices.Contains(toolNames, "mpal_strategy_run"))
 	require.True(t, slices.Contains(toolNames, "mpal_ticker_markov"))
+	require.True(t, slices.Contains(toolNames, "mpal_decision_gate"))
 	require.False(t, slices.Contains(toolNames, "mpal_execute_trade"))
 }
 
@@ -98,6 +99,51 @@ func TestCapabilitiesToolReturnsNoLiveTrading(t *testing.T) {
 	require.Equal(t, false, payload["live_trade_execution"])
 	require.Contains(t, payload["mcp_tools"], "mpal_portfolio_validate")
 	require.Contains(t, payload["mcp_tools"], "mpal_ticker_markov")
+	require.Contains(t, payload["mcp_tools"], "mpal_decision_gate")
+}
+
+func TestDecisionGateToolReturnsEvidence(t *testing.T) {
+	t.Parallel()
+
+	session, closeSession := testSession(t, &fakeAPI{})
+	defer closeSession()
+
+	run := mpal.StrategyRunResult{
+		RunID:           "strategy_run_mcp_test",
+		Mode:            "strategy_run",
+		AsOf:            time.Date(2026, 5, 11, 0, 0, 0, 0, time.UTC),
+		Strategy:        mpal.StrategyRef{ID: "test_strategy", Version: "1.0.0", Approved: true},
+		Result:          mpal.ResultTrade,
+		ModelResult:     mpal.ResultTrade,
+		ExecutionResult: mpal.ResultTrade,
+		Signals: []mpal.SignalResult{
+			{Ticker: "AAPL", FinalScore: 0.9, ActionHint: "BUY_CANDIDATE"},
+		},
+		BaselinePlan: mpal.PortfolioPlanResult{
+			Result: mpal.ResultTrade,
+			ProposedTrades: []mpal.ProposedTrade{{
+				Ticker:       "AAPL",
+				Side:         mpal.SideBuy,
+				Intent:       mpal.TradeIntentStarter,
+				TargetWeight: 0.02,
+				DeltaWeight:  0.02,
+				Reason:       "starter position from top-ranked score above buy threshold",
+			}},
+		},
+		Validation: mpal.ValidationResult{Valid: true},
+	}
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "mpal_decision_gate",
+		Arguments: map[string]any{
+			"run_json": mustJSON(run),
+		},
+	})
+	require.NoError(t, err)
+	require.False(t, result.IsError)
+	payload := result.StructuredContent.(map[string]any)
+	require.Equal(t, "decision_gate", payload["mode"])
+	require.Equal(t, "strategy_run_mcp_test", payload["source_run_id"])
+	require.NotEmpty(t, payload["evidence_hash"])
 }
 
 func TestTickerMarkovToolReturnsLocalRead(t *testing.T) {

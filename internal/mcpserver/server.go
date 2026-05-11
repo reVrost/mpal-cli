@@ -253,6 +253,50 @@ func registerTools(server *mcp.Server, cfg Config) {
 		out, err := decodePayload(payload)
 		return nil, out, err
 	})
+	mcp.AddTool(server, readOnlyTool("mpal_decision_gate", "Build deterministic evidence for an agent decision gate from a previous strategy run. This does not execute or modify trades."), func(ctx context.Context, req *mcp.CallToolRequest, in decisionGateInput) (*mcp.CallToolResult, any, error) {
+		runArg := firstNonEmpty(in.RunPath, in.RunJSON)
+		if runArg == "" {
+			return nil, nil, fmt.Errorf("expected run_path or run_json")
+		}
+		run, err := mpal.LoadStrategyRunResult(runArg)
+		if err != nil {
+			return nil, nil, err
+		}
+		alternates := 5
+		if in.Alternates != nil {
+			alternates = *in.Alternates
+		}
+		opts := mpal.DecisionGateOptions{Alternates: alternates}
+		horizons := parseDecisionGateMarkovContext(in.IncludeMarkovContext)
+		if in.ConfigPath != "" || in.ConfigJSON != "" {
+			strategy, _, err := loadStrategy(in.ConfigPath, in.ConfigJSON)
+			if err != nil {
+				return nil, nil, err
+			}
+			opts.Strategy = &strategy
+		}
+		if len(horizons) > 0 && opts.Strategy == nil {
+			return nil, nil, fmt.Errorf("config_path or config_json is required with include_markov_context")
+		}
+		if in.EventsPath != "" || in.EventsJSON != "" {
+			events, err := readJSONInput(in.EventsPath, in.EventsJSON)
+			if err != nil {
+				return nil, nil, err
+			}
+			opts.Events = events
+		}
+		if len(horizons) > 0 {
+			tickers := mpal.DecisionGateTickers(run, alternates)
+			for _, horizon := range horizons {
+				contextResult, err := localmarkov.Run(ctx, cfg.Client, tickers, run.AsOf, horizon, in.LookbackDays)
+				if err != nil {
+					return nil, nil, err
+				}
+				opts.MarkovContexts = append(opts.MarkovContexts, contextResult)
+			}
+		}
+		return nil, object(mpal.BuildDecisionGateEvidence(run, opts)), nil
+	})
 	mcp.AddTool(server, additiveTool("mpal_journal_append", "Append a local structured MarketPal agent decision journal entry."), func(ctx context.Context, req *mcp.CallToolRequest, in journalAppendInput) (*mcp.CallToolResult, any, error) {
 		input, err := readJSONInput(in.InputPath, in.InputJSON)
 		if err != nil {

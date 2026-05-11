@@ -231,12 +231,30 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+func parseDecisionGateMarkovContext(value string) []string {
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	seen := map[string]struct{}{}
+	for _, part := range parts {
+		part = strings.ToLower(strings.TrimSpace(part))
+		if part == "" {
+			continue
+		}
+		if _, ok := seen[part]; ok {
+			continue
+		}
+		seen[part] = struct{}{}
+		out = append(out, part)
+	}
+	return out
+}
+
 func mpalCapabilityCommands() []string {
 	return []string{
 		"capabilities", "strategy list", "strategy show", "strategy validate", "strategy run",
 		"ticker events", "ticker bars", "ticker profile", "ticker financials",
 		"ticker fundamentals", "ticker insiders", "ticker ownership", "ticker markov",
-		"portfolio snapshot", "portfolio validate", "watchlist get", "backtest run",
+		"portfolio snapshot", "portfolio validate", "watchlist get", "backtest run", "decision gate",
 		"journal append", "journal list", "journal get",
 	}
 }
@@ -245,7 +263,7 @@ func mpalMCPTools() []string {
 	return []string{
 		"mpal_capabilities", "mpal_strategy_list", "mpal_strategy_show", "mpal_strategy_validate",
 		"mpal_strategy_run", "mpal_portfolio_snapshot", "mpal_watchlist_get", "mpal_ticker_bars",
-		"mpal_ticker_profile", "mpal_ticker_markov", "mpal_ticker_events", "mpal_portfolio_validate", "mpal_backtest_run",
+		"mpal_ticker_profile", "mpal_ticker_markov", "mpal_ticker_events", "mpal_portfolio_validate", "mpal_backtest_run", "mpal_decision_gate",
 		"mpal_journal_append", "mpal_journal_list", "mpal_journal_get",
 	}
 }

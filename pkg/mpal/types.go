@@ -312,6 +312,8 @@ type ProposedTrade struct {
 type SizingDecision struct {
 	Method                 string   `json:"method"`
 	Source                 string   `json:"source,omitempty"`
+	Horizon                string   `json:"horizon,omitempty"`
+	HorizonBars            int      `json:"horizon_bars,omitempty"`
 	RawKelly               float64  `json:"raw_kelly,omitempty"`
 	FractionalKelly        float64  `json:"fractional_kelly,omitempty"`
 	TargetWeight           float64  `json:"target_weight,omitempty"`
