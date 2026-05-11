@@ -260,13 +260,22 @@ func markovContextForTicker(result TickerMarkovResult, ticker string, cfg *Strat
 			context.UnfavorableProbability = round(item.Markov.UnfavorableProbability, 6)
 			context.Confidence = round(item.Markov.Confidence, 6)
 			context.SampleCount = item.Markov.SampleCount
+			if item.RawKelly != nil {
+				context.RawKelly = round(item.RawKelly.RawKelly, 6)
+				context.CalibrationStatus = item.RawKelly.CalibrationStatus
+				context.Warnings = AppendWarnings(context.Warnings, item.RawKelly.Warnings...)
+			}
 			if cfg != nil {
 				applied := applyRiskProfileDefaultsCopy(*cfg)
-				decision, _ := fractionalKellyDecision(SignalResult{Ticker: ticker, Markov: item.Markov}, normalizeSizingConfig(applied.Risk))
-				context.RawKelly = decision.RawKelly
+				decision, _ := fractionalKellyDecision(SignalResult{Ticker: ticker, Markov: item.Markov, RawKelly: item.RawKelly}, normalizeSizingConfig(applied.Risk))
+				if context.RawKelly == 0 {
+					context.RawKelly = decision.RawKelly
+				}
 				context.FractionalKelly = decision.FractionalKelly
 				context.KellyTargetWeight = decision.KellyTargetWeight
-				context.CalibrationStatus = decision.CalibrationStatus
+				if context.CalibrationStatus == "" {
+					context.CalibrationStatus = decision.CalibrationStatus
+				}
 				context.Warnings = AppendWarnings(context.Warnings, decision.Warnings...)
 			}
 			return &context

@@ -287,20 +287,20 @@ strength without fully explaining why the move happened.
 
 ### Markov Read
 
-When hosted strategy output does not include `signals[].markov`, use the local
-evidence command:
+When hosted strategy output does not include `signals[].markov`, use the
+server profile evidence:
 
 ```sh
-mpal ticker markov \
+mpal ticker profile \
   --tickers AAPL,MSFT,NVDA \
   --date YYYY-MM-DD \
-  --rebalance weekly \
   --json
 ```
 
-The command fetches hosted price bars and computes local transition metadata.
-It is not part of the executable baseline plan and should not be used to bypass
-`execution_result` or validation.
+The profile response includes `markov` and `raw_kelly` buckets for daily,
+weekly, and monthly horizons when the server has enough price history. These
+fields are not part of the executable baseline plan and should not be used to
+bypass `execution_result` or validation.
 
 ## Journal And Report The Review
 

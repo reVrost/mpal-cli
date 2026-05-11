@@ -279,10 +279,15 @@ mpal ticker financials --tickers AAPL,MSFT,NVDA --years 6 --include-ttm --json
 mpal ticker fundamentals --tickers AAPL,MSFT,NVDA --json
 mpal ticker insiders --tickers AAPL,MSFT,NVDA --days 365 --limit 100 --json
 mpal ticker ownership --tickers AAPL,MSFT,NVDA --days 365 --limit 100 --json
-mpal ticker markov --tickers AAPL,MSFT,NVDA --date 2026-05-10 --rebalance weekly --json
 ```
 
 `mpal ticker events` is the curated feed for recent source-backed context. It includes price/volume events, filings, ASX announcements, press releases, insider activity, institutional activity, and enriched article/announcement summaries when available.
+
+`mpal ticker profile` includes server-computed `markov` and `raw_kelly`
+evidence buckets for daily, weekly, and monthly horizons when MarketPal has
+enough price history. Those fields are sizing evidence only; final fractional
+Kelly sizing still happens inside the strategy planner and remains clamped by
+portfolio/risk controls.
 
 `mpal ticker fundamentals` is a compact profile-backed DD packet. It includes valuation fields (`price`, `market_cap`, `enterprise_value`, `pe`, `forward_pe`, `pb`, `ps`, `ev_to_ebit`, `ev_to_fcf`, `fcf_yield`, DCF and target-price payloads), estimate fields (`forward_eps`, `trailing_eps`, `eps_growth`, projections, growth pattern, earnings date), and credit fields (`debt_to_equity`, `solvency_ratio`, Altman Z-score, latest debt/cash/working-capital fields from stored financials).
 

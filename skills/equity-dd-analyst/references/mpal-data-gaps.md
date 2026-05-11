@@ -9,7 +9,7 @@ Track reusable DD data needs that are not currently covered by `mpal-cli`. Use c
 - `mpal ticker events --tickers <csv> --days <n> --json` covers recent source-backed events, including filings, ASX announcements, press releases, insider activity, institutional activity, and enriched article or announcement summaries where available.
 - `mpal ticker insiders --tickers <csv> --days <n> --limit <n> --json` covers insider transaction feeds where available.
 - `mpal ticker ownership --tickers <csv> --days <n> --limit <n> --json` covers institutional ownership feeds where available.
-- `mpal ticker markov --tickers <csv> --date <date> --rebalance weekly --json` covers local Markov transition reads using hosted MarketPal price bars.
+- `mpal ticker profile --tickers <csv> --date <date> --json` now carries server Markov/raw Kelly evidence buckets when available.
 
 ## Remaining Known Gaps
 

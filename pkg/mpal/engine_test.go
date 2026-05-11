@@ -107,6 +107,25 @@ func markovEdge(pWin float64, pLoss float64, confidence float64, sampleCount int
 	}
 }
 
+func rawKellyEdge(pWin float64, pLoss float64, confidence float64, sampleCount int) *RawKellyRead {
+	raw := 0.0
+	if pWin+pLoss > 0 {
+		raw = (pWin - pLoss) / (pWin + pLoss)
+	}
+	return &RawKellyRead{
+		Horizon:                "weekly",
+		HorizonBars:            5,
+		RawKelly:               round(raw, 6),
+		FavorableProbability:   pWin,
+		UnfavorableProbability: pLoss,
+		PayoffRatio:            1,
+		Confidence:             confidence,
+		SampleCount:            sampleCount,
+		CalibrationStatus:      "heuristic_markov",
+		Source:                 "markov",
+	}
+}
+
 func testBars(asOf time.Time, past float64, latest float64) []Bar {
 	return []Bar{
 		{Date: asOf.AddDate(0, 0, -80), Close: past},
@@ -455,6 +474,13 @@ func TestSignalScoreIncludesMarkovMetadata(t *testing.T) {
 	asOf := time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC)
 	cfg := testConfig()
 	cfg.Portfolio.Rebalance = "monthly"
+	serverMarkov := markovEdge(0.7, 0.3, 0.6, 80)
+	serverMarkov.Horizon = "monthly"
+	serverMarkov.HorizonBars = 21
+	serverMarkov.Model = markovModelTrendBucketV1
+	serverKelly := rawKellyEdge(0.7, 0.3, 0.6, 80)
+	serverKelly.Horizon = "monthly"
+	serverKelly.HorizonBars = 21
 	engine := Engine{
 		Prices: fakePrices{bars: BarsResult{Bars: markovTestBars(asOf, 140)}},
 		Profiles: fakeProfiles{score: ProfileScore{
@@ -462,6 +488,8 @@ func TestSignalScoreIncludesMarkovMetadata(t *testing.T) {
 			AsOf:         asOf,
 			ProfileScore: 0.8,
 			ScoreSource:  "qvm_score",
+			Markov:       map[string]MarkovRead{"monthly": *serverMarkov},
+			RawKelly:     map[string]RawKellyRead{"monthly": *serverKelly},
 		}},
 	}
 
@@ -471,6 +499,8 @@ func TestSignalScoreIncludesMarkovMetadata(t *testing.T) {
 	assert.Equal(t, "monthly", signal.Markov.Horizon)
 	assert.Equal(t, 21, signal.Markov.HorizonBars)
 	assert.Equal(t, markovModelTrendBucketV1, signal.Markov.Model)
+	require.NotNil(t, signal.RawKelly)
+	assert.Equal(t, "monthly", signal.RawKelly.Horizon)
 }
 
 func TestPlanPortfolioIgnoresMarkovWhenOrderingStarters(t *testing.T) {
@@ -867,7 +897,7 @@ func TestPlanPortfolioKellySizingReducesWeakNoisyStarter(t *testing.T) {
 		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
 		Universe{Tickers: []string{"AAPL"}},
 		Portfolio{Equity: 100000, Cash: 100000},
-		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.55, 0.45, 0.3, 100)}},
+		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.55, 0.45, 0.3, 100), RawKelly: rawKellyEdge(0.55, 0.45, 0.3, 100)}},
 		cfg,
 	)
 
@@ -899,7 +929,7 @@ func TestPlanPortfolioKellySizingCapsHighEdgeByKellyAndTradeCaps(t *testing.T) {
 		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
 		Universe{Tickers: []string{"AAPL"}},
 		Portfolio{Equity: 100000, Cash: 100000},
-		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.9, 0.1, 1, 100)}},
+		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.9, 0.1, 1, 100), RawKelly: rawKellyEdge(0.9, 0.1, 1, 100)}},
 		cfg,
 	)
 
@@ -923,7 +953,7 @@ func TestPlanPortfolioKellySizingReportsKellyMaxFractionAsBindingConstraint(t *t
 		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
 		Universe{Tickers: []string{"AAPL"}},
 		Portfolio{Equity: 100000, Cash: 100000},
-		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.9, 0.1, 1, 100)}},
+		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.9, 0.1, 1, 100), RawKelly: rawKellyEdge(0.9, 0.1, 1, 100)}},
 		cfg,
 	)
 
@@ -987,8 +1017,8 @@ func TestPlanPortfolioKellyLowConfidenceOrSampleCountDoesNotSize(t *testing.T) {
 		Universe{Tickers: []string{"LOWCONF", "LOWSAMPLE"}},
 		Portfolio{Equity: 100000, Cash: 100000},
 		[]SignalResult{
-			{Ticker: "LOWCONF", FinalScore: 0.9, Markov: markovEdge(0.9, 0.1, 0.1, 100)},
-			{Ticker: "LOWSAMPLE", FinalScore: 0.8, Markov: markovEdge(0.9, 0.1, 1, 10)},
+			{Ticker: "LOWCONF", FinalScore: 0.9, Markov: markovEdge(0.9, 0.1, 0.1, 100), RawKelly: rawKellyEdge(0.9, 0.1, 0.1, 100)},
+			{Ticker: "LOWSAMPLE", FinalScore: 0.8, Markov: markovEdge(0.9, 0.1, 1, 10), RawKelly: rawKellyEdge(0.9, 0.1, 1, 10)},
 		},
 		cfg,
 	)
@@ -1007,7 +1037,7 @@ func TestPlanPortfolioKellyTopUpDoesNotExceedKellyTarget(t *testing.T) {
 		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
 		Universe{Tickers: []string{"AAPL"}},
 		Portfolio{Equity: 100000, Cash: 90000, Positions: []Position{{Ticker: "AAPL", MarketValue: 1000, Weight: 0.01}}},
-		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.6, 0.4, 0.3, 100)}},
+		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.6, 0.4, 0.3, 100), RawKelly: rawKellyEdge(0.6, 0.4, 0.3, 100)}},
 		cfg,
 	)
 
@@ -1031,7 +1061,7 @@ func TestPlanPortfolioKellyMinTradeValuePreventsTinyStarter(t *testing.T) {
 		time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
 		Universe{Tickers: []string{"AAPL"}},
 		Portfolio{Equity: 100000, Cash: 100000},
-		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.55, 0.45, 0.3, 100)}},
+		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.55, 0.45, 0.3, 100), RawKelly: rawKellyEdge(0.55, 0.45, 0.3, 100)}},
 		cfg,
 	)
 
@@ -1043,7 +1073,7 @@ func TestPlanPortfolioKellyTurnoverBudgetAndCashBufferStillApply(t *testing.T) {
 	t.Parallel()
 
 	asOf := time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC)
-	signal := SignalResult{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.9, 0.1, 1, 100)}
+	signal := SignalResult{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.9, 0.1, 1, 100), RawKelly: rawKellyEdge(0.9, 0.1, 1, 100)}
 
 	turnoverCfg := kellyTestConfig()
 	turnoverCfg.Risk.TurnoverBudgetPct = 0.01

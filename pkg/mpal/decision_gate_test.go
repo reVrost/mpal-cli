@@ -78,6 +78,9 @@ func TestBuildDecisionGateEvidenceAddsContextOnlyMarkov(t *testing.T) {
 	contextRead := markovEdge(0.7, 0.3, 0.5, 100)
 	contextRead.Horizon = "daily"
 	contextRead.HorizonBars = 1
+	contextKelly := rawKellyEdge(0.7, 0.3, 0.5, 100)
+	contextKelly.Horizon = "daily"
+	contextKelly.HorizonBars = 1
 	result := BuildDecisionGateEvidence(run, DecisionGateOptions{
 		Alternates: 0,
 		Strategy:   &cfg,
@@ -86,8 +89,9 @@ func TestBuildDecisionGateEvidenceAddsContextOnlyMarkov(t *testing.T) {
 			Horizon:     "daily",
 			HorizonBars: 1,
 			Results: []TickerMarkovItem{{
-				Ticker: "AAPL",
-				Markov: contextRead,
+				Ticker:   "AAPL",
+				Markov:   contextRead,
+				RawKelly: contextKelly,
 			}},
 		}},
 	})
@@ -120,6 +124,9 @@ func decisionGateTestRun() StrategyRunResult {
 	aaplMarkov := markovEdge(0.65, 0.35, 0.5, 100)
 	msftMarkov := markovEdge(0.4, 0.6, 0.5, 100)
 	googlMarkov := markovEdge(0.6, 0.4, 0.5, 100)
+	aaplKelly := rawKellyEdge(0.65, 0.35, 0.5, 100)
+	msftKelly := rawKellyEdge(0.4, 0.6, 0.5, 100)
+	googlKelly := rawKellyEdge(0.6, 0.4, 0.5, 100)
 	return StrategyRunResult{
 		RunID:           "strategy_run_test",
 		Mode:            "strategy_run",
@@ -129,9 +136,9 @@ func decisionGateTestRun() StrategyRunResult {
 		ModelResult:     ResultTrade,
 		ExecutionResult: ResultTrade,
 		Signals: []SignalResult{
-			{Ticker: "AAPL", FinalScore: 0.91, ActionHint: "BUY_CANDIDATE", Markov: aaplMarkov},
-			{Ticker: "MSFT", FinalScore: 0.88, ActionHint: "BUY_CANDIDATE", Markov: msftMarkov},
-			{Ticker: "GOOGL", FinalScore: 0.82, ActionHint: "BUY_CANDIDATE", Markov: googlMarkov},
+			{Ticker: "AAPL", FinalScore: 0.91, ActionHint: "BUY_CANDIDATE", Markov: aaplMarkov, RawKelly: aaplKelly},
+			{Ticker: "MSFT", FinalScore: 0.88, ActionHint: "BUY_CANDIDATE", Markov: msftMarkov, RawKelly: msftKelly},
+			{Ticker: "GOOGL", FinalScore: 0.82, ActionHint: "BUY_CANDIDATE", Markov: googlMarkov, RawKelly: googlKelly},
 		},
 		BaselinePlan: PortfolioPlanResult{
 			Result: ResultTrade,

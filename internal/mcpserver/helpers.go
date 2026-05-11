@@ -275,7 +275,7 @@ func mpalCapabilityCommands() []string {
 	return []string{
 		"capabilities", "strategy list", "strategy show", "strategy validate", "strategy run",
 		"ticker events", "ticker bars", "ticker profile", "ticker financials",
-		"ticker fundamentals", "ticker insiders", "ticker ownership", "ticker markov",
+		"ticker fundamentals", "ticker insiders", "ticker ownership",
 		"portfolio snapshot", "portfolio validate", "watchlist get", "backtest run", "decision gate",
 		"journal start", "journal finalize", "journal list", "journal get",
 	}
@@ -285,7 +285,7 @@ func mpalMCPTools() []string {
 	return []string{
 		"mpal_capabilities", "mpal_strategy_list", "mpal_strategy_show", "mpal_strategy_validate",
 		"mpal_strategy_run", "mpal_portfolio_snapshot", "mpal_watchlist_get", "mpal_ticker_bars",
-		"mpal_ticker_profile", "mpal_ticker_markov", "mpal_ticker_events", "mpal_portfolio_validate", "mpal_backtest_run", "mpal_decision_gate",
+		"mpal_ticker_profile", "mpal_ticker_events", "mpal_portfolio_validate", "mpal_backtest_run", "mpal_decision_gate",
 		"mpal_journal_start", "mpal_journal_finalize", "mpal_journal_list", "mpal_journal_get",
 	}
 }

@@ -360,7 +360,7 @@ func TestPlanPortfolioComparisonFixedVersusFractionalKellySizing(t *testing.T) {
 	asOf := time.Date(2026, 1, 12, 0, 0, 0, 0, time.UTC)
 	universe := Universe{Tickers: []string{"AAPL"}}
 	portfolio := Portfolio{Cash: 100000, Equity: 100000}
-	signals := []SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.55, 0.45, 0.3, 100)}}
+	signals := []SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.55, 0.45, 0.3, 100), RawKelly: rawKellyEdge(0.55, 0.45, 0.3, 100)}}
 
 	fixedCfg := testConfig()
 	fixedPlan := PlanPortfolio(asOf, universe, portfolio, signals, fixedCfg)

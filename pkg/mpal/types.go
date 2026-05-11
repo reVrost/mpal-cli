@@ -163,16 +163,18 @@ type StrategyRef struct {
 }
 
 type ProfileScore struct {
-	Ticker        string     `json:"ticker"`
-	AsOf          time.Time  `json:"as_of"`
-	ProfileScore  float64    `json:"profile_score"`
-	MomentumScore *float64   `json:"momentum_score,omitempty"`
-	QualityScore  *float64   `json:"quality_score,omitempty"`
-	ValueScore    *float64   `json:"value_score,omitempty"`
-	ScoreSource   string     `json:"score_source"`
-	Reasons       []string   `json:"reasons,omitempty"`
-	Warnings      []string   `json:"warnings,omitempty"`
-	Freshness     *Freshness `json:"freshness,omitempty"`
+	Ticker        string                  `json:"ticker"`
+	AsOf          time.Time               `json:"as_of"`
+	ProfileScore  float64                 `json:"profile_score"`
+	MomentumScore *float64                `json:"momentum_score,omitempty"`
+	QualityScore  *float64                `json:"quality_score,omitempty"`
+	ValueScore    *float64                `json:"value_score,omitempty"`
+	ScoreSource   string                  `json:"score_source"`
+	Reasons       []string                `json:"reasons,omitempty"`
+	Warnings      []string                `json:"warnings,omitempty"`
+	Freshness     *Freshness              `json:"freshness,omitempty"`
+	Markov        map[string]MarkovRead   `json:"markov,omitempty"`
+	RawKelly      map[string]RawKellyRead `json:"raw_kelly,omitempty"`
 }
 
 type BarsResult struct {
@@ -237,22 +239,23 @@ type EventScore struct {
 }
 
 type SignalResult struct {
-	Ticker               string      `json:"ticker"`
-	AsOf                 time.Time   `json:"as_of"`
-	MomentumScore        float64     `json:"momentum_score"`
-	ProfileScore         float64     `json:"profile_score"`
-	QualityScore         *float64    `json:"quality_score,omitempty"`
-	ValueScore           *float64    `json:"value_score,omitempty"`
-	ReversionScore       *float64    `json:"reversion_score,omitempty"`
-	EventScore           *float64    `json:"event_score,omitempty"`
-	EventScoreConfidence *float64    `json:"event_score_confidence,omitempty"`
-	Markov               *MarkovRead `json:"markov,omitempty"`
-	FinalScore           float64     `json:"final_score"`
-	ActionHint           string      `json:"action_hint"`
-	EventVeto            bool        `json:"event_veto,omitempty"`
-	Reasons              []string    `json:"reasons,omitempty"`
-	Warnings             []string    `json:"warnings,omitempty"`
-	Freshness            []Freshness `json:"freshness,omitempty"`
+	Ticker               string        `json:"ticker"`
+	AsOf                 time.Time     `json:"as_of"`
+	MomentumScore        float64       `json:"momentum_score"`
+	ProfileScore         float64       `json:"profile_score"`
+	QualityScore         *float64      `json:"quality_score,omitempty"`
+	ValueScore           *float64      `json:"value_score,omitempty"`
+	ReversionScore       *float64      `json:"reversion_score,omitempty"`
+	EventScore           *float64      `json:"event_score,omitempty"`
+	EventScoreConfidence *float64      `json:"event_score_confidence,omitempty"`
+	Markov               *MarkovRead   `json:"markov,omitempty"`
+	RawKelly             *RawKellyRead `json:"raw_kelly,omitempty"`
+	FinalScore           float64       `json:"final_score"`
+	ActionHint           string        `json:"action_hint"`
+	EventVeto            bool          `json:"event_veto,omitempty"`
+	Reasons              []string      `json:"reasons,omitempty"`
+	Warnings             []string      `json:"warnings,omitempty"`
+	Freshness            []Freshness   `json:"freshness,omitempty"`
 }
 
 type MarkovRead struct {
@@ -271,6 +274,20 @@ type MarkovRead struct {
 	Warnings                []string           `json:"warnings,omitempty"`
 }
 
+type RawKellyRead struct {
+	Horizon                string   `json:"horizon"`
+	HorizonBars            int      `json:"horizon_bars"`
+	RawKelly               float64  `json:"raw_kelly"`
+	FavorableProbability   float64  `json:"favorable_probability"`
+	UnfavorableProbability float64  `json:"unfavorable_probability"`
+	PayoffRatio            float64  `json:"payoff_ratio"`
+	Confidence             float64  `json:"confidence"`
+	SampleCount            int      `json:"sample_count"`
+	CalibrationStatus      string   `json:"calibration_status"`
+	Source                 string   `json:"source,omitempty"`
+	Warnings               []string `json:"warnings,omitempty"`
+}
+
 type TickerMarkovResult struct {
 	RunID        string             `json:"run_id"`
 	Mode         string             `json:"mode"`
@@ -284,11 +301,12 @@ type TickerMarkovResult struct {
 }
 
 type TickerMarkovItem struct {
-	Ticker    string      `json:"ticker"`
-	BarCount  int         `json:"bar_count"`
-	Markov    *MarkovRead `json:"markov,omitempty"`
-	Freshness *Freshness  `json:"freshness,omitempty"`
-	Warnings  []string    `json:"warnings,omitempty"`
+	Ticker    string        `json:"ticker"`
+	BarCount  int           `json:"bar_count"`
+	Markov    *MarkovRead   `json:"markov,omitempty"`
+	RawKelly  *RawKellyRead `json:"raw_kelly,omitempty"`
+	Freshness *Freshness    `json:"freshness,omitempty"`
+	Warnings  []string      `json:"warnings,omitempty"`
 }
 
 type TargetPosition struct {

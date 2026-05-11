@@ -10,7 +10,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	marketpalv1 "github.com/revrost/mpal-cli/gen/marketpal/v1"
 	"github.com/revrost/mpal-cli/internal/client"
-	"github.com/revrost/mpal-cli/internal/localmarkov"
+	"github.com/revrost/mpal-cli/internal/profileevidence"
 	mpal "github.com/revrost/mpal-cli/pkg/mpal"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -212,17 +212,6 @@ func registerTools(server *mcp.Server, cfg Config) {
 		out, err := decodePayload(payload)
 		return nil, out, err
 	})
-	mcp.AddTool(server, readOnlyTool("mpal_ticker_markov", "Compute local Markov transition reads for tickers using hosted MarketPal price bars. This is evidence metadata only and does not change strategy output."), func(ctx context.Context, req *mcp.CallToolRequest, in tickerMarkovInput) (*mcp.CallToolResult, any, error) {
-		asOf, err := mpal.ParseDate(in.Date)
-		if err != nil {
-			return nil, nil, err
-		}
-		result, err := localmarkov.Run(ctx, cfg.Client, in.Tickers, asOf, in.Rebalance, in.LookbackDays)
-		if err != nil {
-			return nil, nil, err
-		}
-		return nil, object(result), nil
-	})
 	mcp.AddTool(server, readOnlyTool("mpal_ticker_events", "Fetch source-backed ticker events for explicit tickers, a strategy run, or a tracked portfolio/watchlist scope."), func(ctx context.Context, req *mcp.CallToolRequest, in tickerEventsInput) (*mcp.CallToolResult, any, error) {
 		message, err := tickerEventsRequest(in)
 		if err != nil {
@@ -332,13 +321,11 @@ func registerTools(server *mcp.Server, cfg Config) {
 		}
 		if len(horizons) > 0 {
 			tickers := mpal.DecisionGateTickers(run, alternates)
-			for _, horizon := range horizons {
-				contextResult, err := localmarkov.Run(ctx, cfg.Client, tickers, run.AsOf, horizon, in.LookbackDays)
-				if err != nil {
-					return nil, nil, err
-				}
-				opts.MarkovContexts = append(opts.MarkovContexts, contextResult)
+			contextResults, err := profileevidence.MarkovContexts(ctx, cfg.Client, tickers, run.AsOf, horizons)
+			if err != nil {
+				return nil, nil, err
 			}
+			opts.MarkovContexts = append(opts.MarkovContexts, contextResults...)
 		}
 		return nil, object(mpal.BuildDecisionGateEvidence(run, opts)), nil
 	})

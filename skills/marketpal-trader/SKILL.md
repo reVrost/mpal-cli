@@ -49,18 +49,18 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
 5. Read deterministic sizing and optional Markov context before final action.
    - When available, call `mpal decision gate --run <strategy-run-path-or-json> --alternates 5 --json` or MCP `mpal_decision_gate` after the baseline run. Treat its evidence hash, item statuses, sizing fields, rejected tickers, alternate context, and validation read as the decision-gate evidence packet.
    - Treat `proposed_trades[].sizing`, `baseline_plan.rejected[]`, and `mpal decision gate` output as the only executable Kelly sizing/gating sources.
-   - Do not independently compute raw Kelly, fractional Kelly, gate statuses, vetoes, caps, downsizes, delays, or replacement eligibility from `mpal ticker markov` output.
+   - Do not independently compute raw Kelly, fractional Kelly, gate statuses, vetoes, caps, downsizes, delays, or replacement eligibility from profile Markov output.
    - Identify the executable sizing horizon from `proposed_trades[].sizing.horizon` when present, otherwise from `signals[].markov.horizon`, and otherwise from `strategy.config.portfolio.rebalance`. Do not call sizing weekly unless the exposed horizon is weekly.
    - For configs with `portfolio.rebalance: daily`, such as low-churn daily configs, treat executable Kelly sizing as daily-horizon sizing. Weekly Markov, if fetched, is secondary swing context only.
-   - Use `mpal ticker markov` only for explanatory context when the user asks for extra timing/horizon color, when `signals[].markov` is missing and the review needs a Markov read, or when `mpal decision gate --include-markov-context ...` explicitly requires it.
+   - Use `mpal ticker profile` for explanatory daily/weekly/monthly Markov and raw Kelly context when the user asks for extra timing/horizon color or when `signals[].markov` is missing and the review needs a Markov read. `mpal decision gate --include-markov-context ...` reads that server profile evidence.
    - Daily Markov is a timing-risk flag, not a hard veto, unless `mpal` exposes a deterministic timing gate or backtest evidence supports that rule. A negative daily read may justify caution, smaller validated sizing, delay/watchlist language, or a follow-up, but it must not mechanically halve or reject a strategy-approved weekly/monthly trade.
    - If `mpal` does not expose structured sizing, explain fixed sizing and risk caps from the strategy config. Markov may inform caution, but it must not replace the deterministic planner.
 
 ### Runtime Efficiency
 
 - Do not rerun `mpal strategy run` in the same review unless the portfolio, universe, date, or config changes.
-- After the baseline run completes, run independent evidence calls in parallel where the environment allows it: `ticker events --run`, optional `ticker markov` context requested by the user or needed for missing Markov reads, and any missing requested-ticker `ticker events --tickers ...` can run concurrently.
-- Prefer one batched command per evidence type. Use comma-separated tickers for `ticker markov`, `ticker profile`, `ticker events`, `ticker financials`, `ticker insiders`, and `ticker ownership`; do not loop over one ticker at a time from the skill.
+- After the baseline run completes, run independent evidence calls in parallel where the environment allows it: `ticker events --run`, optional `ticker profile` context requested by the user or needed for missing Markov/raw Kelly reads, and any missing requested-ticker `ticker events --tickers ...` can run concurrently.
+- Prefer one batched command per evidence type. Use comma-separated tickers for `ticker profile`, `ticker events`, `ticker financials`, `ticker insiders`, and `ticker ownership`; do not loop over one ticker at a time from the skill.
 - Reuse local run artifacts under `tmp/mpal-runs/` during the same review. If a JSON file already exists for the same date, strategy, universe, portfolio, and ticker set, read it instead of refetching unless the user asks for a fresh run.
 - Keep chat-visible output compact. Save wide JSON and HTML reports to files, then summarize the decision; avoid pasting large payloads back into chat.
 - If a user asks for broad extra research, fetch the deterministic strategy/context first, then only deepen source-backed research for tickers that are plausible candidates after the model, sizing/risk read, and event veto checks.
@@ -210,7 +210,7 @@ Report rules:
 - `Accepted Sizing %` and `Accepted Sizing Price` must reflect the final validated plan only. Non-selected candidates show `0.00%` and `0`, even when they had positive Kelly but were not selected or did not validate.
 - Show raw Kelly and fractional Kelly only when `mpal` exposes them. Raw Kelly may be negative. Label fractional Kelly with the structured `binding_constraint`, warning, or validation state from `mpal`, such as `kelly_target`, `kelly_max_fraction`, `max_single_trade_pct`, `fixed_fallback`, `unavailable`, or `low-confidence`.
 - The `Read` column should be a concise portfolio-manager note: model rank/score, profile-QVM support, event context, sizing/concentration issue, source-data issue, or why the ticker is not selected.
-- For requested tickers not in the baseline context pack, fetch `ticker events --tickers ...`; fetch `ticker markov --tickers ...` only when the user asks for Markov context or the latest strategy run lacks a needed Markov read. Join those reads with deterministic `signals` from the latest strategy run when available.
+- For requested tickers not in the baseline context pack, fetch `ticker events --tickers ...`; fetch `ticker profile --tickers ...` when the user asks for Markov/raw Kelly context or the latest strategy run lacks a needed Markov read. Join those reads with deterministic `signals` from the latest strategy run when available.
 - If a requested ticker has source collision, stale profile, missing insight, or ticker-mapping concerns, state that in `Read` and do not validate it as a trade until the data issue is resolved.
 - If the user asks whether to add one or more candidates, validate concrete bounded override combinations with `mpal portfolio validate` before saying they are executable. Prefer one extra starter at a time unless the user explicitly wants a more aggressive deployment.
 

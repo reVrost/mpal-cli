@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/revrost/mpal-cli/internal/localmarkov"
+	"github.com/revrost/mpal-cli/internal/profileevidence"
 	mpal "github.com/revrost/mpal-cli/pkg/mpal"
 	"github.com/spf13/cobra"
 )
@@ -18,7 +18,7 @@ func (a *app) decisionCommand(ctx context.Context) *cobra.Command {
 
 func (a *app) decisionGateCommand(ctx context.Context) *cobra.Command {
 	var runArg, configPath, eventsArg, includeMarkovContext string
-	var alternates, lookbackDays int
+	var alternates int
 	cmd := &cobra.Command{
 		Use: "gate",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -50,13 +50,11 @@ func (a *app) decisionGateCommand(ctx context.Context) *cobra.Command {
 					return fmt.Errorf("--config is required with --include-markov-context")
 				}
 				tickers := mpal.DecisionGateTickers(run, alternates)
-				for _, horizon := range horizons {
-					contextResult, err := localmarkov.Run(ctx, a.client, tickers, run.AsOf, horizon, lookbackDays)
-					if err != nil {
-						return err
-					}
-					opts.MarkovContexts = append(opts.MarkovContexts, contextResult)
+				contextResults, err := profileevidence.MarkovContexts(ctx, a.client, tickers, run.AsOf, horizons)
+				if err != nil {
+					return err
 				}
+				opts.MarkovContexts = append(opts.MarkovContexts, contextResults...)
 			}
 			return writeJSON(a.out, mpal.BuildDecisionGateEvidence(run, opts))
 		},
@@ -66,7 +64,6 @@ func (a *app) decisionGateCommand(ctx context.Context) *cobra.Command {
 	cmd.Flags().StringVar(&eventsArg, "events", "", "ticker events path or json")
 	cmd.Flags().IntVar(&alternates, "alternates", 5, "maximum alternate signal candidates")
 	cmd.Flags().StringVar(&includeMarkovContext, "include-markov-context", "", "comma-separated Markov context horizons: daily, weekly, monthly")
-	cmd.Flags().IntVar(&lookbackDays, "lookback-days", localmarkov.DefaultLookbackDays, "historical calendar days for Markov context")
 	addJSONFlag(cmd)
 	return cmd
 }

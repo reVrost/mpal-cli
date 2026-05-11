@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	marketpalv1 "github.com/revrost/mpal-cli/gen/marketpal/v1"
-	"github.com/revrost/mpal-cli/internal/localmarkov"
 	mpal "github.com/revrost/mpal-cli/pkg/mpal"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -22,7 +21,6 @@ func (a *app) tickerCommand(ctx context.Context) *cobra.Command {
 		a.tickerDataCommand(ctx, "fundamentals", 0, 0, a.client.GetTickerFundamentals),
 		a.tickerDataCommand(ctx, "insiders", 365, 100, a.client.GetTickerInsiders),
 		a.tickerDataCommand(ctx, "ownership", 365, 100, a.client.GetTickerOwnership),
-		a.tickerMarkovCommand(ctx),
 	)
 	return cmd
 }
@@ -207,31 +205,6 @@ func (a *app) tickerDataCommand(
 	if defaultLimit > 0 {
 		cmd.Flags().IntVar(&limit, "limit", defaultLimit, "maximum rows")
 	}
-	addJSONFlag(cmd)
-	return cmd
-}
-
-func (a *app) tickerMarkovCommand(ctx context.Context) *cobra.Command {
-	var tickersArg, dateArg, rebalance string
-	var lookbackDays int
-	cmd := &cobra.Command{
-		Use: "markov",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			asOf, err := mpal.ParseDate(dateArg)
-			if err != nil {
-				return err
-			}
-			result, err := localmarkov.Run(ctx, a.client, parseTickerCSV(tickersArg), asOf, rebalance, lookbackDays)
-			if err != nil {
-				return err
-			}
-			return writeJSON(a.out, result)
-		},
-	}
-	cmd.Flags().StringVar(&tickersArg, "tickers", "", "comma-separated tickers")
-	cmd.Flags().StringVar(&dateArg, "date", "", "as-of date")
-	cmd.Flags().StringVar(&rebalance, "rebalance", "weekly", "rebalance cadence for Markov horizon: daily, weekly, or monthly")
-	cmd.Flags().IntVar(&lookbackDays, "lookback-days", localmarkov.DefaultLookbackDays, "historical calendar days to fetch for Markov estimation")
 	addJSONFlag(cmd)
 	return cmd
 }

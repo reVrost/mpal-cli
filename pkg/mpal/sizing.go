@@ -104,6 +104,10 @@ func fractionalKellyDecision(signal SignalResult, cfg normalizedSizingConfig) (S
 		decision.Warnings = []string{"missing Markov edge data"}
 		return decision, false
 	}
+	if signal.RawKelly == nil {
+		decision.Warnings = []string{"missing raw Kelly edge data"}
+		return decision, false
+	}
 	markov := signal.Markov
 	decision.Horizon = markov.Horizon
 	decision.HorizonBars = markov.HorizonBars
@@ -113,25 +117,51 @@ func fractionalKellyDecision(signal SignalResult, cfg normalizedSizingConfig) (S
 	pLoss := markov.UnfavorableProbability
 	decision.FavorableProbability = round(pWin, 6)
 	decision.UnfavorableProbability = round(pLoss, 6)
+	raw := signal.RawKelly
+	if raw.Horizon != "" {
+		decision.Horizon = raw.Horizon
+	}
+	if raw.HorizonBars != 0 {
+		decision.HorizonBars = raw.HorizonBars
+	}
+	if raw.PayoffRatio > 0 {
+		decision.PayoffRatio = round(raw.PayoffRatio, 6)
+	}
+	if raw.FavorableProbability != 0 || raw.UnfavorableProbability != 0 {
+		pWin = raw.FavorableProbability
+		pLoss = raw.UnfavorableProbability
+		decision.FavorableProbability = round(pWin, 6)
+		decision.UnfavorableProbability = round(pLoss, 6)
+	}
+	if raw.Confidence != 0 {
+		decision.Confidence = round(raw.Confidence, 6)
+	}
+	if raw.SampleCount != 0 {
+		decision.SampleCount = raw.SampleCount
+	}
+	if raw.CalibrationStatus != "" {
+		decision.CalibrationStatus = raw.CalibrationStatus
+	}
+	decision.RawKelly = round(raw.RawKelly, 6)
+	decision.Warnings = AppendWarnings(decision.Warnings, raw.Warnings...)
 	if pWin <= 0 || pLoss < 0 || pWin+pLoss <= 0 {
 		decision.Warnings = []string{"Markov favorable/unfavorable probabilities do not provide usable edge data"}
 		return decision, false
 	}
-	if markov.SampleCount < cfg.KellyMinSampleCount {
-		decision.Warnings = []string{fmt.Sprintf("Markov sample_count %d below Kelly minimum %d", markov.SampleCount, cfg.KellyMinSampleCount)}
+	if decision.SampleCount < cfg.KellyMinSampleCount {
+		decision.Warnings = []string{fmt.Sprintf("Markov sample_count %d below Kelly minimum %d", decision.SampleCount, cfg.KellyMinSampleCount)}
 		return decision, false
 	}
-	if markov.Confidence < cfg.KellyMinConfidence {
-		decision.Warnings = []string{fmt.Sprintf("Markov confidence %.3f below Kelly minimum %.3f", markov.Confidence, cfg.KellyMinConfidence)}
+	if decision.Confidence < cfg.KellyMinConfidence {
+		decision.Warnings = []string{fmt.Sprintf("Markov confidence %.3f below Kelly minimum %.3f", decision.Confidence, cfg.KellyMinConfidence)}
 		return decision, false
 	}
-	rawKelly := (cfg.KellyDefaultPayoffRatio*pWin - pLoss) / (cfg.KellyDefaultPayoffRatio * (pWin + pLoss))
-	decision.RawKelly = round(rawKelly, 6)
+	rawKelly := decision.RawKelly
 	if rawKelly <= cfg.KellyMinEdge {
 		decision.Warnings = []string{fmt.Sprintf("Kelly raw edge %.3f not above minimum %.3f", rawKelly, cfg.KellyMinEdge)}
 		return decision, false
 	}
-	shrunkKelly := math.Max(0, rawKelly*markov.Confidence)
+	shrunkKelly := math.Max(0, rawKelly*decision.Confidence)
 	unclampedFractionalKelly := shrunkKelly * cfg.KellyFraction
 	target := math.Min(unclampedFractionalKelly, cfg.KellyMaxFraction)
 	decision.FractionalKelly = round(unclampedFractionalKelly, 6)

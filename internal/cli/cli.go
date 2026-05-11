@@ -606,7 +606,7 @@ func mpalCapabilityCommands() []string {
 	return []string{
 		"doctor", "capabilities", "strategy list", "strategy show", "strategy validate", "strategy run",
 		"ticker events", "ticker bars", "ticker profile", "ticker financials",
-		"ticker fundamentals", "ticker insiders", "ticker ownership", "ticker markov",
+		"ticker fundamentals", "ticker insiders", "ticker ownership",
 		"portfolio snapshot", "portfolio validate", "watchlist get", "backtest run", "decision gate",
 		"report", "journal start", "journal finalize", "journal list", "journal get",
 	}

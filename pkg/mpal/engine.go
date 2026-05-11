@@ -87,7 +87,8 @@ func (e Engine) signalScoreWithEvent(
 	quality := profileComponentScore(profile.QualityScore)
 	value := profileComponentScore(profile.ValueScore)
 	reversion := meanReversionScore(bars.Bars)
-	markov := markovRead(bars.Bars, cfg)
+	markov := profileMarkovRead(profile, cfg)
+	rawKelly := profileRawKellyRead(profile, cfg)
 	finalScore := weightedSignalScore(cfg.Scoring, momentum, profile.ProfileScore, quality, value, reversion)
 	reasons := []string{scoringReason(cfg.Scoring)}
 	warnings = append(warnings, missingComponentWarnings(cfg.Scoring, profile)...)
@@ -99,7 +100,7 @@ func (e Engine) signalScoreWithEvent(
 		}
 	}
 
-	return signalResult(ticker, asOf, momentum, profile, reversion, markov, finalScore, cfg, reasons, warnings, bars.Freshness, eventScore), nil
+	return signalResult(ticker, asOf, momentum, profile, reversion, markov, rawKelly, finalScore, cfg, reasons, warnings, bars.Freshness, eventScore), nil
 }
 
 func (e Engine) eventScoreForSignal(ctx context.Context, ticker string, asOf time.Time, cfg StrategyConfig) (*EventScore, []string) {
@@ -143,6 +144,7 @@ func signalResult(
 	profile ProfileScore,
 	reversion float64,
 	markov *MarkovRead,
+	rawKelly *RawKellyRead,
 	finalScore float64,
 	cfg StrategyConfig,
 	reasons []string,
@@ -212,6 +214,7 @@ func signalResult(
 		EventScore:           score,
 		EventScoreConfidence: confidence,
 		Markov:               markov,
+		RawKelly:             rawKelly,
 		FinalScore:           round(finalScore, 6),
 		ActionHint:           actionHint,
 		EventVeto:            eventVeto,
@@ -219,6 +222,42 @@ func signalResult(
 		Warnings:             warnings,
 		Freshness:            freshness,
 	}
+}
+
+func profileMarkovRead(profile ProfileScore, cfg StrategyConfig) *MarkovRead {
+	if len(profile.Markov) == 0 {
+		return nil
+	}
+	horizon, _ := markovHorizon(cfg.Portfolio.Rebalance)
+	if read, ok := profile.Markov[horizon]; ok {
+		copy := read
+		return &copy
+	}
+	for key, read := range profile.Markov {
+		if strings.EqualFold(key, horizon) {
+			copy := read
+			return &copy
+		}
+	}
+	return nil
+}
+
+func profileRawKellyRead(profile ProfileScore, cfg StrategyConfig) *RawKellyRead {
+	if len(profile.RawKelly) == 0 {
+		return nil
+	}
+	horizon, _ := markovHorizon(cfg.Portfolio.Rebalance)
+	if read, ok := profile.RawKelly[horizon]; ok {
+		copy := read
+		return &copy
+	}
+	for key, read := range profile.RawKelly {
+		if strings.EqualFold(key, horizon) {
+			copy := read
+			return &copy
+		}
+	}
+	return nil
 }
 
 func weightedSignalScore(scoring ScoringConfig, momentum float64, profile float64, quality float64, value float64, reversion float64) float64 {

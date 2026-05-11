@@ -89,7 +89,6 @@ func TestCapabilitiesReturnsValidJSON(t *testing.T) {
 	require.Contains(t, commands, "ticker fundamentals")
 	require.Contains(t, commands, "ticker insiders")
 	require.Contains(t, commands, "ticker ownership")
-	require.Contains(t, commands, "ticker markov")
 	require.Contains(t, commands, "portfolio snapshot")
 	require.Contains(t, commands, "portfolio validate")
 	require.Contains(t, commands, "decision gate")
@@ -285,50 +284,6 @@ func TestTickerProfileCommandAcceptsBatchTickers(t *testing.T) {
 	require.NotNil(t, api.req)
 	require.Equal(t, "AAPL", api.req.Ticker)
 	require.Equal(t, []string{"AAPL", "MSFT"}, api.req.Tickers)
-}
-
-func TestTickerMarkovReturnsLocalRead(t *testing.T) {
-	t.Parallel()
-
-	asOf := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
-	bars := make([]mpal.Bar, 0, 120)
-	price := 100.0
-	for i := 0; i < 120; i++ {
-		price *= 1.002
-		bars = append(bars, mpal.Bar{Date: asOf.AddDate(0, 0, -119+i), Close: price})
-	}
-	payload := mustJSON(mpal.BarsResult{
-		Ticker: "AAPL",
-		Bars:   bars,
-		Freshness: &mpal.Freshness{
-			Source: "marketpal_historical_prices",
-			Stale:  false,
-		},
-	})
-
-	var out bytes.Buffer
-	a := &app{
-		out:    &out,
-		client: fakeMpalAPI{tickerBarsPayload: payload},
-	}
-	cmd := a.tickerMarkovCommand(context.Background())
-	cmd.SetArgs([]string{
-		"--tickers", "AAPL",
-		"--date", "2026-05-10",
-		"--rebalance", "weekly",
-		"--json",
-	})
-
-	require.NoError(t, cmd.Execute())
-	var result map[string]any
-	require.NoError(t, json.Unmarshal(out.Bytes(), &result))
-	require.Equal(t, "ticker_markov", result["mode"])
-	require.Equal(t, "weekly", result["horizon"])
-	results := result["results"].([]any)
-	require.Len(t, results, 1)
-	item := results[0].(map[string]any)
-	require.Equal(t, "AAPL", item["ticker"])
-	require.NotNil(t, item["markov"])
 }
 
 func TestStrategyValidateReturnsValidJSON(t *testing.T) {

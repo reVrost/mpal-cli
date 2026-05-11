@@ -40,7 +40,7 @@ This file records cold-start validation runs used to refine the skill. It is a m
 - **Average score:** 4.71/5
 - **Result:** PASS
 - **Scores:** source discipline 4.5, exposure classification 5.0, financial analysis 4.5, comparison consistency 4.75, investment debate 4.5, conclusion usefulness 5.0, MarketPal integration 4.75.
-- **Strongest improvements:** the report used the source-built `mpal` capability set, including `ticker fundamentals`, `ticker financials`, `ticker insiders`, `ticker ownership`, and `ticker markov`; MarketPal facts were timestamped and isolated; stale or mislabeled MarketPal financial periods were flagged instead of blindly trusted; negative evidence from empty insider/ownership-flow checks was disclosed.
+- **Strongest improvements:** the report used the source-built `mpal` capability set, including `ticker fundamentals`, `ticker financials`, `ticker insiders`, `ticker ownership`, and profile evidence; MarketPal facts were timestamped and isolated; stale or mislabeled MarketPal financial periods were flagged instead of blindly trusted; negative evidence from empty insider/ownership-flow checks was disclosed.
 - **Remaining weaknesses:** granular inline citation density could improve, valuation still lacks full sensitivity tables and peer normalization, IFT/CDC funding stress remains lighter than a full model, contractor project-type/customer-concentration detail is limited, and VNT data-center immateriality remains inferred from disclosure gaps.
 - **Judge conclusion:** further skill iteration is unlikely to produce material improvement under the current rubric. Remaining gaps are mostly data availability, output length, source extraction depth, and MarketPal/filing-tool coverage rather than prompt structure.
 

@@ -232,7 +232,7 @@ func backtestSignalForTicker(
 			finalScore, reasons = applyEventGuardrail(finalScore, eventScore, cfg, reasons)
 		}
 	}
-	return signalResult(ticker, asOf, momentum, profile, reversionScore, markov, finalScore, cfg, reasons, nil, nil, eventScore), true, nil
+	return signalResult(ticker, asOf, momentum, profile, reversionScore, markov, nil, finalScore, cfg, reasons, nil, nil, eventScore), true, nil
 }
 
 func applyPendingBacktestFill(

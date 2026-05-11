@@ -80,7 +80,6 @@ func TestServerExposesCapabilityTools(t *testing.T) {
 	}
 	require.True(t, slices.Contains(toolNames, "mpal_capabilities"))
 	require.True(t, slices.Contains(toolNames, "mpal_strategy_run"))
-	require.True(t, slices.Contains(toolNames, "mpal_ticker_markov"))
 	require.True(t, slices.Contains(toolNames, "mpal_decision_gate"))
 	require.False(t, slices.Contains(toolNames, "mpal_execute_trade"))
 }
@@ -98,7 +97,6 @@ func TestCapabilitiesToolReturnsNoLiveTrading(t *testing.T) {
 	payload := result.StructuredContent.(map[string]any)
 	require.Equal(t, false, payload["live_trade_execution"])
 	require.Contains(t, payload["mcp_tools"], "mpal_portfolio_validate")
-	require.Contains(t, payload["mcp_tools"], "mpal_ticker_markov")
 	require.Contains(t, payload["mcp_tools"], "mpal_decision_gate")
 }
 
@@ -144,39 +142,6 @@ func TestDecisionGateToolReturnsEvidence(t *testing.T) {
 	require.Equal(t, "decision_gate", payload["mode"])
 	require.Equal(t, "strategy_run_mcp_test", payload["source_run_id"])
 	require.NotEmpty(t, payload["evidence_hash"])
-}
-
-func TestTickerMarkovToolReturnsLocalRead(t *testing.T) {
-	t.Parallel()
-
-	asOf := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
-	bars := make([]mpal.Bar, 0, 120)
-	price := 100.0
-	for i := 0; i < 120; i++ {
-		price *= 1.002
-		bars = append(bars, mpal.Bar{Date: asOf.AddDate(0, 0, -119+i), Close: price})
-	}
-	api := &fakeAPI{tickerBarsPayload: mustJSON(mpal.BarsResult{Ticker: "AAPL", Bars: bars})}
-	session, closeSession := testSession(t, api)
-	defer closeSession()
-
-	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
-		Name: "mpal_ticker_markov",
-		Arguments: map[string]any{
-			"tickers":   []string{"AAPL"},
-			"date":      "2026-05-10",
-			"rebalance": "weekly",
-		},
-	})
-	require.NoError(t, err)
-	require.False(t, result.IsError)
-	payload := result.StructuredContent.(map[string]any)
-	require.Equal(t, "ticker_markov", payload["mode"])
-	results := payload["results"].([]any)
-	require.Len(t, results, 1)
-	item := results[0].(map[string]any)
-	require.Equal(t, "AAPL", item["ticker"])
-	require.NotNil(t, item["markov"])
 }
 
 func TestStrategyRunToolSendsConfigHash(t *testing.T) {

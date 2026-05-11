@@ -33,13 +33,6 @@ type tickerProfileInput struct {
 	Date    string   `json:"date" jsonschema:"As-of date in YYYY-MM-DD format."`
 }
 
-type tickerMarkovInput struct {
-	Tickers      []string `json:"tickers" jsonschema:"Ticker symbols to compute local Markov reads for."`
-	Date         string   `json:"date" jsonschema:"As-of date in YYYY-MM-DD format."`
-	Rebalance    string   `json:"rebalance,omitempty" jsonschema:"Rebalance cadence for Markov horizon: daily, weekly, or monthly. Defaults to weekly."`
-	LookbackDays int      `json:"lookback_days,omitempty" jsonschema:"Historical calendar days to fetch for Markov estimation. Defaults to 365."`
-}
-
 type tickerEventsInput struct {
 	Tickers           []string `json:"tickers,omitempty" jsonschema:"Explicit tickers to research."`
 	RunPath           string   `json:"run_path,omitempty" jsonschema:"Path to a previous mpal strategy run JSON output."`
@@ -84,7 +77,6 @@ type decisionGateInput struct {
 	EventsJSON           string `json:"events_json,omitempty" jsonschema:"Inline ticker events JSON context."`
 	Alternates           *int   `json:"alternates,omitempty" jsonschema:"Maximum alternate signal candidates. Defaults to 5. Use 0 to suppress alternates."`
 	IncludeMarkovContext string `json:"include_markov_context,omitempty" jsonschema:"Comma-separated Markov context horizons: daily, weekly, monthly."`
-	LookbackDays         int    `json:"lookback_days,omitempty" jsonschema:"Historical calendar days for Markov context. Defaults to 365."`
 }
 
 type journalStartInput struct {

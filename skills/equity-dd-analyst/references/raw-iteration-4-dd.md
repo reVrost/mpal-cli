@@ -32,7 +32,7 @@ Scores are 1-5, where 5 is best and execution risk means lower risk. Overall use
 
 **MarketPal-Derived Facts**
 
-MarketPal data used: `capabilities`, `ticker fundamentals`, `ticker financials`, `ticker events`, `ticker insiders`, `ticker ownership`, `ticker profile`, `ticker markov`, run from source-built `go run ./cmd/mpal` on 10 May 2026. No MarketPal insider transactions or ownership-flow events were returned for the four tickers over the lookback window.
+MarketPal data used: `capabilities`, `ticker fundamentals`, `ticker financials`, `ticker events`, `ticker insiders`, `ticker ownership`, and `ticker profile`, run from source-built `go run ./cmd/mpal` on 10 May 2026. No MarketPal insider transactions or ownership-flow events were returned for the four tickers over the lookback window.
 
 | Ticker | Price / Market Cap | EV | Valuation Snapshot | MarketPal Signal Notes |
 |---|---:|---:|---|---|
