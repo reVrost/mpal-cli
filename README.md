@@ -362,11 +362,12 @@ A normal research packet is:
 3. Run `mpal strategy run` with an explicit date, portfolio, universe, and
    config.
 4. Add event context with `mpal ticker events`.
-5. Validate any concrete baseline or alternative packet with
+5. Build the deterministic evidence packet with `mpal decision gate --events`.
+6. Validate any concrete baseline or alternative packet with
    `mpal portfolio validate`.
-6. Use the returned `journal_entry_id` to generate the HTML report with
+7. Use the returned `journal_entry_id` to generate the HTML report with
    `mpal report`.
-7. Finalize that same review with `mpal journal finalize` after the human
+8. Finalize that same review with `mpal journal finalize` after the human
    decision.
 
 Scheduled or autonomous agent runs should only use approved configs. Agents

@@ -106,7 +106,7 @@ Use this overlay when the chosen strategy is a MarketPal swing config, such as `
 - Treat `engine_quality_swing_rebuild_v1` as a manual engine-sleeve rebuild config only. Do not use it for daily reviews unless the user explicitly asks for a higher-churn transition or cleanup plan.
 - Use `engine_quality_value_reversion_v1` or `portfolio_quality_value_reversion_v1` only when the user explicitly asks for quality/value mean reversion, underpriced quality, or pullback buying. These configs are deliberately less momentum-led and should not replace the default weekly swing run.
 - Remember that `max_new_positions_per_run` caps new buy positions only; sells, trims, reductions, and exits can make total trade tickets higher. If a daily low-churn baseline produces more than four total proposed trades, explicitly flag churn risk and prefer an agent veto or a smaller validated override unless the user asked for a transition rebalance.
-- After every baseline run, use `ticker events --days 14` to classify proposed buys and alternates before the final decision:
+- After every baseline run, use the review's event window to classify proposed buys and alternates before the final decision: normally `ticker events --days 14` for weekly/default swing reviews and `ticker events --days 45` for monthly swing reviews.
   - `CORE_SWING`: strong signal, profile-QVM support, no event veto, and supportive or neutral source context.
   - `TACTICAL_ONLY`: strong momentum with weaker profile-QVM, thin source context, or mixed event context; keep starter sizing and avoid top-up overrides, but do not treat thin source context alone as a veto.
   - `VETO_REVIEW`: stale data, event veto, missing critical source context, or severe adverse update; prefer veto, resize, or replacement only if the replacement validates.
@@ -130,7 +130,7 @@ Use this mode for weekly engine-sleeve or low-churn swing reviews.
 
 Use this mode when the user asks for a monthly swing review, monthly cleanup, transition rebalance, or a monthly/quarterly engine rebuild.
 
-- Use a longer event/context window, normally `ticker events --days 30` to `--days 45`, unless the strategy explicitly uses a shorter catalyst window.
+- Use a longer event/context window, normally `ticker events --days 45` for `best_monthly_swing_v1`, unless the strategy or user explicitly specifies a shorter catalyst window.
 - Require stronger persistence than a weekly entry: prefer candidates whose score remains above the strategy threshold and whose profile-QVM/event context support the holding period.
 - Prefer lower turnover than weekly reviews. Be slower to replace existing holdings that remain above `min_hold_score` and have no event veto.
 - Be cautious with Kelly if probability inputs are generated from a shorter horizon than the monthly review. If the Markov or Kelly horizon is weekly but the review is monthly, label it as short-horizon support only and do not let it justify aggressive monthly sizing.
