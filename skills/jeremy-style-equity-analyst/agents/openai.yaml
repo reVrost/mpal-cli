@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jeremy-Style Equity Analyst"
+  short_description: "Plainspoken source-backed retail stock analysis"
+  default_prompt: "Use $jeremy-style-equity-analyst to analyze this stock in a plainspoken retail-investor style without impersonation or personal financial advice."

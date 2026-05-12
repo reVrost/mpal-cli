@@ -82,8 +82,8 @@ verified.
      `.agents/plugins/marketplace.json`, `skills/`, and `.mcp.json`.
    - For Claude Code plugin installs, check `.claude-plugin/plugin.json`,
      `.claude-plugin/marketplace.json`, `skills/`, and `.mcp.json`.
-   - Confirm the plugin packages both onboarding and trader skills through the
-     root `skills/` directory.
+   - Confirm the plugin packages onboarding, trader, portfolio-review, and
+     equity-DD skills through the root `skills/` directory.
    - Confirm MCP starts `mpal-mcp` and receives `MPAL_API_KEY`.
 
 6. Run a non-trading smoke test.

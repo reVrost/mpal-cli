@@ -26,6 +26,8 @@
     "defaultPrompt": [
       "Set up MarketPal and run safe smoke tests.",
       "Run my approved MarketPal strategy.",
+      "Review my portfolio risk, concentration, and trim rules.",
+      "Analyze this stock in a plainspoken retail-investor style.",
       "Explain this mpal TRADE or NO_TRADE result.",
       "Validate and journal this final plan."
     ],

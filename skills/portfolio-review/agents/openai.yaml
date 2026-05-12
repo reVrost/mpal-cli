@@ -1,0 +1,4 @@
+interface:
+  display_name: "Portfolio Review"
+  short_description: "Review portfolio risk, sizing, and exits"
+  default_prompt: "Use $portfolio-review to review my portfolio risk, thesis fit, trims/exits, and next actions."

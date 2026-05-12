@@ -83,10 +83,22 @@ main human-in-the-loop workflow: it runs the baseline strategy, reads the
 decision gate, checks recent events, applies portfolio policy, validates any
 override, and journals the final reviewed action.
 
+Use `portfolio-review` when you want a whole-portfolio or engine-sleeve risk
+review rather than an immediate trade packet: sleeve drift, concentration,
+return-target feasibility, thesis buckets, trim/exit candidates, cleanup focus,
+and durable portfolio rules. It should route executable buy/sell packets back
+through `marketpal-trader`.
+
 Use `equity-dd-analyst` when you want deeper public-equity DD on a narrowed set
 of names, a thematic comparison, or a source-backed investment memo. In the
 normal workflow, run the strategy review first, then deepen DD on the proposed
 trades, alternates, or user-requested tickers that still look relevant.
+
+Use `jeremy-style-equity-analyst` when you want a plainspoken, retail-investor
+stock view inspired by Financial Education-style YouTube analysis: high-conviction
+but source-backed business quality, growth, valuation, sentiment, catalysts, and
+bull/bear cases. It must not impersonate Jeremy or provide personal financial
+advice.
 
 ### First-time setup
 
@@ -151,6 +163,32 @@ The trader workflow should do this:
 8. Generate the deterministic HTML first pass with `mpal report <journal_entry_id>`.
 9. Finalize the same journal entry with `mpal journal finalize` after the human decision.
 
+### Portfolio risk review
+
+Use this when the question is "how risky is the portfolio?", "what should I
+focus on next?", "do my holdings match my thesis?", or "what are my trim/exit
+rules?" rather than "what should I trade today?"
+
+```text
+Use the portfolio review skill to review my current portfolio against my private
+policy and return target. Show sleeve drift, theme concentration, risk score,
+trim/exit candidates, and next review triggers. Keep private artifacts outside
+repo-tracked paths.
+```
+
+The portfolio review workflow should do this:
+
+1. Pull the current portfolio snapshot and recent transactions into a private
+   artifact path.
+2. Load `~/.marketpal/portfolio-policy.md` when present.
+3. Map holdings to sleeves and thesis buckets.
+4. Reconcile weights and flag stale/missing data.
+5. Translate any return target into required active-sleeve returns.
+6. Score portfolio risk, concentration, thesis coherence, and exit readiness.
+7. Identify trim, exit, watchlist, and cleanup candidates.
+8. Route concrete executable trade packets to `marketpal-trader` for validation
+   and journaling.
+
 ### Where DD fits
 
 Use DD after the model has narrowed the field, not before every review. A good
@@ -187,6 +225,10 @@ model over time without logging every intermediate command.
 - `mpal decision gate`: deterministic evidence, sizing, rejections, and
   alternates from the completed run.
 - `marketpal-trader`: the human portfolio-manager review process.
+- `portfolio-review`: whole-portfolio risk, sleeve, thesis, return-target,
+  cleanup, and trim/exit policy review.
+- `jeremy-style-equity-analyst`: plainspoken retail stock analysis inspired by
+  Financial Education-style public analysis, without impersonation or advice.
 - `mpal portfolio validate`: checks whether the final concrete plan obeys the
   strategy and portfolio rules.
 - `mpal report <journal_entry_id>`: renders the deterministic local HTML first

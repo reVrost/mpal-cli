@@ -1,1 +1,0 @@
-../../../skills/marketpal-trader/SKILL.md
