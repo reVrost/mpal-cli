@@ -125,17 +125,17 @@ Ask your agent something like:
 
 ```text
 Use the MarketPal trader skill to run my weekly engine review with
-engine_weekly_swing_v1. Use my private portfolio policy if available. Show the
+best_weekly_swing_v1. Use my private portfolio policy if available. Show the
 baseline, decision gate, alternates, validation result, and journal the final
 review.
 ```
 
-For a lower-churn full-portfolio review:
+For a slower monthly review:
 
 ```text
-Use the MarketPal trader skill to run a low-churn full-portfolio swing review
-with portfolio_low_churn_swing_v1. Separate the raw model plan from my final
-human action in the journal.
+Use the MarketPal trader skill to run my monthly swing review with
+best_monthly_swing_v1. Separate the raw model plan from my final human action
+in the journal.
 ```
 
 The trader workflow should do this:
@@ -170,10 +170,13 @@ as the reviewed action.
 
 Journal one accountable review in two phases:
 
-- `mpal journal start`: records the strategy output, agent context, and
-  per-ticker model/agent read.
+- `mpal strategy run`: starts the first-pass SQLite review and records the raw
+  model packet plus per-ticker model read.
 - `mpal journal finalize`: records the final human decision, final validation,
   and final per-ticker human call.
+
+Use `mpal journal start` only when importing or manually assembling a review
+that did not come from `mpal strategy run`.
 
 This separation lets you measure whether the human overlay helped or hurt the
 model over time without logging every intermediate command.
@@ -186,7 +189,9 @@ model over time without logging every intermediate command.
 - `marketpal-trader`: the human portfolio-manager review process.
 - `mpal portfolio validate`: checks whether the final concrete plan obeys the
   strategy and portfolio rules.
-- `mpal journal start/finalize`: records the accountable review decision in the
+- `mpal report <journal_entry_id>`: renders the deterministic local HTML first
+  pass.
+- `mpal journal finalize`: records the accountable final human decision in the
   SQLite journal.
 
 The durable SQLite review-journal schema is documented in
@@ -209,8 +214,12 @@ API-backed commands use `MPAL_API_KEY`. Optional environment variables:
 
 ```sh
 export MPAL_BASE_URL=https://api.marketpal.ai
+export MPAL_REVIEW_JOURNAL=~/.marketpal/mpal.db
+# Legacy/general JSONL journal; review decisions use SQLite above.
 export MPAL_JOURNAL=~/.marketpal/journal.jsonl
 ```
+
+Review decisions use the SQLite path from `MPAL_REVIEW_JOURNAL` or `MPAL_DB`.
 
 Private portfolio policy belongs outside the repo:
 
@@ -225,6 +234,8 @@ holdings or dollar amounts into tracked files.
 
 Built-in configs:
 
+- `best_weekly_swing_v1`: default weekly swing review for current hosted capabilities
+- `best_monthly_swing_v1`: default monthly swing review with monthly Markov/Kelly horizon
 - `portfolio_low_churn_swing_v1`: routine full-portfolio review packet
 - `engine_weekly_swing_v1`: weekly return-engine sleeve review packet
 - `engine_quality_swing_rebuild_v1`: manual engine cleanup or rebuild scenario
@@ -264,8 +275,8 @@ Inspect capabilities and configs:
 mpal doctor --json
 mpal capabilities --json
 mpal strategy list --json
-mpal strategy show --id engine_weekly_swing_v1 --json
-mpal strategy validate --config strategies/engine_weekly_swing_v1.yaml --json
+mpal strategy show --id best_weekly_swing_v1 --json
+mpal strategy validate --config strategies/best_weekly_swing_v1.yaml --json
 ```
 
 Read MarketPal data:
@@ -298,7 +309,7 @@ mpal strategy run \
   --date 2026-05-10 \
   --universe examples/universe.json \
   --portfolio examples/portfolio.json \
-  --config strategies/engine_weekly_swing_v1.yaml \
+  --config strategies/best_weekly_swing_v1.yaml \
   --json
 ```
 
@@ -307,24 +318,29 @@ Build an evidence-bound decision gate from a completed strategy run:
 ```sh
 mpal decision gate \
   --run tmp/mpal-runs/strategy-run.json \
+  --events tmp/mpal-runs/ticker-events.json \
+  --config strategies/best_weekly_swing_v1.yaml \
   --alternates 5 \
   --json
 ```
 
-Validate and journal a reviewed packet:
+Validate, report, and finalize a reviewed packet:
 
 ```sh
 mpal portfolio validate \
   --plan examples/final_plan.json \
   --portfolio examples/portfolio.json \
   --universe examples/universe.json \
-  --config strategies/engine_weekly_swing_v1.yaml \
+  --config strategies/best_weekly_swing_v1.yaml \
   --json
 
-mpal journal start --input examples/trade_review_start.json --json
+mpal report review_... --json
 mpal journal finalize --id review_... --input examples/trade_review_finalize.json --json
 mpal journal list --limit 20 --json
 ```
+
+For imported reviews that did not come from `mpal strategy run`, create the
+first row manually with `mpal journal start --input examples/trade_review_start.json --json`.
 
 Backtest:
 
@@ -333,7 +349,7 @@ mpal backtest run \
   --start 2025-01-01 \
   --end 2026-01-01 \
   --universe examples/universe.json \
-  --config strategies/engine_weekly_swing_v1.yaml \
+  --config strategies/best_weekly_swing_v1.yaml \
   --json
 ```
 
@@ -348,8 +364,10 @@ A normal research packet is:
 4. Add event context with `mpal ticker events`.
 5. Validate any concrete baseline or alternative packet with
    `mpal portfolio validate`.
-6. Start the review journal with `mpal journal start`.
-7. Finalize it with `mpal journal finalize` after the human decision.
+6. Use the returned `journal_entry_id` to generate the HTML report with
+   `mpal report`.
+7. Finalize that same review with `mpal journal finalize` after the human
+   decision.
 
 Scheduled or autonomous agent runs should only use approved configs. Agents
 must not silently modify configs or invent one-off strategy parameters.
@@ -399,9 +417,9 @@ limits supplied by `risk.profile`. Kelly-sized trades include structured sizing
 audit fields such as `kelly_target_weight`, `final_target_weight`, `horizon`,
 `horizon_bars`, `binding_constraint`, favorable/unfavorable probabilities, and
 `calibration_status`. `mpal decision gate` packages those fields with rejected
-tickers, alternate signal context, validation state, and an evidence hash so an
-agent can approve, veto, delay, downsize, or propose a validated override
-without inventing hidden model inputs.
+tickers, alternate signal context, and validation state so an agent can approve,
+veto, delay, downsize, or propose a validated override without inventing hidden
+model inputs.
 
 Agents may summarize review packets or construct bounded alternative packets,
 but must:
@@ -409,7 +427,8 @@ but must:
 - use `mpal` JSON as source of truth
 - not invent model actions outside `mpal` output
 - validate alternative packets with `mpal portfolio validate`
-- start review artifacts with `mpal journal start`
+- use the `journal_entry_id` returned by `mpal strategy run` for normal reviews
+- use `mpal journal start` only for manually assembled/imported reviews
 - finalize human decisions with `mpal journal finalize`
 - never execute live trades or call broker/order-placement tools
 

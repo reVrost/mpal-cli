@@ -52,6 +52,8 @@ but they are not interchangeable.
 
 | Strategy | Typical Review Context | Possible Output Shape | Out Of Scope |
 | --- | --- | --- | --- |
+| `best_weekly_swing_v1` | Default weekly swing review under the current hosted API | Starter candidates, top-up candidates, risk-driven trims/reductions, or `NO_TRADE` using weekly Markov/Kelly sizing evidence | Monthly allocation review or high-turnover rebuild |
+| `best_monthly_swing_v1` | Default monthly swing review using a true monthly rebalance horizon | Lower-turnover starter/top-up candidates with stronger profile/QVM support and monthly Markov/Kelly sizing evidence | Weekly timing trades, daily review, or cleanup/rebuild |
 | `engine_weekly_swing_v1` | Active-engine review, especially when the input includes cash assigned to that engine | Starter candidates, top-up candidates, risk-driven trims/reductions, or `NO_TRADE` | Forced cleanup or high-turnover rotation |
 | `engine_quality_swing_rebuild_v1` | Engine cleanup, transition review, or rebuild scenario | Weak-hold review, oversized-position review, ranked candidates, higher-turnover proposal | Routine weekly monitoring |
 | `portfolio_low_churn_swing_v1` | Conservative full-portfolio or well-funded portfolio review | Lower-churn incremental changes with larger minimum trade value | Aggressive rotation or engine rebuild |
@@ -107,7 +109,8 @@ suitability outside this repository.
 
 ## Run A Weekly Review Packet
 
-Use `engine_weekly_swing_v1` only when the portfolio input is intentionally
+Use `best_weekly_swing_v1` for the normal weekly swing review. Use
+`engine_weekly_swing_v1` only when the portfolio input is intentionally
 scoped to the active engine and any cash in the input is meant to be evaluated
 inside that sleeve.
 
@@ -118,7 +121,7 @@ mpal strategy run \
   --date YYYY-MM-DD \
   --portfolio tmp/mpal-runs/engine-portfolio.json \
   --universe tmp/mpal-runs/engine-universe.json \
-  --config strategies/engine_weekly_swing_v1.yaml \
+  --config strategies/best_weekly_swing_v1.yaml \
   --json > tmp/mpal-runs/weekly-engine-run.json
 
 mpal ticker events \
@@ -126,6 +129,13 @@ mpal ticker events \
   --portfolio tmp/mpal-runs/engine-portfolio.json \
   --days 14 \
   --json > tmp/mpal-runs/weekly-engine-events.json
+
+mpal decision gate \
+  --run tmp/mpal-runs/weekly-engine-run.json \
+  --events tmp/mpal-runs/weekly-engine-events.json \
+  --config strategies/best_weekly_swing_v1.yaml \
+  --alternates 5 \
+  --json > tmp/mpal-runs/weekly-engine-gate.json
 ```
 
 Review the output as separate layers:
@@ -140,6 +150,36 @@ Review the output as separate layers:
 If `model_result` is `TRADE` but `execution_result` is `NO_TRADE`, the review
 packet is saying that the model found signals but the supplied portfolio inputs
 and constraints blocked execution.
+
+## Run A Monthly Swing Review
+
+Use `best_monthly_swing_v1` for the slower monthly allocation pass. It uses
+`portfolio.rebalance: monthly`, so hosted Markov/raw Kelly evidence is read on
+the monthly horizon instead of treating a weekly edge as a monthly signal.
+
+Example:
+
+```sh
+mpal strategy run \
+  --date YYYY-MM-DD \
+  --portfolio tmp/mpal-runs/portfolio.json \
+  --universe tmp/mpal-runs/universe.json \
+  --config strategies/best_monthly_swing_v1.yaml \
+  --json > tmp/mpal-runs/monthly-swing-run.json
+
+mpal ticker events \
+  --run tmp/mpal-runs/monthly-swing-run.json \
+  --portfolio tmp/mpal-runs/portfolio.json \
+  --days 45 \
+  --json > tmp/mpal-runs/monthly-swing-events.json
+
+mpal decision gate \
+  --run tmp/mpal-runs/monthly-swing-run.json \
+  --events tmp/mpal-runs/monthly-swing-events.json \
+  --config strategies/best_monthly_swing_v1.yaml \
+  --alternates 5 \
+  --json > tmp/mpal-runs/monthly-swing-gate.json
+```
 
 ## Run A Cleanup Or Rotation Scenario
 
@@ -253,9 +293,9 @@ conservative sizing input, but proposed trades remain clamped by the fixed risk
 controls. When structured sizing is present, read the Kelly target, final target,
 horizon, binding constraint, probability inputs, warnings, and calibration
 status from `proposed_trades[].sizing` rather than inferring them from prose.
-Use `mpal decision gate` after `strategy run` to package proposed trades,
-rejections, alternate signal context, validation state, sizing evidence, and a
-stable evidence hash for an agent review gate.
+Use `mpal decision gate` after `strategy run` and `ticker events` to package
+proposed trades, rejections, event context, alternate signal context, validation
+state, and sizing evidence for an agent review gate.
 
 ### Execution Read
 

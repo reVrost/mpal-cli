@@ -33,7 +33,7 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
    - If `validation.valid` is false, the final decision is `NO_TRADE` unless a separately validated override is journaled.
 
 4. Build the source-backed context pack before final action.
-   - Call `mpal ticker events --run <strategy-run-path-or-json> --portfolio <portfolio-path> --days 14 --json`.
+   - Call `mpal ticker events --run <strategy-run-path-or-json> --portfolio <portfolio-path> --days <window> --json`, using 14 days for weekly/default swing reviews and 45 days for monthly swing reviews unless the strategy or user specifies another window.
    - If using MCP, call `mpal_ticker_events` with the previous strategy run and the portfolio input.
    - If a portfolio file is not available, set `MPAL_API_KEY` so the command can fetch the current portfolio through the MarketPal API.
    - Use the returned proposed buys/sells/trims, alternate candidates, ticker research, source-backed updates, cached article insights, missing insight sources, warnings, and freshness metadata as the evidence layer.
@@ -47,12 +47,12 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
    - Keep context calls compact by default: use the strategy defaults unless the user asks for deeper research; when adding extra requested tickers, prefer `--days 14 --limit 80` and avoid raising `--insights-per-ticker` unless the decision depends on deeper article detail.
 
 5. Read deterministic sizing and optional Markov context before final action.
-   - When available, call `mpal decision gate --run <strategy-run-path-or-json> --alternates 5 --json` or MCP `mpal_decision_gate` after the baseline run. Treat its evidence hash, item statuses, sizing fields, rejected tickers, alternate context, and validation read as the decision-gate evidence packet.
+   - When available, call `mpal decision gate --run <strategy-run-path-or-json> --events <ticker-events-path-or-json> --config <config-path> --alternates 5 --json` or MCP `mpal_decision_gate` after the baseline run and event-context call. Treat its item statuses, sizing fields, rejected tickers, event context, alternate context, and validation read as the decision-gate evidence packet.
    - Treat `proposed_trades[].sizing`, `baseline_plan.rejected[]`, and `mpal decision gate` output as the only executable Kelly sizing/gating sources.
    - Do not independently compute raw Kelly, fractional Kelly, gate statuses, vetoes, caps, downsizes, delays, or replacement eligibility from profile Markov output.
    - Identify the executable sizing horizon from `proposed_trades[].sizing.horizon` when present, otherwise from `signals[].markov.horizon`, and otherwise from `strategy.config.portfolio.rebalance`. Do not call sizing weekly unless the exposed horizon is weekly.
    - For configs with `portfolio.rebalance: daily`, such as low-churn daily configs, treat executable Kelly sizing as daily-horizon sizing. Weekly Markov, if fetched, is secondary swing context only.
-   - Use `mpal ticker profile` for explanatory daily/weekly/monthly Markov and raw Kelly context when the user asks for extra timing/horizon color or when `signals[].markov` is missing and the review needs a Markov read. `mpal decision gate --include-markov-context ...` reads that server profile evidence.
+   - Use `mpal ticker profile` for explanatory daily/weekly/monthly Markov and raw Kelly context when the user asks for extra timing/horizon color or when `signals[].markov` is missing and the review needs a Markov read. Add `--include-markov-context daily,weekly,monthly` to `mpal decision gate` only when extra horizon context is needed.
    - Daily Markov is a timing-risk flag, not a hard veto, unless `mpal` exposes a deterministic timing gate or backtest evidence supports that rule. A negative daily read may justify caution, smaller validated sizing, delay/watchlist language, or a follow-up, but it must not mechanically halve or reject a strategy-approved weekly/monthly trade.
    - If `mpal` does not expose structured sizing, explain fixed sizing and risk caps from the strategy config. Markov may inform caution, but it must not replace the deterministic planner.
 
@@ -71,7 +71,7 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
    - Treat a proposed starter as replacement-eligible when it has stale or missing critical data, mixed/adverse event context, materially weaker profile-QVM support, an event veto, a validation/risk issue, a severe concentration/sleeve concern, or adverse structured `mpal` sizing/rejection output that makes the baseline trade unattractive or impractical.
    - Treat an alternate as a better risk/reward candidate only when it appears in `ticker events.alternates` or deterministic `signals`, has no event veto, has comparable-or-better deterministic score/profile support or structured `mpal` sizing support when exposed, and is within 0.03 `final_score` of a replacement-eligible proposed starter unless the baseline has a validation or event veto issue. Do not use news context or agent-computed Kelly alone to replace a higher-scoring validated baseline starter.
    - Prefer one bounded replacement at a time: swap the weakest replacement-eligible proposed starter for the strongest qualifying alternate, preserve or reduce the validated baseline sizing unless `mpal` exposes a lower deterministic sizing target, preserve turnover, cash buffer, and max-new-position count, then validate the concrete override plan with `mpal portfolio validate`.
-   - If the override validates, present it as `agent_override` for user review and journal it. If it fails validation, keep the baseline or veto based on the validation errors and event risk.
+   - If the override validates, present it as `agent_override` for user review and record it in the same review finalization payload if the human accepts; do not start a separate journal row. If it fails validation, keep the baseline or veto based on the validation errors and event risk.
    - If no qualifying replacement exists, explicitly say why the baseline remains the best validated plan.
 
 7. Explain the baseline before giving the decision.
@@ -86,19 +86,23 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
    - Give an investor-readable rationale, not just a terse error string.
    - Validate any override or final executable plan with `mpal portfolio validate --plan <path-or-json> --portfolio <path> --universe <path> --config <path> --json`.
    - If using MCP, validate with `mpal_portfolio_validate`.
-   - During the agent review, start the durable journal with `mpal journal start --input <path-or-json> --json`.
+   - For normal strategy reviews, use the `journal_entry_id` returned by `mpal strategy run`; that command already starts the deterministic first-pass SQLite review row.
+   - Use `mpal journal start --input <path-or-json> --json` only for manually assembled or imported reviews that did not come from `mpal strategy run`.
+   - When auditing or finalizing human-entered fills, fetch stored executions first with `mpal portfolio transactions --limit <n> --json` or MCP `mpal_portfolio_transactions`. Use that transaction feed as the source of truth for recorded quantity, execution price, currency, transaction date, and transaction type instead of inferring fills from chat or portfolio weights.
    - After the human chooses the final action, finalize the same review with `mpal journal finalize --id <review-id> --input <path-or-json> --json`.
    - If using MCP, use `mpal_journal_start` and `mpal_journal_finalize`.
 
 ## Hybrid Trader / Quality-Swing Overlay
 
-Use this overlay when the chosen strategy is a MarketPal swing config, such as `portfolio_low_churn_swing_v1`, `engine_weekly_swing_v1`, `engine_quality_swing_rebuild_v1`, `engine_quality_value_reversion_v1`, or `portfolio_quality_value_reversion_v1`.
+Use this overlay when the chosen strategy is a MarketPal swing config, such as `best_weekly_swing_v1`, `best_monthly_swing_v1`, `portfolio_low_churn_swing_v1`, `engine_weekly_swing_v1`, `engine_quality_swing_rebuild_v1`, `engine_quality_value_reversion_v1`, or `portfolio_quality_value_reversion_v1`.
 
 - Treat momentum as the primary entry signal and profile-QVM as the holdability and survivability check.
 - Treat Markov transition metadata as context unless `mpal` has already consumed it into structured sizing output. The strategy's configured rebalance horizon is the primary horizon for executable sizing.
 - Treat daily Markov as an execution-timing risk flag only. A negative daily read can support caution or watchlist language, but it must not mechanically delay, reduce, or reject a validated trade unless `mpal` exposes that deterministic gate.
-- For routine daily or weekly full-portfolio reviews, prefer `portfolio_low_churn_swing_v1` when available. It allows up to four new positions per run while keeping turnover, starter size, minimum trade value, and hold thresholds conservative.
-- For weekly policy engine-sleeve reviews, prefer `engine_weekly_swing_v1` when available. It is sized for the MarketPal return-engine sleeve and should be the default strategy for engine swing-trade proposals.
+- For routine weekly swing reviews, prefer `best_weekly_swing_v1` when available. It is hosted-compatible, uses weekly Markov/raw Kelly evidence for sizing, and should be the default weekly swing-trade proposal strategy.
+- For routine monthly swing reviews, prefer `best_monthly_swing_v1` when available. It uses `portfolio.rebalance: monthly`, higher profile/QVM weight, lower turnover, and a smaller Kelly fraction.
+- For full-portfolio checks that are not clearly weekly or monthly, use `portfolio_low_churn_swing_v1` when available. It allows controlled incremental changes while keeping turnover, starter size, minimum trade value, and hold thresholds conservative.
+- For older weekly policy engine-sleeve reviews, `engine_weekly_swing_v1` remains available, but prefer `best_weekly_swing_v1` unless the user explicitly asks for the engine-specific legacy config.
 - Treat `engine_quality_swing_rebuild_v1` as a manual engine-sleeve rebuild config only. Do not use it for daily reviews unless the user explicitly asks for a higher-churn transition or cleanup plan.
 - Use `engine_quality_value_reversion_v1` or `portfolio_quality_value_reversion_v1` only when the user explicitly asks for quality/value mean reversion, underpriced quality, or pullback buying. These configs are deliberately less momentum-led and should not replace the default weekly swing run.
 - Remember that `max_new_positions_per_run` caps new buy positions only; sells, trims, reductions, and exits can make total trade tickets higher. If a daily low-churn baseline produces more than four total proposed trades, explicitly flag churn risk and prefer an agent veto or a smaller validated override unless the user asked for a transition rebalance.
@@ -198,7 +202,7 @@ When the user asks for a table, asks "what would you trade today?", asks to comp
 
 Default columns:
 
-| Ticker | isTrade | Score | Role | Sizing Horizon | Raw Kelly | Frac Kelly | Accepted Sizing % | Accepted Sizing Price | Read |
+| Ticker | isTrade | Score | Role | Sizing Horizon | Raw Kelly | Frac Kelly | Accepted Sizing % | Accepted Notional | Read |
 | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | --- |
 | `AAPL` | true | 0.912 | Starter | weekly | 12.00% | 3.00% capped | 1.50% | USD 1,500 | One-sentence investment read. |
 
@@ -207,7 +211,7 @@ Report rules:
 - Include all baseline proposed trades, up to five alternates, and any user-requested tickers in the same table.
 - Use `Role` values such as `Starter`, `Top-up`, `Alternate`, `Trim`, `Exit`, or `user-request`. If the user explicitly asks for a custom role label such as `user-request`, use that exact label.
 - `isTrade` is `true` only for the final validated executable plan or validated override being recommended. If a valid baseline is narrowed by an agent override, baseline trades excluded from the override must show `isTrade=false`.
-- `Accepted Sizing %` and `Accepted Sizing Price` must reflect the final validated plan only. Non-selected candidates show `0.00%` and `0`, even when they had positive Kelly but were not selected or did not validate.
+- `Accepted Sizing %` and `Accepted Notional` must reflect the final validated plan only. Non-selected candidates show `0.00%` and `0`, even when they had positive Kelly but were not selected or did not validate.
 - Show raw Kelly and fractional Kelly only when `mpal` exposes them. Raw Kelly may be negative. Label fractional Kelly with the structured `binding_constraint`, warning, or validation state from `mpal`, such as `kelly_target`, `kelly_max_fraction`, `max_single_trade_pct`, `fixed_fallback`, `unavailable`, or `low-confidence`.
 - The `Read` column should be a concise portfolio-manager note: model rank/score, profile-QVM support, event context, sizing/concentration issue, source-data issue, or why the ticker is not selected.
 - For requested tickers not in the baseline context pack, fetch `ticker events --tickers ...`; fetch `ticker profile --tickers ...` when the user asks for Markov/raw Kelly context or the latest strategy run lacks a needed Markov read. Join those reads with deterministic `signals` from the latest strategy run when available.
@@ -258,21 +262,24 @@ When evaluating whether a Kelly-enabled strategy version improves the system, re
 
 ## Journal Payload Shape
 
-Journal only accountable review decisions. Do not journal every strategy run, ticker event call, Markov call, DD fetch, or smoke test.
+Journal only accountable review decisions. Do not journal ticker event calls, profile calls, DD fetches, smoke tests, or broad exploration as separate reviews.
+
+Before finalizing actual human buys, sells, trims, or price corrections, run `mpal portfolio transactions --limit <n> --json` and reconcile the intended journal entries against the stored transaction feed. If the transaction feed disagrees with chat-recalled prices, quantities, or tickers, trust the stored transaction feed and call out the correction.
 
 Use the two-phase SQLite journal:
 
-1. `mpal journal start`: during the agent review, record the reviewed strategy config, universe, execution result, agent context, requested tickers, and per-ticker model/agent reads.
-2. `mpal journal finalize`: after the human decides, record the final human decision, final validation, and per-ticker human call.
+1. `mpal strategy run`: starts the deterministic first-pass review row and returns `journal_entry_id`.
+2. Agent review: use that `journal_entry_id` in the report and finalization payload. If the review was manually assembled instead of produced by `strategy run`, create the first row with `mpal journal start`.
+3. `mpal journal finalize`: after the human decides, record the final human decision, final validation, and per-ticker human call.
 
-Start payload shape:
+Manual start payload shape:
 
 ```json
 {
   "id": "review_20260511_engine",
   "as_of": "2026-05-11",
-  "strategy_id": "engine_weekly_swing_v1",
-  "strategy_config_text": "id: engine_weekly_swing_v1\n...",
+  "strategy_id": "best_weekly_swing_v1",
+  "strategy_config_text": "id: best_weekly_swing_v1\n...",
   "portfolio_scope": "engine",
   "universe_tickers": ["AAPL", "MSFT", "NVDA"],
   "user_requested_tickers": ["DOCN"],

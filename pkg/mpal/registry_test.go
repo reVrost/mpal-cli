@@ -35,6 +35,54 @@ func TestRootStrategiesMatchEmbeddedCopies(t *testing.T) {
 	}
 }
 
+func TestMarketPalTraderSkillCopiesMatch(t *testing.T) {
+	t.Parallel()
+
+	rootRaw, err := os.ReadFile(filepath.Join("..", "..", "skills", "marketpal-trader", "SKILL.md"))
+	require.NoError(t, err)
+
+	agentRaw, err := os.ReadFile(filepath.Join("..", "..", ".agents", "skills", "marketpal-trader", "SKILL.md"))
+	require.NoError(t, err)
+
+	require.Equal(t, string(rootRaw), string(agentRaw))
+}
+
+func TestBestSwingStrategiesAreApprovedAPICompatibleDefaults(t *testing.T) {
+	t.Parallel()
+
+	registry := StrategyRegistry{}
+	infos, err := registry.List()
+	require.NoError(t, err)
+
+	byID := make(map[string]StrategyInfo, len(infos))
+	for _, info := range infos {
+		byID[info.ID] = info
+	}
+
+	tests := []struct {
+		id      string
+		cadence string
+	}{
+		{id: "best_weekly_swing_v1", cadence: "weekly"},
+		{id: "best_monthly_swing_v1", cadence: "monthly"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.id, func(t *testing.T) {
+			t.Parallel()
+
+			info, ok := byID[tt.id]
+			require.True(t, ok)
+			require.True(t, info.Approved)
+			require.True(t, info.APICompatible)
+			require.True(t, info.Validation.Valid)
+			require.Equal(t, tt.cadence, info.Cadence)
+			require.Equal(t, ScoringContractV1, info.ScoringContract)
+			require.Equal(t, HostedStrategyAPIContract, info.APIContract)
+		})
+	}
+}
+
 func TestBuiltInStrategiesValidateAgainstSchema(t *testing.T) {
 	t.Parallel()
 
@@ -184,6 +232,16 @@ func TestBuiltInRiskProfilesPreserveExpandedSizing(t *testing.T) {
 	t.Parallel()
 
 	expected := map[string]RiskConfig{
+		"best_monthly_swing_v1.yaml": {
+			TurnoverBudgetPct:  0.05,
+			MaxSingleTradePct:  0.025,
+			StarterPositionPct: 0.012,
+		},
+		"best_weekly_swing_v1.yaml": {
+			TurnoverBudgetPct:  0.12,
+			MaxSingleTradePct:  0.035,
+			StarterPositionPct: 0.015,
+		},
 		"engine_quality_swing_rebuild_v1.yaml": {
 			TurnoverBudgetPct:  0.30,
 			MaxSingleTradePct:  0.04,
