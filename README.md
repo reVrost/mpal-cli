@@ -94,7 +94,7 @@ of names, a thematic comparison, or a source-backed investment memo. In the
 normal workflow, run the strategy review first, then deepen DD on the proposed
 trades, alternates, or user-requested tickers that still look relevant.
 
-Use `jeremy-style-equity-analyst` when you want a plainspoken, retail-investor
+Use `jeremy-lefebvre-equity-analyst` when you want a plainspoken, retail-investor
 stock view inspired by Financial Education-style YouTube analysis: high-conviction
 but source-backed business quality, growth, valuation, sentiment, catalysts, and
 bull/bear cases. It must not impersonate Jeremy or provide personal financial
@@ -227,7 +227,7 @@ model over time without logging every intermediate command.
 - `marketpal-trader`: the human portfolio-manager review process.
 - `portfolio-review`: whole-portfolio risk, sleeve, thesis, return-target,
   cleanup, and trim/exit policy review.
-- `jeremy-style-equity-analyst`: plainspoken retail stock analysis inspired by
+- `jeremy-lefebvre-equity-analyst`: plainspoken retail stock analysis inspired by
   Financial Education-style public analysis, without impersonation or advice.
 - `mpal portfolio validate`: checks whether the final concrete plan obeys the
   strategy and portfolio rules.

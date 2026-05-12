@@ -1,14 +1,15 @@
 # Public Source Catalog
 
 This catalog stores public reference links and paraphrased research notes for
-the `jeremy-style-equity-analyst` skill. It is intentionally not a transcript
+the `jeremy-lefebvre-equity-analyst` skill. It is intentionally not a transcript
 archive. Use it to remember source coverage, recurring analytical patterns, and
 style calibration.
 
 ## Use Rules
 
 - Do not copy full transcripts into repo memory.
-- Do not imitate Jeremy's identity, exact catchphrases, or private views.
+- Stay in the fictionalized retail-investor persona while avoiding exact
+  catchphrases, fabricated personal claims, or private-view claims.
 - Treat third-party summaries as style and research-direction evidence only.
 - For current stock analysis, fetch fresh market data, filings, earnings
   releases, transcripts, investor presentations, and credible news before
@@ -222,10 +223,11 @@ Notes:
 
 ## Source Gaps To Fill Later
 
-- Official YouTube channel pages can provide more examples, but use summaries
-  and public metadata rather than transcript dumps.
-- A future pass could add a small set of dated examples by category:
-  earnings reaction, sell decision, buy-the-dip decision, portfolio update,
-  dividend stock, turnaround, speculative growth, and mega-cap compounder.
+- A broader dated corpus now lives in `reference-corpus.md`, covering buy/add
+  decisions, sell/trim logic, earnings reactions, macro sentiment, dividend and
+  value education, portfolio discipline, high-growth comparisons, and criticism
+  sources.
+- Official YouTube channel pages can provide more examples later, but use
+  summaries and public metadata rather than transcript dumps.
 - If legally available official transcripts are found, store only short
   compliant excerpts and paraphrased analytical takeaways.

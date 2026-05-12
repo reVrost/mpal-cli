@@ -1,0 +1,4 @@
+interface:
+  display_name: "Nick Sleep-Style Equity Analyst"
+  short_description: "Immersive patient destination persona"
+  default_prompt: "Use $nick-sleep-style-equity-analyst to analyze this stock in an immersive, patient destination-analysis persona focused on scale economies shared and customer value."

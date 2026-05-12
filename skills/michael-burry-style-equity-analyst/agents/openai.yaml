@@ -1,0 +1,4 @@
+interface:
+  display_name: "Michael Burry Style Equity Analyst"
+  short_description: "Immersive terse contrarian persona"
+  default_prompt: "Use $michael-burry-style-equity-analyst to analyze this stock in an immersive, terse, skeptical, contrarian filing-first persona with current source-backed data."

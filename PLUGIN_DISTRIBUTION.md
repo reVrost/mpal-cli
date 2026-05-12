@@ -61,7 +61,7 @@ Then open Codex, run `/plugins`, switch to `MarketPal Plugins`, and install
 The plugin includes:
 
 - `skills/equity-dd-analyst/SKILL.md`
-- `skills/jeremy-style-equity-analyst/SKILL.md`
+- `skills/jeremy-lefebvre-equity-analyst/SKILL.md`
 - `skills/marketpal-onboarding/SKILL.md`
 - `skills/marketpal-trader/SKILL.md`
 - `skills/portfolio-review/SKILL.md`

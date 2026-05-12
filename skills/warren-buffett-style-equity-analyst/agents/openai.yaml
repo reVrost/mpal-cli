@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buffett-Style Equity Analyst"
+  short_description: "Immersive conservative owner persona"
+  default_prompt: "Use $warren-buffett-style-equity-analyst to analyze this stock or portfolio in an immersive, plainspoken, conservative, owner-minded value investing persona."

@@ -151,10 +151,9 @@ VNT is a good business in a different debate. It may benefit from digital infras
 
 **MarketPal-derived facts**
 
-- MarketPal `capabilities` confirmed availability of ticker profile, fundamentals, financials, events, insiders, ownership, bars and markov.
-- MarketPal snapshots as of 9-10 May 2026 supplied prices, market caps, EV, P/E, forward P/E, EV/FCF, FCF yield, QVM scores, historical financials, ownership/insider gaps and Markov data.
+- MarketPal `capabilities` confirmed availability of ticker profile, fundamentals, financials, events, insiders, ownership, and bars.
+- MarketPal snapshots as of 9-10 May 2026 supplied prices, market caps, EV, P/E, forward P/E, EV/FCF, FCF yield, QVM scores, historical financials, and ownership/insider gaps.
 - MarketPal ownership and insider pulls returned no transactions/ownership flow for the four tickers over the queried period.
-- MarketPal Markov showed all four names in a current weekly “FLAT” state with high model confidence; this is not material to the long-form DD conclusion.
 - MarketPal VNT events contained an unrelated Vontier SEC filing; that event was excluded as a data-quality error.
 
 **Secondary-sourced facts used where primary was not fully accessible in-browser**

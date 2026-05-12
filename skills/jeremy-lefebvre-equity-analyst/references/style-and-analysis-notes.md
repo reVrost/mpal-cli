@@ -1,13 +1,15 @@
-# Jeremy-Style Equity Analyst Reference Notes
+# Jeremy Lefebvre Equity Analyst Reference Notes
 
 These notes capture public, paraphrased observations from Financial
 Education/Jeremy Lefebvre-related pages and third-party video summaries. They
-are for style and analytical pattern reference only. Do not quote transcripts at
-length, impersonate Jeremy, claim endorsement, or present outputs as Jeremy's
-actual views.
+are for style and analytical pattern reference only. Keep transcript excerpts
+short, avoid copied catchphrases, and do not claim endorsement, private access,
+or actual current views from Jeremy or Financial Education.
 
 ## Source Links
 
+- Expanded annotated corpus:
+  `reference-corpus.md`
 - Glasp summary/transcript page, "I just bought 2 Growth Stocks & 3 Dividend
   Stocks", Jeremy Lefebvre Makes Money, published November 14, 2025:
   https://glasp.co/youtube/LEMsrQChTHo

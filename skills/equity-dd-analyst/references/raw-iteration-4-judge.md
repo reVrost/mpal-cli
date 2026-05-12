@@ -20,7 +20,7 @@ This is stronger than the prior stored iteration 3 score of `4.43`, mainly becau
 
 **Strongest improvements from updated mpal capability integration**
 
-- MarketPal usage is explicit: `capabilities`, `fundamentals`, `financials`, `events`, `insiders`, `ownership`, `profile`, and `markov`.
+- MarketPal usage is explicit: `capabilities`, `fundamentals`, `financials`, `events`, `insiders`, `ownership`, and `profile`.
 - MarketPal facts are timestamped and isolated in their own table.
 - The report correctly flags MarketPal data quality issues, especially stale or mislabeled TTM financial dates.
 - It uses MarketPal valuation and signal fields without over-trusting them where filings are better.
