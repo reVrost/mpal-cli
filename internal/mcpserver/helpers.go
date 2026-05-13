@@ -273,7 +273,7 @@ func parseDecisionGateMarkovContext(value string) []string {
 
 func mpalCapabilityCommands() []string {
 	return []string{
-		"capabilities", "strategy list", "strategy show", "strategy validate", "strategy run",
+		"tour", "capabilities", "strategy list", "strategy show", "strategy validate", "strategy run",
 		"ticker events", "ticker bars", "ticker profile", "ticker financials",
 		"ticker fundamentals", "ticker insiders", "ticker ownership",
 		"portfolio snapshot", "portfolio transactions", "portfolio validate", "watchlist get", "backtest run", "decision gate",

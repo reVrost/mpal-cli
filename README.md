@@ -1,10 +1,19 @@
 # mpal-cli
 
-`mpal` is a deterministic MarketPal CLI and MCP server for research review
-workflows. It returns structured JSON for MarketPal data, strategy runs,
-validation, backtests, and journals.
+`mpal` helps you review stock ideas and portfolio changes before you act. It
+turns MarketPal data, model output, rule checks, and your final decision into
+clear local records you can inspect later.
 
 It is not a broker, not an autonomous trader, and cannot place live orders.
+
+New here? Run the one-command tour:
+
+```sh
+mpal tour
+```
+
+It prints a short first-run checklist, explains the main terms in plain
+English, and points to the demo files in `examples/`.
 
 ## Boundary
 
@@ -20,6 +29,26 @@ Use with retail clients only if you are appropriately licensed or authorised
 and perform any required suitability, disclosure, and compliance checks outside
 this repository.
 
+## Positioning
+
+General chat agents are useful for brainstorming and plain-English research.
+`mpal-cli` is for the repeatable part of a portfolio review: gather the same
+MarketPal evidence, check the same rules, save the same decision record, and
+make it easy to look back later.
+
+For a retail investor, the useful question is simple: "What did the model say,
+what did I decide, and did my plan pass the rules?" `mpal-cli` keeps those
+answers in local artifacts instead of leaving them buried in chat history.
+
+| Dimension | General financial agent | `mpal-cli` |
+| --- | --- | --- |
+| Primary job | Ideas, explanations, and broad research | Repeatable review records |
+| Interaction style | Open-ended chat | Commands and saved artifacts |
+| Portfolio rules | Talks about guidelines | Checks cash, size, and risk rules on a concrete plan |
+| Evidence context | Summarizes sources | Packages MarketPal data, model output, and recent events |
+| Accountability | Usually a chat answer | Records model output, rule-check status, human decisions, and outcomes |
+| Agent integration | Depends on the agent environment | Ships CLI plus Codex/Claude plugin workflow support |
+
 ## Quick Start
 
 Install the CLI and MCP server:
@@ -33,6 +62,7 @@ export MPAL_API_KEY=mpal_...
 Smoke test:
 
 ```sh
+mpal tour
 mpal doctor --json
 mpal capabilities --json
 mpal strategy list --json
@@ -71,6 +101,22 @@ set up once
 -> journal what the model said vs what you did
 -> later journal the outcome
 ```
+
+In plain English:
+
+- A strategy review is the model's first pass at what looks interesting.
+- A decision gate is the evidence packet you read before accepting or changing
+  that first pass.
+- Validation checks whether your concrete plan fits the cash, position-size,
+  and risk rules.
+- A config hash is a fingerprint for the exact strategy settings used.
+- Journal finalization saves what you actually decided after reviewing the
+  model output.
+- A human overlay is your change to the model's first pass: for example, veto,
+  resize, delay, or substitute a trade.
+
+For the full professional workflow and field-level details, see
+[docs/MARKETPAL_REVIEW_WORKFLOW.md](docs/MARKETPAL_REVIEW_WORKFLOW.md).
 
 ### Which skill should I start with?
 
@@ -239,6 +285,11 @@ model over time without logging every intermediate command.
 The durable SQLite review-journal schema is documented in
 [docs/REVIEW_JOURNAL_SQLITE.md](docs/REVIEW_JOURNAL_SQLITE.md). It stores
 accountable review decisions, not every intermediate command or cache payload.
+Data provenance, timestamp semantics, config hashes, freshness fields, local
+storage, and API-backed fields are documented in
+[docs/DATA_PROVENANCE_AND_AUDIT.md](docs/DATA_PROVENANCE_AND_AUDIT.md).
+Model-risk and compliance boundaries are documented in
+[docs/MODEL_RISK_AND_COMPLIANCE.md](docs/MODEL_RISK_AND_COMPLIANCE.md).
 
 ### Contributing map
 
@@ -308,6 +359,8 @@ equivalent fully expanded configs therefore share the same hash.
 
 The full review workflow is in
 [docs/MARKETPAL_REVIEW_WORKFLOW.md](docs/MARKETPAL_REVIEW_WORKFLOW.md).
+For audit interpretation, also read
+[docs/DATA_PROVENANCE_AND_AUDIT.md](docs/DATA_PROVENANCE_AND_AUDIT.md).
 
 ## Core Commands
 
@@ -474,6 +527,11 @@ but must:
 - use `mpal journal start` only for manually assembled/imported reviews
 - finalize human decisions with `mpal journal finalize`
 - never execute live trades or call broker/order-placement tools
+
+Agents should write concise rationale fields, not private chain-of-thought.
+`mpal-cli` journals accountable review decisions and final validation status;
+it is not a transcript store for every intermediate prompt, tool call, or
+hidden reasoning trace.
 
 ## Development
 

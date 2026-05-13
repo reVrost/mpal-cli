@@ -25,6 +25,11 @@ treated as an order-routing system.
 
 The output is a review packet. It is not a trading instruction.
 
+For field-level audit interpretation, see
+[DATA_PROVENANCE_AND_AUDIT.md](DATA_PROVENANCE_AND_AUDIT.md). For model-risk
+and compliance boundaries, see
+[MODEL_RISK_AND_COMPLIANCE.md](MODEL_RISK_AND_COMPLIANCE.md).
+
 ## Example Review Cadences
 
 MarketPal supports several review cadences. These are workflow labels for
@@ -395,6 +400,11 @@ model trades at the next market open after the review timestamp using the
 strategy's fee/slippage assumptions. This keeps model-only versus human-overlay
 attribution auditable instead of anecdotal.
 
+The journal should capture concise decision rationale, not private
+chain-of-thought. Do not use journal fields as a dump for every intermediate
+prompt, tool call, source packet, private policy file, or hidden reasoning
+trace.
+
 ## Common Review Errors
 
 Avoid treating the tool output as stronger than it is. Common review errors
@@ -430,50 +440,50 @@ If any answer is unclear, the review packet should be treated as incomplete.
 - Narasimhan Jegadeesh and Sheridan Titman, "Returns to Buying Winners and
   Selling Losers: Implications for Stock Market Efficiency" (1993). Classic
   cross-sectional equity momentum study using 3- to 12-month formation and
-  holding horizons.  
+  holding horizons.
   https://moneytothemasses.com/wp-content/uploads/2014/08/Jegadeesh_Titman_1993.pdf
 
 - Tobias Moskowitz, Yao Hua Ooi, and Lasse Heje Pedersen, "Time Series
   Momentum" (2012). Documents trend persistence over 1- to 12-month horizons
-  across liquid futures markets.  
+  across liquid futures markets.
   https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2089463
 
 - Bruce Lehmann, "Fads, Martingales, and Market Efficiency" (1990). Important
-  evidence on short-horizon return reversal.  
+  evidence on short-horizon return reversal.
   https://finance.martinsewell.com/stylized-facts/dependence/Lehmann1990.pdf
 
 - Narasimhan Jegadeesh, "Evidence of Predictable Behavior of Security Returns"
   (1990). Early evidence on predictable return behavior and short-horizon
-  reversal.  
+  reversal.
   https://finance.martinsewell.com/stylized-facts/dependence/Jegadeesh1990.pdf
 
 - Louis K. C. Chan, Narasimhan Jegadeesh, and Josef Lakonishok, "Momentum
   Strategies" (1996). Links price momentum and earnings momentum to gradual
-  market reaction to information.  
+  market reaction to information.
   https://www.nber.org/papers/w5375
 
 - Pedro Barroso and Pedro Santa-Clara, "Momentum Has Its Moments" (2015).
   Shows that momentum risk varies over time and that risk management can
-  improve crash behavior.  
+  improve crash behavior.
   https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2041429
 
 - Kent Daniel and Tobias Moskowitz, "Momentum Crashes" (2014/2016). Explains
-  crash states in momentum strategies and dynamic risk-management implications.  
+  crash states in momentum strategies and dynamic risk-management implications.
   https://www.nber.org/system/files/working_papers/w20439/w20439.pdf
 
 - Kathryn Kaminski and Andrew Lo, "When Do Stop-Loss Rules Stop Losses?"
-  (2014). Provides a framework for when stop-loss rules add or subtract value.  
+  (2014). Provides a framework for when stop-loss rules add or subtract value.
   https://papers.ssrn.com/sol3/papers.cfm?abstract_id=968338
 
 - Yufeng Han, Guofu Zhou, and Yingzi Zhu, "Taming Momentum Crashes: A Simple
-  Stop-Loss Strategy" (2016). Studies stop-loss rules for momentum crash risk.  
+  Stop-Loss Strategy" (2016). Studies stop-loss rules for momentum crash risk.
   https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2407199
 
 - Terrance Odean, "Are Investors Reluctant to Realize Their Losses?" (1998).
-  Brokerage-account evidence on the disposition effect.  
+  Brokerage-account evidence on the disposition effect.
   https://papers.ssrn.com/sol3/papers.cfm?abstract_id=94142
 
 - Eugene Fama and Kenneth French, "Size, Value, and Momentum in International
   Stock Returns" (2012). Finds momentum across major international regions
-  except Japan.  
+  except Japan.
   https://ideas.repec.org/a/eee/jfinec/v105y2012i3p457-472.html

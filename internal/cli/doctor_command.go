@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,19 +16,28 @@ import (
 )
 
 type doctorResult struct {
-	Mode      string        `json:"mode"`
-	OK        bool          `json:"ok"`
-	Checks    []doctorCheck `json:"checks"`
-	Errors    []string      `json:"errors,omitempty"`
-	Warnings  []string      `json:"warnings,omitempty"`
-	NextSteps []string      `json:"next_steps,omitempty"`
+	Mode      string          `json:"mode"`
+	OK        bool            `json:"ok"`
+	Sections  []doctorSection `json:"sections"`
+	Checks    []doctorCheck   `json:"checks"`
+	Errors    []string        `json:"errors,omitempty"`
+	Warnings  []string        `json:"warnings,omitempty"`
+	NextSteps []string        `json:"next_steps,omitempty"`
 }
 
 type doctorCheck struct {
-	Name    string         `json:"name"`
-	Status  string         `json:"status"`
-	Message string         `json:"message"`
-	Details map[string]any `json:"details,omitempty"`
+	Category string         `json:"category"`
+	Name     string         `json:"name"`
+	Status   string         `json:"status"`
+	Message  string         `json:"message"`
+	Details  map[string]any `json:"details,omitempty"`
+}
+
+type doctorSection struct {
+	Name    string        `json:"name"`
+	Status  string        `json:"status"`
+	Checks  []doctorCheck `json:"checks"`
+	Summary string        `json:"summary,omitempty"`
 }
 
 func (a *app) doctorCommand(ctx context.Context) *cobra.Command {
@@ -37,8 +48,18 @@ func (a *app) doctorCommand(ctx context.Context) *cobra.Command {
 		Short: "Check local MarketPal setup",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result := a.runDoctor(ctx, skipAPI)
-			if err := writeJSON(a.out, result); err != nil {
+			jsonOut, err := cmd.Flags().GetBool("json")
+			if err != nil {
 				return err
+			}
+			if jsonOut {
+				if err := writeJSON(a.out, result); err != nil {
+					return err
+				}
+			} else {
+				if err := writeDoctorHuman(a.out, result); err != nil {
+					return err
+				}
 			}
 			if strict && !result.OK {
 				return errDoctorUnhealthy{}
@@ -57,14 +78,16 @@ func (a *app) runDoctor(ctx context.Context, skipAPI bool) doctorResult {
 		Mode: "doctor",
 		OK:   true,
 	}
-	result.addCheck(a.doctorPathCheck("mpal"))
-	result.addCheck(a.doctorPathCheck("mpal-mcp"))
-	result.addCheck(a.doctorAPIKeyCheck())
+	result.addCheck(a.doctorPathCheck("local_install", "mpal"))
 	result.addCheck(a.doctorBaseURLCheck())
+	result.addCheck(a.doctorMCPPluginCheck())
+	result.addCheck(a.doctorPathCheck("mcp_plugin_readiness", "mpal-mcp"))
+	result.addCheck(a.doctorAPIKeyCheck())
 	result.addCheck(a.doctorStrategyCheck())
 	result.addCheck(a.doctorJournalCheck())
 	result.addCheck(a.doctorPrivatePolicyCheck())
 	result.addCheck(a.doctorAPIReachabilityCheck(ctx, skipAPI))
+	result.Sections = doctorSections(result.Checks)
 	result.NextSteps = doctorNextSteps(result)
 	return result
 }
@@ -80,7 +103,7 @@ func (r *doctorResult) addCheck(check doctorCheck) {
 	}
 }
 
-func (a *app) doctorPathCheck(name string) doctorCheck {
+func (a *app) doctorPathCheck(category, name string) doctorCheck {
 	path, err := exec.LookPath(name)
 	if err != nil {
 		status := "warning"
@@ -89,31 +112,46 @@ func (a *app) doctorPathCheck(name string) doctorCheck {
 			message = "mpal is not on PATH; use go run ./cmd/mpal for development or install the CLI"
 		}
 		return doctorCheck{
-			Name:    name + "_path",
-			Status:  status,
-			Message: message,
+			Category: category,
+			Name:     name + "_path",
+			Status:   status,
+			Message:  message,
 		}
 	}
 	return doctorCheck{
-		Name:    name + "_path",
-		Status:  "ok",
-		Message: name + " found on PATH",
-		Details: map[string]any{"path": path},
+		Category: category,
+		Name:     name + "_path",
+		Status:   "ok",
+		Message:  name + " found on PATH",
+		Details:  map[string]any{"path": path},
 	}
 }
 
 func (a *app) doctorAPIKeyCheck() doctorCheck {
 	if firstNonEmpty(os.Getenv("MPAL_API_KEY"), os.Getenv("MPAL_API_KEYS")) == "" {
 		return doctorCheck{
-			Name:    "api_key",
-			Status:  "error",
-			Message: "MPAL_API_KEY is not set",
+			Category: "api_availability",
+			Name:     "api_key",
+			Status:   "warning",
+			Message:  "MPAL_API_KEY is not set; hosted API commands are unavailable, but local demo and validation commands still work",
+			Details: map[string]any{
+				"demo_mode_recommended": true,
+				"local_commands": []string{
+					"mpal doctor --skip-api",
+					"mpal capabilities",
+					"mpal strategy list",
+					"mpal strategy show --id engine_weekly_swing_v1",
+					"mpal strategy validate --config strategies/engine_weekly_swing_v1.yaml",
+					"mpal portfolio validate --plan examples/final_plan.json --portfolio examples/portfolio.json --universe examples/universe.json --config strategies/momentum_profile_v1.yaml",
+				},
+			},
 		}
 	}
 	return doctorCheck{
-		Name:    "api_key",
-		Status:  "ok",
-		Message: "MPAL_API_KEY is set",
+		Category: "api_availability",
+		Name:     "api_key",
+		Status:   "ok",
+		Message:  "MPAL_API_KEY is set",
 	}
 }
 
@@ -123,10 +161,52 @@ func (a *app) doctorBaseURLCheck() doctorCheck {
 		baseURL = "https://api.marketpal.ai"
 	}
 	return doctorCheck{
-		Name:    "base_url",
-		Status:  "ok",
-		Message: "MarketPal API base URL resolved",
-		Details: map[string]any{"base_url": baseURL},
+		Category: "local_install",
+		Name:     "base_url",
+		Status:   "ok",
+		Message:  "MarketPal API base URL resolved",
+		Details:  map[string]any{"base_url": baseURL},
+	}
+}
+
+func (a *app) doctorMCPPluginCheck() doctorCheck {
+	details := map[string]any{
+		"mcp_config":       ".mcp.json",
+		"codex_plugin":     ".codex-plugin/plugin.json",
+		"skills_directory": "skills",
+	}
+	missing := make([]string, 0)
+	for _, path := range []string{".mcp.json", ".codex-plugin/plugin.json", "skills"} {
+		if _, err := os.Stat(path); err != nil {
+			if os.IsNotExist(err) {
+				missing = append(missing, path)
+				continue
+			}
+			return doctorCheck{
+				Category: "mcp_plugin_readiness",
+				Name:     "mcp_plugin_files",
+				Status:   "error",
+				Message:  "MCP/plugin files cannot be inspected: " + err.Error(),
+				Details:  details,
+			}
+		}
+	}
+	if len(missing) > 0 {
+		details["missing"] = missing
+		return doctorCheck{
+			Category: "mcp_plugin_readiness",
+			Name:     "mcp_plugin_files",
+			Status:   "warning",
+			Message:  "MCP/plugin files are incomplete in the current directory",
+			Details:  details,
+		}
+	}
+	return doctorCheck{
+		Category: "mcp_plugin_readiness",
+		Name:     "mcp_plugin_files",
+		Status:   "ok",
+		Message:  "MCP/plugin files are present in the current directory",
+		Details:  details,
 	}
 }
 
@@ -134,9 +214,10 @@ func (a *app) doctorStrategyCheck() doctorCheck {
 	infos, err := a.registry.List()
 	if err != nil {
 		return doctorCheck{
-			Name:    "strategies",
-			Status:  "error",
-			Message: "strategy registry could not be read: " + err.Error(),
+			Category: "strategy_config_readiness",
+			Name:     "strategies",
+			Status:   "error",
+			Message:  "strategy registry could not be read: " + err.Error(),
 		}
 	}
 	approved := 0
@@ -171,9 +252,10 @@ func (a *app) doctorStrategyCheck() doctorCheck {
 		message = "strategy registry loaded with setup warnings"
 	}
 	return doctorCheck{
-		Name:    "strategies",
-		Status:  status,
-		Message: message,
+		Category: "strategy_config_readiness",
+		Name:     "strategies",
+		Status:   status,
+		Message:  message,
 		Details: map[string]any{
 			"count":          len(infos),
 			"approved":       approved,
@@ -217,10 +299,11 @@ func (a *app) doctorJournalCheck() doctorCheck {
 		}
 	}
 	return doctorCheck{
-		Name:    "review_journal",
-		Status:  status,
-		Message: message,
-		Details: details,
+		Category: "journal_database_readiness",
+		Name:     "review_journal",
+		Status:   status,
+		Message:  message,
+		Details:  details,
 	}
 }
 
@@ -228,64 +311,144 @@ func (a *app) doctorPrivatePolicyCheck() doctorCheck {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return doctorCheck{
-			Name:    "private_policy",
-			Status:  "warning",
-			Message: "home directory could not be resolved for private portfolio policy",
+			Category: "local_install",
+			Name:     "private_policy",
+			Status:   "warning",
+			Message:  "home directory could not be resolved for private portfolio policy",
 		}
 	}
 	path := filepath.Join(home, ".marketpal", "portfolio-policy.md")
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			return doctorCheck{
-				Name:    "private_policy",
-				Status:  "warning",
-				Message: "optional private portfolio policy was not found",
-				Details: map[string]any{"path": path},
+				Category: "local_install",
+				Name:     "private_policy",
+				Status:   "warning",
+				Message:  "optional private portfolio policy was not found",
+				Details:  map[string]any{"path": path},
 			}
 		}
 		return doctorCheck{
-			Name:    "private_policy",
-			Status:  "error",
-			Message: "private portfolio policy path cannot be inspected: " + err.Error(),
-			Details: map[string]any{"path": path},
+			Category: "local_install",
+			Name:     "private_policy",
+			Status:   "error",
+			Message:  "private portfolio policy path cannot be inspected: " + err.Error(),
+			Details:  map[string]any{"path": path},
 		}
 	}
 	return doctorCheck{
-		Name:    "private_policy",
-		Status:  "ok",
-		Message: "private portfolio policy found",
-		Details: map[string]any{"path": path},
+		Category: "local_install",
+		Name:     "private_policy",
+		Status:   "ok",
+		Message:  "private portfolio policy found",
+		Details:  map[string]any{"path": path},
 	}
 }
 
 func (a *app) doctorAPIReachabilityCheck(ctx context.Context, skipAPI bool) doctorCheck {
 	if skipAPI {
 		return doctorCheck{
-			Name:    "api_reachability",
-			Status:  "skipped",
-			Message: "API reachability check skipped",
+			Category: "api_availability",
+			Name:     "api_reachability",
+			Status:   "skipped",
+			Message:  "API reachability check skipped",
 		}
 	}
 	if firstNonEmpty(os.Getenv("MPAL_API_KEY"), os.Getenv("MPAL_API_KEYS")) == "" {
 		return doctorCheck{
-			Name:    "api_reachability",
-			Status:  "skipped",
-			Message: "API reachability check skipped because MPAL_API_KEY is not set",
+			Category: "api_availability",
+			Name:     "api_reachability",
+			Status:   "skipped",
+			Message:  "API reachability check skipped because MPAL_API_KEY is not set",
 		}
 	}
 	checkCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	if _, err := a.client.GetWatchlist(checkCtx, &marketpalv1.MpalWatchlistRequest{}); err != nil {
 		return doctorCheck{
-			Name:    "api_reachability",
-			Status:  "error",
-			Message: "MarketPal API check failed: " + err.Error(),
+			Category: "api_availability",
+			Name:     "api_reachability",
+			Status:   "error",
+			Message:  "MarketPal API check failed: " + err.Error(),
 		}
 	}
 	return doctorCheck{
-		Name:    "api_reachability",
-		Status:  "ok",
-		Message: "MarketPal API accepted a read-only watchlist request",
+		Category: "api_availability",
+		Name:     "api_reachability",
+		Status:   "ok",
+		Message:  "MarketPal API accepted a read-only watchlist request",
+	}
+}
+
+func doctorSections(checks []doctorCheck) []doctorSection {
+	order := []string{
+		"local_install",
+		"api_availability",
+		"mcp_plugin_readiness",
+		"journal_database_readiness",
+		"strategy_config_readiness",
+	}
+	labels := map[string]string{
+		"local_install":              "local install health",
+		"api_availability":           "API availability",
+		"mcp_plugin_readiness":       "MCP/plugin readiness",
+		"journal_database_readiness": "journal database readiness",
+		"strategy_config_readiness":  "strategy config readiness",
+	}
+	grouped := make(map[string][]doctorCheck, len(order))
+	for _, check := range checks {
+		grouped[check.Category] = append(grouped[check.Category], check)
+	}
+	sections := make([]doctorSection, 0, len(order))
+	for _, category := range order {
+		sectionChecks := grouped[category]
+		section := doctorSection{
+			Name:   labels[category],
+			Status: doctorAggregateStatus(sectionChecks),
+			Checks: sectionChecks,
+		}
+		section.Summary = doctorSectionSummary(section)
+		sections = append(sections, section)
+	}
+	return sections
+}
+
+func doctorAggregateStatus(checks []doctorCheck) string {
+	if len(checks) == 0 {
+		return "skipped"
+	}
+	status := "ok"
+	for _, check := range checks {
+		switch check.Status {
+		case "error":
+			return "error"
+		case "warning":
+			if status != "error" {
+				status = "warning"
+			}
+		case "skipped":
+			if status == "ok" {
+				status = "skipped"
+			}
+		case "ok":
+			if status == "skipped" {
+				status = "ok"
+			}
+		}
+	}
+	return status
+}
+
+func doctorSectionSummary(section doctorSection) string {
+	switch section.Status {
+	case "ok":
+		return section.Name + " is ready"
+	case "warning":
+		return section.Name + " has non-blocking setup warnings"
+	case "error":
+		return section.Name + " has setup errors"
+	default:
+		return section.Name + " was skipped"
 	}
 }
 
@@ -294,8 +457,9 @@ func doctorNextSteps(result doctorResult) []string {
 	for _, check := range result.Checks {
 		switch check.Name {
 		case "api_key":
-			if check.Status == "error" {
-				steps = append(steps, "Set MPAL_API_KEY in the shell or app process that runs mpal.")
+			if check.Status == "warning" {
+				steps = append(steps, "Start in demo/local mode with mpal doctor --skip-api, mpal capabilities, and mpal strategy list.")
+				steps = append(steps, "Set MPAL_API_KEY in the shell or app process when you are ready to use hosted portfolio, ticker, watchlist, backtest, or strategy API commands.")
 			}
 		case "mpal_path":
 			if check.Status == "warning" {
@@ -304,6 +468,10 @@ func doctorNextSteps(result doctorResult) []string {
 		case "mpal-mcp_path":
 			if check.Status == "warning" {
 				steps = append(steps, "Install the MCP server with go install github.com/revrost/mpal-cli/cmd/mpal-mcp@latest if using agents.")
+			}
+		case "mcp_plugin_files":
+			if check.Status == "warning" {
+				steps = append(steps, "Run mpal doctor from the plugin/repo root or reinstall the plugin package so .mcp.json, .codex-plugin/plugin.json, and skills/ are present.")
 			}
 		case "private_policy":
 			if check.Status == "warning" {
@@ -319,6 +487,39 @@ func doctorNextSteps(result doctorResult) []string {
 		steps = append(steps, "Run the MarketPal trader skill for a weekly or monthly review.")
 	}
 	return steps
+}
+
+func writeDoctorHuman(w io.Writer, result doctorResult) error {
+	status := "OK"
+	if !result.OK {
+		status = "ERROR"
+	} else if len(result.Warnings) > 0 {
+		status = "WARN"
+	}
+	if _, err := fmt.Fprintf(w, "MarketPal doctor: %s\n\n", status); err != nil {
+		return err
+	}
+	for _, section := range result.Sections {
+		if _, err := fmt.Fprintf(w, "%s: %s\n", section.Name, section.Status); err != nil {
+			return err
+		}
+		for _, check := range section.Checks {
+			if _, err := fmt.Fprintf(w, "  - %s: %s\n", check.Name, check.Message); err != nil {
+				return err
+			}
+		}
+	}
+	if len(result.NextSteps) > 0 {
+		if _, err := fmt.Fprintln(w, "\nNext steps:"); err != nil {
+			return err
+		}
+		for _, step := range result.NextSteps {
+			if _, err := fmt.Fprintf(w, "  - %s\n", step); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 type errDoctorUnhealthy struct{}

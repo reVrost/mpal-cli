@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,6 +24,7 @@ type fakeMpalAPI struct {
 	tickerProfilePayload string
 	fundamentalsPayload  string
 	transactionsPayload  string
+	watchlistErr         error
 }
 
 func (f fakeMpalAPI) GetTickerEvents(context.Context, *marketpalv1.MpalTickerEventsRequest) (string, error) {
@@ -65,6 +67,9 @@ func (f fakeMpalAPI) GetPortfolioTransactions(context.Context, *marketpalv1.Mpal
 	return `{}`, nil
 }
 func (f fakeMpalAPI) GetWatchlist(context.Context, *marketpalv1.MpalWatchlistRequest) (string, error) {
+	if f.watchlistErr != nil {
+		return "", f.watchlistErr
+	}
 	return `{}`, nil
 }
 func (f fakeMpalAPI) RunStrategy(context.Context, *marketpalv1.MpalStrategyRunRequest) (string, error) {
@@ -106,6 +111,7 @@ func TestCapabilitiesReturnsValidJSON(t *testing.T) {
 	require.Equal(t, false, payload["live_trade_execution"])
 	commands, ok := payload["commands"].([]any)
 	require.True(t, ok)
+	require.Contains(t, commands, "tour")
 	require.Contains(t, commands, "doctor")
 	require.Contains(t, commands, "ticker events")
 	require.Contains(t, commands, "ticker bars")
@@ -136,6 +142,28 @@ func TestCapabilitiesReturnsValidJSON(t *testing.T) {
 	require.NotContains(t, commands, "admin portfolios compare")
 }
 
+func TestTourPrintsRetailChecklistAndDemoArtifacts(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	code := Main([]string{"tour"}, &out, &bytes.Buffer{})
+	require.Equal(t, 0, code)
+
+	text := out.String()
+	require.Contains(t, text, "MarketPal one-command tour")
+	require.Contains(t, text, "First-run checklist")
+	require.Contains(t, text, "mpal doctor --json")
+	require.Contains(t, text, "examples/portfolio.json")
+	require.Contains(t, text, "examples/universe.json")
+	require.Contains(t, text, "examples/final_plan.json")
+	require.Contains(t, text, "examples/final_action.json")
+	require.Contains(t, text, "decision gate: a final evidence packet")
+	require.Contains(t, text, "validation: a rule check")
+	require.Contains(t, text, "config hash: a fingerprint")
+	require.Contains(t, text, "journal finalization: saving")
+	require.Contains(t, text, "human overlay: your reviewed change")
+}
+
 func TestPortfolioTransactionsCommandPassesLimit(t *testing.T) {
 	t.Parallel()
 
@@ -159,15 +187,14 @@ func TestPortfolioTransactionsCommandPassesLimit(t *testing.T) {
 func TestDoctorReportsMissingAPIKey(t *testing.T) {
 	t.Setenv("MPAL_API_KEY", "")
 	t.Setenv("MPAL_API_KEYS", "")
-	t.Setenv("MPAL_JOURNAL", filepath.Join(t.TempDir(), "journal.jsonl"))
 
 	var out bytes.Buffer
 	a := &app{
-		out:      &out,
-		errOut:   &bytes.Buffer{},
-		registry: mpal.DefaultStrategyRegistry(),
-		journal:  mpal.FileJournal{Path: os.Getenv("MPAL_JOURNAL")},
-		client:   fakeMpalAPI{},
+		out:               &out,
+		errOut:            &bytes.Buffer{},
+		registry:          mpal.DefaultStrategyRegistry(),
+		reviewJournalPath: filepath.Join(t.TempDir(), "mpal.db"),
+		client:            fakeMpalAPI{},
 	}
 	cmd := a.rootCommand(context.Background())
 	cmd.SetArgs([]string{"doctor", "--skip-api", "--json"})
@@ -177,29 +204,128 @@ func TestDoctorReportsMissingAPIKey(t *testing.T) {
 	var payload map[string]any
 	require.NoError(t, json.Unmarshal(out.Bytes(), &payload))
 	require.Equal(t, "doctor", payload["mode"])
-	require.Equal(t, false, payload["ok"])
-	require.NotEmpty(t, payload["errors"])
+	require.Equal(t, true, payload["ok"])
+	require.Nil(t, payload["errors"])
 	require.NotEmpty(t, payload["next_steps"])
+	require.Contains(t, out.String(), `"demo_mode_recommended": true`)
+	require.Contains(t, out.String(), "mpal strategy list")
+	requireDoctorSection(t, payload, "API availability", "warning")
+	requireDoctorSectionPresent(t, payload, "local install health")
+	requireDoctorSectionPresent(t, payload, "MCP/plugin readiness")
+	requireDoctorSection(t, payload, "journal database readiness", "ok")
+	requireDoctorSection(t, payload, "strategy config readiness", "ok")
 }
 
-func TestDoctorStrictFailsWhenUnhealthy(t *testing.T) {
-	t.Setenv("MPAL_API_KEY", "")
+func TestDoctorReportsInvalidAPIKeyFailure(t *testing.T) {
+	t.Setenv("MPAL_API_KEY", "mpal_invalid")
 	t.Setenv("MPAL_API_KEYS", "")
-	t.Setenv("MPAL_JOURNAL", filepath.Join(t.TempDir(), "journal.jsonl"))
 
 	var out bytes.Buffer
 	a := &app{
-		out:      &out,
-		errOut:   &bytes.Buffer{},
-		registry: mpal.DefaultStrategyRegistry(),
-		journal:  mpal.FileJournal{Path: os.Getenv("MPAL_JOURNAL")},
-		client:   fakeMpalAPI{},
+		out:               &out,
+		errOut:            &bytes.Buffer{},
+		registry:          mpal.DefaultStrategyRegistry(),
+		reviewJournalPath: filepath.Join(t.TempDir(), "mpal.db"),
+		client:            fakeMpalAPI{watchlistErr: errors.New("unauthenticated")},
 	}
 	cmd := a.rootCommand(context.Background())
-	cmd.SetArgs([]string{"doctor", "--skip-api", "--strict", "--json"})
+	cmd.SetArgs([]string{"doctor", "--json"})
+
+	require.NoError(t, cmd.Execute())
+	require.Contains(t, out.String(), `"ok": false`)
+	require.Contains(t, out.String(), "MarketPal API check failed: unauthenticated")
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(out.Bytes(), &payload))
+	requireDoctorSection(t, payload, "API availability", "error")
+}
+
+func TestDoctorStrictFailsWhenUnhealthy(t *testing.T) {
+	t.Setenv("MPAL_API_KEY", "mpal_invalid")
+	t.Setenv("MPAL_API_KEYS", "")
+
+	var out bytes.Buffer
+	a := &app{
+		out:               &out,
+		errOut:            &bytes.Buffer{},
+		registry:          mpal.DefaultStrategyRegistry(),
+		reviewJournalPath: filepath.Join(t.TempDir(), "mpal.db"),
+		client:            fakeMpalAPI{watchlistErr: errors.New("unauthenticated")},
+	}
+	cmd := a.rootCommand(context.Background())
+	cmd.SetArgs([]string{"doctor", "--strict", "--json"})
 
 	require.Error(t, cmd.Execute())
 	require.Contains(t, out.String(), `"ok": false`)
+}
+
+func TestDoctorHealthyLocalOnlyState(t *testing.T) {
+	t.Setenv("MPAL_API_KEY", "")
+	t.Setenv("MPAL_API_KEYS", "")
+
+	var out bytes.Buffer
+	a := &app{
+		out:               &out,
+		errOut:            &bytes.Buffer{},
+		registry:          mpal.DefaultStrategyRegistry(),
+		reviewJournalPath: filepath.Join(t.TempDir(), "mpal.db"),
+		client:            fakeMpalAPI{},
+	}
+	cmd := a.rootCommand(context.Background())
+	cmd.SetArgs([]string{"doctor", "--skip-api", "--json"})
+
+	require.NoError(t, cmd.Execute())
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(out.Bytes(), &payload))
+	require.Equal(t, true, payload["ok"])
+	requireDoctorSection(t, payload, "journal database readiness", "ok")
+	requireDoctorSection(t, payload, "strategy config readiness", "ok")
+	require.Contains(t, out.String(), `"local_commands"`)
+}
+
+func TestDoctorHumanOutput(t *testing.T) {
+	t.Setenv("MPAL_API_KEY", "")
+	t.Setenv("MPAL_API_KEYS", "")
+
+	var out bytes.Buffer
+	a := &app{
+		out:               &out,
+		errOut:            &bytes.Buffer{},
+		registry:          mpal.DefaultStrategyRegistry(),
+		reviewJournalPath: filepath.Join(t.TempDir(), "mpal.db"),
+		client:            fakeMpalAPI{},
+	}
+	cmd := a.rootCommand(context.Background())
+	cmd.SetArgs([]string{"doctor", "--skip-api"})
+
+	require.NoError(t, cmd.Execute())
+	require.Contains(t, out.String(), "MarketPal doctor: WARN")
+	require.Contains(t, out.String(), "local install health:")
+	require.Contains(t, out.String(), "API availability:")
+	require.Contains(t, out.String(), "Next steps:")
+}
+
+func requireDoctorSection(t *testing.T, payload map[string]any, name, status string) {
+	t.Helper()
+	section := requireDoctorSectionPresent(t, payload, name)
+	require.Equal(t, status, section["status"])
+}
+
+func requireDoctorSectionPresent(t *testing.T, payload map[string]any, name string) map[string]any {
+	t.Helper()
+	sections, ok := payload["sections"].([]any)
+	require.True(t, ok)
+	for _, rawSection := range sections {
+		section, ok := rawSection.(map[string]any)
+		require.True(t, ok)
+		if section["name"] == name {
+			require.NotEmpty(t, section["checks"])
+			return section
+		}
+	}
+	require.Failf(t, "missing doctor section", "section %q not found", name)
+	return nil
 }
 
 func TestTickerFundamentalsCommandPassesThroughCompactMetrics(t *testing.T) {

@@ -1,7 +1,8 @@
 # SQLite Review Journal
 
 The SQLite review journal is a durable decision ledger. It is not a cache and
-should not store every intermediate `mpal` command.
+should not store every intermediate `mpal` command, raw source packet, private
+policy file, or private chain-of-thought.
 
 Every `mpal strategy run` now stores the deterministic model packet as the
 first-pass review row and returns `journal_entry_id` in the strategy output:
@@ -59,7 +60,8 @@ Keep the SQLite journal focused on durable decisions:
 - one row per ticker showing model bucket, agent decision, and human decision.
 
 Do not store API keys, broker credentials, private policy file contents, or raw
-API/cache payloads.
+API/cache payloads. Prompt and rationale fields should contain concise
+decision context, not hidden model reasoning transcripts.
 
 ## What Stays Outside
 
@@ -77,3 +79,7 @@ into a real review:
 
 HTML reports should remain deterministic local files. SQLite stores only the
 report path for the reviewed packet after `mpal report <trade_review_id>`.
+
+For the broader provenance model, including timestamp meanings, config hashes,
+freshness fields, deterministic versus API-derived fields, and local storage
+boundaries, see [DATA_PROVENANCE_AND_AUDIT.md](DATA_PROVENANCE_AND_AUDIT.md).

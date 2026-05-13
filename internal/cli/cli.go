@@ -66,6 +66,7 @@ func (a *app) rootCommand(ctx context.Context) *cobra.Command {
 		},
 	}
 	cmd.AddCommand(
+		a.tourCommand(),
 		a.doctorCommand(ctx),
 		a.capabilitiesCommand(),
 		a.strategyCommand(ctx),
@@ -77,6 +78,45 @@ func (a *app) rootCommand(ctx context.Context) *cobra.Command {
 		a.reportCommand(ctx),
 		a.journalCommand(ctx),
 	)
+	return cmd
+}
+
+func (a *app) tourCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "tour",
+		Short: "Print a first-run checklist for retail investors",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			_, err := fmt.Fprint(a.out, `MarketPal one-command tour
+
+Use mpal to review a portfolio idea before you act. It does not place trades.
+
+First-run checklist:
+  1. Check setup:              mpal doctor --json
+  2. See sample files:         examples/portfolio.json, examples/universe.json, examples/final_plan.json
+  3. Validate a sample plan:   mpal portfolio validate --plan examples/final_plan.json --portfolio examples/portfolio.json --universe examples/universe.json --config strategies/momentum_profile_v1.yaml --json
+  4. Review available models:  mpal strategy list --json
+  5. Save your final decision: mpal journal finalize --id review_... --input examples/final_action.json --json
+
+Plain-English terms:
+  decision gate: a final evidence packet that shows what the model liked, rejected, and why.
+  validation: a rule check that asks whether a concrete plan fits cash, size, and risk limits.
+  config hash: a fingerprint for the exact strategy settings used in a review.
+  journal finalization: saving what you actually decided after reading the model output.
+  human overlay: your reviewed change to the model plan, such as vetoing, resizing, or delaying.
+
+Demo artifacts:
+  examples/README.md explains the sample files.
+  examples/portfolio.json is a small sample portfolio.
+  examples/universe.json is a sample stock list.
+  examples/final_plan.json is a sample final plan you can validate locally.
+  examples/final_action.json is a sample journal-finalization payload.
+
+Next step:
+  Open README.md for the friendly workflow, or docs/MARKETPAL_REVIEW_WORKFLOW.md for the full professional workflow.
+`)
+			return err
+		},
+	}
 	return cmd
 }
 
@@ -664,7 +704,7 @@ func mpalCapabilityCommands() []string {
 		"ticker events", "ticker bars", "ticker profile", "ticker financials",
 		"ticker fundamentals", "ticker insiders", "ticker ownership",
 		"portfolio snapshot", "portfolio transactions", "portfolio validate", "watchlist get", "backtest run", "decision gate",
-		"report", "journal start", "journal finalize", "journal list", "journal get",
+		"report", "journal start", "journal finalize", "journal list", "journal get", "tour",
 	}
 }
 

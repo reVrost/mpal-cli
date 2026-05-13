@@ -101,6 +101,7 @@ func TestCapabilitiesToolReturnsNoLiveTrading(t *testing.T) {
 
 	payload := result.StructuredContent.(map[string]any)
 	require.Equal(t, false, payload["live_trade_execution"])
+	require.Contains(t, payload["commands"], "tour")
 	require.Contains(t, payload["mcp_tools"], "mpal_portfolio_transactions")
 	require.Contains(t, payload["mcp_tools"], "mpal_portfolio_validate")
 	require.Contains(t, payload["mcp_tools"], "mpal_decision_gate")

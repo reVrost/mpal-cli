@@ -22,6 +22,8 @@ runs, portfolio validation, and backtests.
 `config_hash` is a SHA-256 hash of the canonical expanded strategy JSON. The
 raw YAML layout is not part of the hash, so a slim built-in config using
 `defaults: swing_v1` hashes the same as an equivalent fully expanded config.
+The emitted hash algorithm label is
+`sha256:canonical-expanded-strategy-json-v1`.
 
 ## Visible Knobs
 
