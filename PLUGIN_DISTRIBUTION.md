@@ -1,6 +1,6 @@
-# MarketPal Agent Distribution
+# Marketpal Agent Distribution
 
-MarketPal should be distributed as an MCP server first, then wrapped for each
+Marketpal should be distributed as an MCP server first, then wrapped for each
 agent client. MCP is the shared capability layer for Claude Code, Claude
 Desktop, Codex, Cursor, and other clients.
 
@@ -55,7 +55,7 @@ The repo marketplace lets Codex users install the plugin from this repository:
 codex plugin marketplace add revrost/mpal-cli --ref main
 ```
 
-Then open Codex, run `/plugins`, switch to `MarketPal Plugins`, and install
+Then open Codex, run `/plugins`, switch to `Marketpal Plugins`, and install
 `marketpal`.
 
 The plugin includes:

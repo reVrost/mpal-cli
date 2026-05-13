@@ -23,7 +23,7 @@ There is no `mpal` CLI or MCP tool that executes live trades.
 
 ## Model Risk
 
-MarketPal scores, strategy output, Markov reads, raw Kelly fields, event
+Marketpal scores, strategy output, Markov reads, raw Kelly fields, event
 summaries, and agent explanations can be wrong, stale, incomplete, or
 mis-scoped. Common model-risk cases include:
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/revrost/mpal-cli/schemas/strategy.schema.json",
-  "title": "MarketPal Strategy Config",
+  "title": "Marketpal Strategy Config",
   "description": "YAML strategy config for mpal-cli. Built-in strategies should use a defaults profile plus visible scoring and sizing knobs. Advanced full configs may still specify event guardrails, long-only behavior, unscored-holding protection, and backtest assumptions explicitly.",
   "type": "object",
   "additionalProperties": false,

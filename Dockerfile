@@ -11,7 +11,7 @@ FROM alpine:3.22
 
 RUN apk add --no-cache ca-certificates
 LABEL org.opencontainers.image.source="https://github.com/revrost/mpal-cli"
-LABEL org.opencontainers.image.description="MarketPal MCP capability server"
+LABEL org.opencontainers.image.description="Marketpal MCP capability server"
 LABEL io.modelcontextprotocol.server.name="io.github.revrost/mpal"
 
 COPY --from=build /out/mpal-mcp /usr/local/bin/mpal-mcp

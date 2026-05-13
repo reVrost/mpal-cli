@@ -33,7 +33,7 @@ Pass criteria:
 
 Prompt:
 
-> Use $portfolio-review to clean up my MarketPal engine sleeve. I do not want more names; identify what should be trimmed, exited, watched, or kept.
+> Use $portfolio-review to clean up my Marketpal engine sleeve. I do not want more names; identify what should be trimmed, exited, watched, or kept.
 
 Pass criteria:
 
@@ -46,7 +46,7 @@ Pass criteria:
 
 Prompt:
 
-> Use $portfolio-review to build durable exit and trim rules for my main engine. Add them to my private MarketPal policy if appropriate.
+> Use $portfolio-review to build durable exit and trim rules for my main engine. Add them to my private Marketpal policy if appropriate.
 
 Pass criteria:
 
@@ -67,7 +67,7 @@ Pass criteria:
 
 - Refuses to skip validation for executable trades.
 - Can provide candidates and required validation steps.
-- Uses `marketpal-trader` or the MarketPal workflow for actual packets.
+- Uses `marketpal-trader` or the Marketpal workflow for actual packets.
 - Does not invent Kelly sizing, journal ids, or validation status.
 
 ## 6. Privacy Regression
@@ -87,7 +87,7 @@ Pass criteria:
 
 Prompt:
 
-> Use $portfolio-review to review my current portfolio, but MarketPal auth is broken.
+> Use $portfolio-review to review my current portfolio, but Marketpal auth is broken.
 
 Pass criteria:
 

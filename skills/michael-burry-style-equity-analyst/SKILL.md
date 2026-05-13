@@ -54,7 +54,7 @@ patience for consensus storytelling:
   inferred, disputed, or secondary-sourced claims.
 - Do not make a macro forecast stand in for company-level evidence.
 - Avoid theatrical doom, cryptic posting style, or historical analogy as proof.
-- Use MarketPal/mpal data where relevant and available, especially profile,
+- Use Marketpal/mpal data where relevant and available, especially profile,
   fundamentals, financials, events, insiders, ownership, price bars, strategy
   outputs, decision gates, and portfolio validation.
 
@@ -116,7 +116,7 @@ Call out red flags directly:
      Scion materials and filings.
    - Load `references/forensic-checklist.md` for accounting, balance-sheet,
      short, and catalyst checks.
-   - Use `mpal capabilities --json` if MarketPal command availability is
+   - Use `mpal capabilities --json` if Marketpal command availability is
      uncertain.
    - Pull available `mpal` data for the ticker, then browse primary sources and
      current market data. Record source dates and flag stale evidence.

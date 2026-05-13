@@ -1,6 +1,6 @@
 ---
 name: equity-dd-analyst
-description: Use when a user asks for professional public-equity due diligence, senior stock analyst style stock comparisons, sector screens, data-center or infrastructure equity DD, investment memo drafts, or a detailed source-backed analysis with a simple conclusion. Use current sources, prefer MarketPal/mpal data where available, and do not provide personal financial advice.
+description: Use when a user asks for professional public-equity due diligence, senior stock analyst style stock comparisons, sector screens, data-center or infrastructure equity DD, investment memo drafts, or a detailed source-backed analysis with a simple conclusion. Use current sources, prefer Marketpal/mpal data where available, and do not provide personal financial advice.
 ---
 
 # Equity DD Analyst
@@ -10,7 +10,7 @@ Produce professional public-equity due diligence with a simple, decision-useful 
 ## Hard Rules
 
 - Always browse or use current data sources for live company facts, prices, financials, filings, news, and valuation. Do not rely on memory for current market facts.
-- Prefer `mpal` first for available MarketPal data: `ticker profile` including Markov/raw Kelly evidence when available, `ticker fundamentals`, `ticker financials`, `ticker events`, `ticker insiders`, `ticker ownership`, `ticker bars`, `strategy list/show` when a MarketPal signal context is relevant, and `capabilities` to confirm tool availability.
+- Prefer `mpal` first for available Marketpal data: `ticker profile` including Markov/raw Kelly evidence when available, `ticker fundamentals`, `ticker financials`, `ticker events`, `ticker insiders`, `ticker ownership`, `ticker bars`, `strategy list/show` when a Marketpal signal context is relevant, and `capabilities` to confirm tool availability.
 - Use primary sources first: exchange announcements, annual/interim reports, investor presentations, transcripts, company filings, debt documents, and official company sites. Use media and broker-like summaries only as secondary evidence.
 - Do not use a secondary source for a key claim until you have attempted to find the primary filing or company release. If the primary source is unavailable, label the claim as secondary-sourced and name the primary document that should verify it.
 - Separate facts, inference, and opinion. Cite sources for factual claims; for high-impact facts, put the source near the claim rather than only in a final source list.
@@ -25,13 +25,13 @@ Produce professional public-equity due diligence with a simple, decision-useful 
    - Infer the output style as "comprehensive DD with simple conclusion" unless the user asks for a model, slide deck, or brief note.
 
 2. Build the source pack.
-   - Run `mpal capabilities --json` if unsure which MarketPal commands are available.
+   - Run `mpal capabilities --json` if unsure which Marketpal commands are available.
    - For each ticker, use available `mpal` commands for profile, fundamentals, financials, events, insiders, ownership, price bars, and Markov context.
-   - Treat `ticker fundamentals` as the first compact MarketPal DD packet for valuation, estimates, credit fields, and profile-backed financial metrics.
-   - Treat `ticker financials` as the first MarketPal pull for historical statements and TTM context, then verify high-impact facts against filings where possible.
+   - Treat `ticker fundamentals` as the first compact Marketpal DD packet for valuation, estimates, credit fields, and profile-backed financial metrics.
+   - Treat `ticker financials` as the first Marketpal pull for historical statements and TTM context, then verify high-impact facts against filings where possible.
    - Browse current primary and credible secondary sources for filings, results, investor materials, segment exposure, valuation context, and recent catalysts.
    - Track source date and publication/filing date. Flag stale or missing data.
-   - For every key claim about contract awards, backlog, guidance, capex, leverage, liquidity, valuation, ownership, or data-center capacity, record whether the source is primary, MarketPal-derived, or secondary.
+   - For every key claim about contract awards, backlog, guidance, capex, leverage, liquidity, valuation, ownership, or data-center capacity, record whether the source is primary, Marketpal-derived, or secondary.
 
 3. Classify exposure before comparing.
    - Determine whether each name is a pure-play owner/operator, infrastructure investor, contractor/services provider, telco/network owner, indirect beneficiary, or non-core exposure.
@@ -47,7 +47,7 @@ Produce professional public-equity due diligence with a simple, decision-useful 
    - Catalysts, bear case, bull case, and what would change the view.
    - For holding companies, include look-through ownership math, implied asset value, funding need, and sensitivity to capex/debt cost.
    - For contractors, include backlog-to-revenue, working-capital/cash conversion, bonding or bank-guarantee capacity, contract type, customer/project concentration, and margin volatility where disclosed.
-   - Assign an evidence confidence rating for each ticker: high, medium, or low. Penalize secondary-source dependence, stale MarketPal facts, unavailable filings, and poor segment disclosure.
+   - Assign an evidence confidence rating for each ticker: high, medium, or low. Penalize secondary-source dependence, stale Marketpal facts, unavailable filings, and poor segment disclosure.
 
 5. Compare with a scored matrix.
    - Use 1-5 scores for exposure purity, growth visibility, balance-sheet strength, valuation attractiveness, execution risk, downside protection, and overall risk/reward.
@@ -64,4 +64,4 @@ Produce professional public-equity due diligence with a simple, decision-useful 
 ## Quality Gate
 
 Before finalizing, self-check against `references/judge-rubric.md`. If the draft would score below 4/5 on source discipline, comparison consistency, or conclusion usefulness, improve it before answering.
-Also check that MarketPal-derived facts are labeled separately from company-filed facts, and that any secondary-source claim states which primary document should be checked next.
+Also check that Marketpal-derived facts are labeled separately from company-filed facts, and that any secondary-source claim states which primary document should be checked next.

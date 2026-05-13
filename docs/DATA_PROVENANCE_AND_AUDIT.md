@@ -12,7 +12,7 @@ stored locally.
 | Layer | Examples | Provenance |
 | --- | --- | --- |
 | User-supplied inputs | portfolio JSON, universe JSON, strategy config, final action JSON | Provided on the CLI or through MCP tool input |
-| MarketPal API data | portfolio snapshots, transactions, watchlists, ticker profile, bars, events, financials, fundamentals, insiders, ownership, hosted strategy runs | Fetched with `MPAL_API_KEY` from MarketPal API-backed commands |
+| Marketpal API data | portfolio snapshots, transactions, watchlists, ticker profile, bars, events, financials, fundamentals, insiders, ownership, hosted strategy runs | Fetched with `MPAL_API_KEY` from Marketpal API-backed commands |
 | Local deterministic logic | config expansion, config hash, local planning for supported configs, validation, decision gate assembly, reports, SQLite journaling | Computed by this repo from explicit inputs and API payloads |
 
 The review packet is only as good as those inputs. If the portfolio file,
@@ -28,7 +28,7 @@ Common timestamp fields have different meanings:
 | `as_of` | The review date or data-effective date requested for a run or record. It is not always the fetch time. |
 | `created_at` | Local journal insertion time for a durable review record. |
 | `fetched_at` | Time a payload was fetched from the API or data provider. |
-| `updated_at` | Time MarketPal says the persisted upstream record was last updated. |
+| `updated_at` | Time Marketpal says the persisted upstream record was last updated. |
 | `quote_time` | Timestamp attached to a quote or profile price. |
 | `event_date` | Time attached to a source-backed event, filing, release, or market action. |
 | `execution_date` | Human-entered execution date for a finalized review position, when known. |
@@ -39,7 +39,7 @@ be created after the actual reviewed event.
 
 ## Freshness And Stale Data
 
-MarketPal payloads can include a `freshness` object with:
+Marketpal payloads can include a `freshness` object with:
 
 - `source`: the dataset or loader name.
 - `provider`: upstream provider, when available.
@@ -89,7 +89,7 @@ Use this distinction when reading JSON:
 | Field Type | Examples | How To Treat It |
 | --- | --- | --- |
 | Deterministic local fields | config hash, validation result, risk clamps, `binding_constraint`, local report path, SQLite IDs, journal schema checks | Reproducible from the same code version and same inputs |
-| MarketPal/API-derived fields | prices, portfolio snapshots, watchlist, bars, profile/QVM scores, Markov reads, raw Kelly evidence, events, financials, fundamentals, hosted strategy output | Source-backed or provider-derived; inspect `freshness`, timestamps, and warnings |
+| Marketpal/API-derived fields | prices, portfolio snapshots, watchlist, bars, profile/QVM scores, Markov reads, raw Kelly evidence, events, financials, fundamentals, hosted strategy output | Source-backed or provider-derived; inspect `freshness`, timestamps, and warnings |
 | Strategy model-derived fields | `model_result`, `signals`, `final_score`, `action_hint`, `baseline_plan`, `proposed_trades`, `rejected` | Model/scoring output for the supplied run; not trade instructions |
 | Agent or human fields | `agent_summary`, `agent_decision`, `agent_reason`, `final_decision`, `human_reasoning_text`, `human_decision` | Review overlay and accountable decision record; not deterministic model output |
 

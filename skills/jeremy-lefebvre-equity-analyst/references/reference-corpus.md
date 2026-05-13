@@ -11,7 +11,7 @@ video summary as a current stock view.
 
 - Use this file as style and pattern evidence only.
 - For a live stock view, fetch current price, filings, earnings releases,
-  transcripts, investor presentations, credible news, and MarketPal/mpal data.
+  transcripts, investor presentations, credible news, and Marketpal/mpal data.
 - Treat Glasp, Video Highlight, Socialcounts, SpeakRJ, and similar pages as
   secondary summaries or metadata. Prefer official company sources for the
   actual investment evidence.

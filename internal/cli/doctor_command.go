@@ -45,7 +45,7 @@ func (a *app) doctorCommand(ctx context.Context) *cobra.Command {
 	var strict bool
 	cmd := &cobra.Command{
 		Use:   "doctor",
-		Short: "Check local MarketPal setup",
+		Short: "Check local Marketpal setup",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result := a.runDoctor(ctx, skipAPI)
 			jsonOut, err := cmd.Flags().GetBool("json")
@@ -164,7 +164,7 @@ func (a *app) doctorBaseURLCheck() doctorCheck {
 		Category: "local_install",
 		Name:     "base_url",
 		Status:   "ok",
-		Message:  "MarketPal API base URL resolved",
+		Message:  "Marketpal API base URL resolved",
 		Details:  map[string]any{"base_url": baseURL},
 	}
 }
@@ -369,14 +369,14 @@ func (a *app) doctorAPIReachabilityCheck(ctx context.Context, skipAPI bool) doct
 			Category: "api_availability",
 			Name:     "api_reachability",
 			Status:   "error",
-			Message:  "MarketPal API check failed: " + err.Error(),
+			Message:  "Marketpal API check failed: " + err.Error(),
 		}
 	}
 	return doctorCheck{
 		Category: "api_availability",
 		Name:     "api_reachability",
 		Status:   "ok",
-		Message:  "MarketPal API accepted a read-only watchlist request",
+		Message:  "Marketpal API accepted a read-only watchlist request",
 	}
 }
 
@@ -479,12 +479,12 @@ func doctorNextSteps(result doctorResult) []string {
 			}
 		case "api_reachability":
 			if check.Status == "error" {
-				steps = append(steps, "Check MPAL_API_KEY, MPAL_BASE_URL, network access, and MarketPal account permissions.")
+				steps = append(steps, "Check MPAL_API_KEY, MPAL_BASE_URL, network access, and Marketpal account permissions.")
 			}
 		}
 	}
 	if len(steps) == 0 {
-		steps = append(steps, "Run the MarketPal trader skill for a weekly or monthly review.")
+		steps = append(steps, "Run the Marketpal trader skill for a weekly or monthly review.")
 	}
 	return steps
 }
@@ -496,7 +496,7 @@ func writeDoctorHuman(w io.Writer, result doctorResult) error {
 	} else if len(result.Warnings) > 0 {
 		status = "WARN"
 	}
-	if _, err := fmt.Fprintf(w, "MarketPal doctor: %s\n\n", status); err != nil {
+	if _, err := fmt.Fprintf(w, "Marketpal doctor: %s\n\n", status); err != nil {
 		return err
 	}
 	for _, section := range result.Sections {

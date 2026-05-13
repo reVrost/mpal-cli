@@ -8,7 +8,7 @@ This is a four-way comparison of very different “data centre” exposures. Res
 - **Best quality:** **IFT.AX** - CDC is the cleanest and highest-quality underlying asset, with >1GW contracted capacity after the new 555MW contract, but Infratil’s public valuation already discounts a lot.
 - **Most speculative:** **SKS.AX** - strong data-centre backlog and momentum, but the stock is pricing rapid execution almost perfectly.
 - **Wait/avoid:** **SKS.AX at current levels** - I would want either a pullback or more proof that 10% PBT margins survive the larger FY27 workload.
-- **Confidence:** **Medium-high** - company-filed evidence is strong for contracts/backlog/guidance; confidence is capped because MarketPal financial TTM dates appear inconsistent for some tickers and VNT does not disclose data-centre revenue separately.
+- **Confidence:** **Medium-high** - company-filed evidence is strong for contracts/backlog/guidance; confidence is capped because Marketpal financial TTM dates appear inconsistent for some tickers and VNT does not disclose data-centre revenue separately.
 
 **Ranking Table**
 
@@ -30,15 +30,15 @@ Scores are 1-5, where 5 is best and execution risk means lower risk. Overall use
 | VNT.AX | 2.0 | 3.5 | 4.0 | 4.0 | 4.0 | 4.0 | 3.3 |
 | SKS.AX | 4.0 | 4.0 | 4.0 | 1.5 | 2.5 | 2.0 | 3.2 |
 
-**MarketPal-Derived Facts**
+**Marketpal-Derived Facts**
 
-MarketPal data used: `capabilities`, `ticker fundamentals`, `ticker financials`, `ticker events`, `ticker insiders`, `ticker ownership`, and `ticker profile` with profile evidence/Markov-style transition context where exposed, run from source-built `go run ./cmd/mpal` on 10 May 2026. No MarketPal insider transactions or ownership-flow events were returned for the four tickers over the lookback window.
+Marketpal data used: `capabilities`, `ticker fundamentals`, `ticker financials`, `ticker events`, `ticker insiders`, `ticker ownership`, and `ticker profile` with profile evidence/Markov-style transition context where exposed, run from source-built `go run ./cmd/mpal` on 10 May 2026. No Marketpal insider transactions or ownership-flow events were returned for the four tickers over the lookback window.
 
-| Ticker | Price / Market Cap | EV | Valuation Snapshot | MarketPal Signal Notes |
+| Ticker | Price / Market Cap | EV | Valuation Snapshot | Marketpal Signal Notes |
 |---|---:|---:|---|---|
 | SXE.AX | A$4.09 / A$1.09bn | A$1.04bn | Forward P/E 24.5x; FY26 company-guided EV/EBITDA roughly 14.4x using at least A$72m EBITDA | QVM 82.1, momentum 100, 1Y return 127.8%; Markov weekly state flat |
 | SKS.AX | A$8.04 / A$927m | A$878m | Forward P/E 27.0x; EV/FY26 guided PBT about 25.8x | QVM 76.1, momentum 100, 1Y return 416%; Markov flat |
-| IFT.AX | A$12.40 / A$12.37bn | A$20.09bn | P/E 62x; EV/FCF negative on MarketPal data | QVM 33.1, momentum 72.5; 1Y return 17.4%; Markov flat |
+| IFT.AX | A$12.40 / A$12.37bn | A$20.09bn | P/E 62x; EV/FCF negative on Marketpal data | QVM 33.1, momentum 72.5; 1Y return 17.4%; Markov flat |
 | VNT.AX | A$5.72 / A$4.70bn | A$5.41bn | P/E 17.9x, forward P/E 15.6x, EV/EBIT 12.4x, FCF yield 5.7% | QVM 78.1; Markov flat |
 
 **Company-Filed Evidence Matrix**
@@ -47,7 +47,7 @@ MarketPal data used: `capabilities`, `ticker fundamentals`, `ticker financials`,
 |---|---|---|---|---|---|---|---|
 | IFT.AX | 49.72% owner of CDC via infrastructure holding company | CDC’s 555MW contract takes contracted capacity above 1GW; CDC pipeline 2.9GW at Mar-26; FY28 EBITDAF expected >A$1bn | CDC has Baa2 rating and A$3.9bn cash/undrawn borrowings; Infratil says no further equity needed for new contract | Look-through CDC stake last valued A$6.95bn at Dec-25 before 555MW step-up | CDC FY26/FY27 build delivery and 26 May FY26 result | Capex, power/grid, debt cost, valuation sensitivity | High |
 | SXE.AX | Electrical/data-centre contractor | DigiCo SYD1 work, NEXTDC Artarmon contributor, “unprecedented” CY26 DC tender pipeline; $710m order book | H1 FY26 cash A$58.8m, debt free, A$53.2m bonding headroom | ~14x FY26 guided EBITDA; cleaner than SKS, but not cheap | More data-centre tender wins and bonding release | Fixed-price project risk, labour, WestConnex confidence overhang | High |
-| SKS.AX | Electrical/digital-infrastructure contractor | A$210m MEL02A contract for 126MW hyperscale facility; A$350m work on hand, A$240m into FY27 | A$20m bank-guarantee facility increase to A$52m per MarketPal event; FY25 cash A$32.5m | Rich: EV/FY26 guided PBT about 26x; MarketPal fwd P/E 27x | Conversion of hyperscale pipeline and NSW expansion | Margin slippage, working capital, valuation compression | High |
+| SKS.AX | Electrical/digital-infrastructure contractor | A$210m MEL02A contract for 126MW hyperscale facility; A$350m work on hand, A$240m into FY27 | A$20m bank-guarantee facility increase to A$52m per Marketpal event; FY25 cash A$32.5m | Rich: EV/FY26 guided PBT about 26x; Marketpal fwd P/E 27x | Conversion of hyperscale pipeline and NSW expansion | Margin slippage, working capital, valuation compression | High |
 | VNT.AX | Essential infrastructure services, indirect DC services | Data-centre site prep, fit-out and O&M strategy; addressable outsourced DC services market cited at A$2.6bn to A$5.9bn by FY30; no disclosed DC revenue | FY25 revenue A$6.1bn, EBITDA A$532m, work in hand A$22.1bn, OCF conversion 93.6% | Cheapest and most defensive, but least pure | Digital infrastructure push, buyback, FY26 NPATA growth guidance | DC thesis may remain immaterial to group earnings | Medium |
 
 **Company Notes**
@@ -80,6 +80,6 @@ IFT owns the superior economic exposure; SXE and SKS sell labour, electrical sys
 
 **Source Notes**
 
-Company-filed / primary sources: Infratil/NZX CDC 555MW announcement, 6 May 2026: https://www.nzx.com/announcements/472137; Infratil CDC contract presentation, 5 May 2026: https://infratil.com/news/cdc-signs-555mw-data-centre-contract-with-us-customer/cdc-contract-update-growing-beyond-1gw/; Infratil interim results, 13 Nov 2025: https://infratil.com/news/interim-results-for-the-period-ended-30-september-2025/; CDC valuation, 31 Dec 2025: https://infratil.com/news/cdc-independent-valuation-31-december-2025/cdc-independent-valuation-31-december-2025/; SKS A$210m contract release, 17 Apr 2026: https://announcements.asx.com.au/asxpdf/20260417/pdf/06yl2p0dc3cj60.pdf; SKS February guidance release via MarketPal/ASX source; SXE H1 FY26 release: https://cdn-api.markitdigital.com/apiman-gateway/ASX/asx-research/1.0/file/2924-03057594-6A1312508%26v%3Dundefined; SXE A$90m data-centre/rail awards: https://investorpa.com/announcement-pdf/20251216/235467.pdf; SXE A$75m awards: https://data-api.marketindex.com.au/api/v1/announcements/XASX%3ASXE%3A6A1311435/pdf/inline/contract-awards-totalling-75m; SXE March 2026 roadshow: https://company-announcements.afr.com/asx/sxe/9dc7e293-1b33-11f1-b79e-3e31e35c7fba.pdf; Ventia FY25 media release: https://investorpa.com/announcement-pdf/20260219/258256.pdf; Ventia Investor Day: https://company-announcements.afr.com/asx/vnt/64e7d5a1-473d-11f1-a82c-cad0a84b142a.pdf.
+Company-filed / primary sources: Infratil/NZX CDC 555MW announcement, 6 May 2026: https://www.nzx.com/announcements/472137; Infratil CDC contract presentation, 5 May 2026: https://infratil.com/news/cdc-signs-555mw-data-centre-contract-with-us-customer/cdc-contract-update-growing-beyond-1gw/; Infratil interim results, 13 Nov 2025: https://infratil.com/news/interim-results-for-the-period-ended-30-september-2025/; CDC valuation, 31 Dec 2025: https://infratil.com/news/cdc-independent-valuation-31-december-2025/cdc-independent-valuation-31-december-2025/; SKS A$210m contract release, 17 Apr 2026: https://announcements.asx.com.au/asxpdf/20260417/pdf/06yl2p0dc3cj60.pdf; SKS February guidance release via Marketpal/ASX source; SXE H1 FY26 release: https://cdn-api.markitdigital.com/apiman-gateway/ASX/asx-research/1.0/file/2924-03057594-6A1312508%26v%3Dundefined; SXE A$90m data-centre/rail awards: https://investorpa.com/announcement-pdf/20251216/235467.pdf; SXE A$75m awards: https://data-api.marketindex.com.au/api/v1/announcements/XASX%3ASXE%3A6A1311435/pdf/inline/contract-awards-totalling-75m; SXE March 2026 roadshow: https://company-announcements.afr.com/asx/sxe/9dc7e293-1b33-11f1-b79e-3e31e35c7fba.pdf; Ventia FY25 media release: https://investorpa.com/announcement-pdf/20260219/258256.pdf; Ventia Investor Day: https://company-announcements.afr.com/asx/vnt/64e7d5a1-473d-11f1-a82c-cad0a84b142a.pdf.
 
-MarketPal-derived facts are from source-built `mpal` as of 9-10 May 2026. Data gap: MarketPal returned current valuation/event/profile data, but some `ticker financials` TTM period dates looked stale or mislabeled; high-impact financial figures above therefore rely on company filings where available.
+Marketpal-derived facts are from source-built `mpal` as of 9-10 May 2026. Data gap: Marketpal returned current valuation/event/profile data, but some `ticker financials` TTM period dates looked stale or mislabeled; high-impact financial figures above therefore rely on company filings where available.

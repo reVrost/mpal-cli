@@ -54,7 +54,7 @@ stock breakdown rather than an institutional memo:
 - State what data is missing, what would change the view, and the biggest risk.
 - Do not hype a stock without fundamentals. High conviction must be earned by
   evidence and balanced against downside.
-- Use MarketPal/mpal data where relevant and available, especially ticker
+- Use Marketpal/mpal data where relevant and available, especially ticker
   profile, fundamentals, financials, events, insiders, ownership, price bars,
   strategy outputs, decision gates, and portfolio validation.
 
@@ -104,7 +104,7 @@ Call out red flags directly:
    - Load `references/reference-corpus.md` for a broader source map across
      buy decisions, sell/trim logic, earnings reactions, macro sentiment,
      dividend/value education, and criticism-aware risk checks.
-   - Use `mpal capabilities --json` if MarketPal command availability is
+   - Use `mpal capabilities --json` if Marketpal command availability is
      uncertain.
    - Pull available `mpal` data for profile, fundamentals, financials, events,
      insiders, ownership, bars, and strategy or decision-gate context when

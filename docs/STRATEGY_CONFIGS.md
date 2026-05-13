@@ -1,6 +1,6 @@
 # Strategy Configs
 
-MarketPal strategy configs are authored as YAML. The repo also ships a JSON
+Marketpal strategy configs are authored as YAML. The repo also ships a JSON
 Schema at `schemas/strategy.schema.json`; YAML editors can use that schema for
 validation, descriptions, and autocomplete.
 
@@ -130,7 +130,7 @@ carry the favorable/unfavorable probabilities used for sizing and
 available. If the Kelly target is reduced by caps, the `sizing.warnings` field
 records that clamp.
 
-The hosted MarketPal API currently uses the `hosted_strategy_api_v1` execution
+The hosted Marketpal API currently uses the `hosted_strategy_api_v1` execution
 contract, which supports `momentum_weight` and `profile_weight`. Configs with
 non-zero `quality_weight`, `value_weight`, or `reversion_weight` are valid local
 configs, but `mpal strategy run` and `mpal backtest run` fail fast until the

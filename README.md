@@ -1,7 +1,7 @@
 # mpal-cli
 
 `mpal` helps you review stock ideas and portfolio changes before you act. It
-turns MarketPal data, model output, rule checks, and your final decision into
+turns Marketpal data, model output, rule checks, and your final decision into
 clear local records you can inspect later.
 
 It is not a broker, not an autonomous trader, and cannot place live orders.
@@ -21,7 +21,7 @@ This repo is for research, validation, and record keeping. It does not provide
 financial product advice, personal advice, investment advice, tax advice, or
 legal advice.
 
-`mpal` produces review artifacts from user-supplied inputs and MarketPal API
+`mpal` produces review artifacts from user-supplied inputs and Marketpal API
 data. Those artifacts are not order instructions and do not recommend that any
 person buy, sell, hold, trim, reduce, or exit any financial product.
 
@@ -33,7 +33,7 @@ this repository.
 
 General chat agents are useful for brainstorming and plain-English research.
 `mpal-cli` is for the repeatable part of a portfolio review: gather the same
-MarketPal evidence, check the same rules, save the same decision record, and
+Marketpal evidence, check the same rules, save the same decision record, and
 make it easy to look back later.
 
 For a retail investor, the useful question is simple: "What did the model say,
@@ -45,7 +45,7 @@ answers in local artifacts instead of leaving them buried in chat history.
 | Primary job | Ideas, explanations, and broad research | Repeatable review records |
 | Interaction style | Open-ended chat | Commands and saved artifacts |
 | Portfolio rules | Talks about guidelines | Checks cash, size, and risk rules on a concrete plan |
-| Evidence context | Summarizes sources | Packages MarketPal data, model output, and recent events |
+| Evidence context | Summarizes sources | Packages Marketpal data, model output, and recent events |
 | Accountability | Usually a chat answer | Records model output, rule-check status, human decisions, and outcomes |
 | Agent integration | Depends on the agent environment | Ships CLI plus Codex/Claude plugin workflow support |
 
@@ -71,7 +71,7 @@ mpal strategy list --json
 For agent setup, install the plugin and ask:
 
 ```text
-Run the MarketPal onboarding skill and report the first-run checklist.
+Run the Marketpal onboarding skill and report the first-run checklist.
 ```
 
 Codex:
@@ -80,7 +80,7 @@ Codex:
 codex plugin marketplace add revrost/mpal-cli --ref main
 ```
 
-Then open `/plugins`, choose `MarketPal Plugins`, and install `marketpal`.
+Then open `/plugins`, choose `Marketpal Plugins`, and install `marketpal`.
 
 Claude Code:
 
@@ -91,7 +91,7 @@ claude plugin install marketpal@marketpal-plugins
 
 ## Simplest Human Workflow
 
-Use MarketPal as a review system, not as a trading bot. The normal human loop is:
+Use Marketpal as a review system, not as a trading bot. The normal human loop is:
 
 ```text
 set up once
@@ -120,7 +120,7 @@ For the full professional workflow and field-level details, see
 
 ### Which skill should I start with?
 
-Start with `marketpal-onboarding` when you are installing MarketPal, checking a
+Start with `marketpal-onboarding` when you are installing Marketpal, checking a
 fresh repo, wiring MCP/plugin tools, setting `MPAL_API_KEY`, smoke-testing
 `mpal`, or confirming approved strategy configs.
 
@@ -164,7 +164,7 @@ non-zero exit code.
 5. Ask your agent:
 
 ```text
-Run the MarketPal onboarding skill and report the first-run checklist.
+Run the Marketpal onboarding skill and report the first-run checklist.
 ```
 
 6. Optional but recommended: create a private portfolio policy at:
@@ -182,7 +182,7 @@ full-portfolio or engine-only. Keep private holdings out of repo-tracked files.
 Ask your agent something like:
 
 ```text
-Use the MarketPal trader skill to run my weekly engine review with
+Use the Marketpal trader skill to run my weekly engine review with
 best_weekly_swing_v1. Use my private portfolio policy if available. Show the
 baseline, decision gate, alternates, validation result, and journal the final
 review.
@@ -191,7 +191,7 @@ review.
 For a slower monthly review:
 
 ```text
-Use the MarketPal trader skill to run my monthly swing review with
+Use the Marketpal trader skill to run my monthly swing review with
 best_monthly_swing_v1. Separate the raw model plan from my final human action
 in the journal.
 ```
@@ -242,7 +242,7 @@ prompt is:
 
 ```text
 Use the equity DD analyst skill on the proposed trades and top alternates from
-the latest MarketPal review. Compare financials, scale, valuation, catalysts,
+the latest Marketpal review. Compare financials, scale, valuation, catalysts,
 and risks. Keep the conclusion simple and source-backed.
 ```
 
@@ -350,7 +350,7 @@ Strategy configs are YAML and can be checked against
 Quality-value mean-reversion configs use optional `quality_weight`,
 `value_weight`, and `reversion_weight` scoring fields; all scoring weights must
 sum to `1.0`. These fields use the local `scoring_v2_quality_value_reversion`
-contract and are marked `api_compatible: false` until the hosted MarketPal API
+contract and are marked `api_compatible: false` until the hosted Marketpal API
 supports the same scoring contract.
 
 `config_hash` is calculated from the canonical expanded config that is sent to
@@ -374,7 +374,7 @@ mpal strategy show --id best_weekly_swing_v1 --json
 mpal strategy validate --config strategies/best_weekly_swing_v1.yaml --json
 ```
 
-Read MarketPal data:
+Read Marketpal data:
 
 ```sh
 mpal portfolio snapshot --json
@@ -390,7 +390,7 @@ mpal ticker ownership --tickers AAPL,MSFT,NVDA --days 365 --limit 100 --json
 `mpal ticker events` is the curated feed for recent source-backed context. It includes price/volume events, filings, ASX announcements, press releases, insider activity, institutional activity, and enriched article/announcement summaries when available.
 
 `mpal ticker profile` includes server-computed `markov` and `raw_kelly`
-evidence buckets for daily, weekly, and monthly horizons when MarketPal has
+evidence buckets for daily, weekly, and monthly horizons when Marketpal has
 enough price history. Those fields are sizing evidence only; final fractional
 Kelly sizing still happens inside the strategy planner and remains clamped by
 portfolio/risk controls.

@@ -38,8 +38,8 @@ Score each category 1-5. A strong final answer should average at least 4.0 and m
 - **3:** Conclusion exists but is generic or hedged.
 - **1:** No usable answer to what matters most.
 
-## 7. MarketPal Integration
+## 7. Marketpal Integration
 
-- **5:** Uses `mpal` where available, timestamps or labels MarketPal-derived facts, and clearly notes gaps.
+- **5:** Uses `mpal` where available, timestamps or labels Marketpal-derived facts, and clearly notes gaps.
 - **3:** Uses some `mpal` data but misses obvious available commands.
-- **1:** Ignores available MarketPal data.
+- **1:** Ignores available Marketpal data.

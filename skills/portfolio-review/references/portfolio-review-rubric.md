@@ -12,7 +12,7 @@ Use this rubric for formal portfolio reviews, portfolio cleanup, exit/trim polic
 | Thesis coherence | 15 | Holdings match the stated thesis without unmanaged duplication or off-thesis leftovers. |
 | Risk/reward quality | 15 | Upside exposures are balanced against valuation, balance sheet, cash flow, liquidity, dilution, and event risk. |
 | Exit/trim readiness | 15 | Portfolio has clear sell, trim, loss-control, and thesis-break rules before stress arrives. |
-| Evidence quality | 10 | Uses current portfolio data, source-backed events, MarketPal signals, and labels stale or missing data. |
+| Evidence quality | 10 | Uses current portfolio data, source-backed events, Marketpal signals, and labels stale or missing data. |
 | Actionability | 5 | Ends with a small number of concrete next actions, not a vague list of observations. |
 
 Score interpretation:

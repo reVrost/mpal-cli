@@ -57,7 +57,7 @@ func New(cfg Config) *mcp.Server {
 }
 
 func registerTools(server *mcp.Server, cfg Config) {
-	mcp.AddTool(server, readOnlyTool("mpal_capabilities", "List deterministic MarketPal capabilities. This server never executes live trades."), capabilitiesTool)
+	mcp.AddTool(server, readOnlyTool("mpal_capabilities", "List deterministic Marketpal capabilities. This server never executes live trades."), capabilitiesTool)
 	mcp.AddTool(server, readOnlyTool("mpal_strategy_list", "List built-in and user strategy configs."), func(ctx context.Context, req *mcp.CallToolRequest, in noInput) (*mcp.CallToolResult, any, error) {
 		infos, err := cfg.Registry.List()
 		if err != nil {
@@ -86,7 +86,7 @@ func registerTools(server *mcp.Server, cfg Config) {
 			"config_hash_algorithm": mpal.StrategyConfigHashAlgorithm,
 		}), nil
 	})
-	mcp.AddTool(server, additiveTool("mpal_strategy_run", "Run an explicit versioned MarketPal strategy config, auto-journal the baseline packet, and return the baseline plan. This cannot execute live trades."), func(ctx context.Context, req *mcp.CallToolRequest, in strategyRunInput) (*mcp.CallToolResult, any, error) {
+	mcp.AddTool(server, additiveTool("mpal_strategy_run", "Run an explicit versioned Marketpal strategy config, auto-journal the baseline packet, and return the baseline plan. This cannot execute live trades."), func(ctx context.Context, req *mcp.CallToolRequest, in strategyRunInput) (*mcp.CallToolResult, any, error) {
 		asOf, err := mpal.ParseDate(in.Date)
 		if err != nil {
 			return nil, nil, err
@@ -164,7 +164,7 @@ func registerTools(server *mcp.Server, cfg Config) {
 		run.JournalEntryID = review.ID
 		return nil, object(run), nil
 	})
-	mcp.AddTool(server, readOnlyTool("mpal_portfolio_snapshot", "Fetch the authenticated user's current MarketPal portfolio snapshot."), func(ctx context.Context, req *mcp.CallToolRequest, in noInput) (*mcp.CallToolResult, any, error) {
+	mcp.AddTool(server, readOnlyTool("mpal_portfolio_snapshot", "Fetch the authenticated user's current Marketpal portfolio snapshot."), func(ctx context.Context, req *mcp.CallToolRequest, in noInput) (*mcp.CallToolResult, any, error) {
 		payload, err := cfg.Client.GetPortfolioSnapshot(ctx, &marketpalv1.MpalPortfolioSnapshotRequest{})
 		if err != nil {
 			return nil, nil, err
@@ -172,7 +172,7 @@ func registerTools(server *mcp.Server, cfg Config) {
 		out, err := decodePayload(payload)
 		return nil, out, err
 	})
-	mcp.AddTool(server, readOnlyTool("mpal_portfolio_transactions", "Fetch the authenticated user's MarketPal portfolio transactions."), func(ctx context.Context, req *mcp.CallToolRequest, in portfolioTransactionsInput) (*mcp.CallToolResult, any, error) {
+	mcp.AddTool(server, readOnlyTool("mpal_portfolio_transactions", "Fetch the authenticated user's Marketpal portfolio transactions."), func(ctx context.Context, req *mcp.CallToolRequest, in portfolioTransactionsInput) (*mcp.CallToolResult, any, error) {
 		payload, err := cfg.Client.GetPortfolioTransactions(ctx, &marketpalv1.MpalPortfolioTransactionsRequest{
 			Page:  in.Page,
 			Limit: in.Limit,
@@ -183,7 +183,7 @@ func registerTools(server *mcp.Server, cfg Config) {
 		out, err := decodePayload(payload)
 		return nil, out, err
 	})
-	mcp.AddTool(server, readOnlyTool("mpal_watchlist_get", "Fetch the authenticated user's current MarketPal watchlist universe."), func(ctx context.Context, req *mcp.CallToolRequest, in noInput) (*mcp.CallToolResult, any, error) {
+	mcp.AddTool(server, readOnlyTool("mpal_watchlist_get", "Fetch the authenticated user's current Marketpal watchlist universe."), func(ctx context.Context, req *mcp.CallToolRequest, in noInput) (*mcp.CallToolResult, any, error) {
 		payload, err := cfg.Client.GetWatchlist(ctx, &marketpalv1.MpalWatchlistRequest{})
 		if err != nil {
 			return nil, nil, err
@@ -191,7 +191,7 @@ func registerTools(server *mcp.Server, cfg Config) {
 		out, err := decodePayload(payload)
 		return nil, out, err
 	})
-	mcp.AddTool(server, readOnlyTool("mpal_ticker_bars", "Fetch historical bars for a ticker and expose freshness/staleness metadata returned by MarketPal."), func(ctx context.Context, req *mcp.CallToolRequest, in tickerBarsInput) (*mcp.CallToolResult, any, error) {
+	mcp.AddTool(server, readOnlyTool("mpal_ticker_bars", "Fetch historical bars for a ticker and expose freshness/staleness metadata returned by Marketpal."), func(ctx context.Context, req *mcp.CallToolRequest, in tickerBarsInput) (*mcp.CallToolResult, any, error) {
 		start, err := mpal.ParseDate(in.Start)
 		if err != nil {
 			return nil, nil, err
@@ -207,7 +207,7 @@ func registerTools(server *mcp.Server, cfg Config) {
 		out, err := decodePayload(payload)
 		return nil, out, err
 	})
-	mcp.AddTool(server, readOnlyTool("mpal_ticker_profile", "Fetch MarketPal profile/fundamental scoring for one or more tickers and a date."), func(ctx context.Context, req *mcp.CallToolRequest, in tickerProfileInput) (*mcp.CallToolResult, any, error) {
+	mcp.AddTool(server, readOnlyTool("mpal_ticker_profile", "Fetch Marketpal profile/fundamental scoring for one or more tickers and a date."), func(ctx context.Context, req *mcp.CallToolRequest, in tickerProfileInput) (*mcp.CallToolResult, any, error) {
 		asOf, err := mpal.ParseDate(in.Date)
 		if err != nil {
 			return nil, nil, err
@@ -394,7 +394,7 @@ func registerTools(server *mcp.Server, cfg Config) {
 		}
 		return nil, object(mpal.ReviewJournalOutput(got, gotPositions)), nil
 	})
-	mcp.AddTool(server, readOnlyTool("mpal_journal_list", "List recent local MarketPal journal entries."), func(ctx context.Context, req *mcp.CallToolRequest, in journalListInput) (*mcp.CallToolResult, any, error) {
+	mcp.AddTool(server, readOnlyTool("mpal_journal_list", "List recent local Marketpal journal entries."), func(ctx context.Context, req *mcp.CallToolRequest, in journalListInput) (*mcp.CallToolResult, any, error) {
 		journal, err := openReviewJournal(ctx, cfg.ReviewJournalPath)
 		if err != nil {
 			return nil, nil, err
@@ -406,7 +406,7 @@ func registerTools(server *mcp.Server, cfg Config) {
 		}
 		return nil, object(mpal.ReviewListOutput(reviews)), nil
 	})
-	mcp.AddTool(server, readOnlyTool("mpal_journal_get", "Get a local MarketPal journal entry by ID."), func(ctx context.Context, req *mcp.CallToolRequest, in journalGetInput) (*mcp.CallToolResult, any, error) {
+	mcp.AddTool(server, readOnlyTool("mpal_journal_get", "Get a local Marketpal journal entry by ID."), func(ctx context.Context, req *mcp.CallToolRequest, in journalGetInput) (*mcp.CallToolResult, any, error) {
 		journal, err := openReviewJournal(ctx, cfg.ReviewJournalPath)
 		if err != nil {
 			return nil, nil, err

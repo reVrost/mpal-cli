@@ -1,9 +1,9 @@
 ---
 name: marketpal-trader
-description: Use when an external agent is asked to analyze a MarketPal trading plan with the mpal capability CLI, apply portfolio construction policy, explain TRADE or NO_TRADE results, produce investor-readable baseline briefs, handle agent veto or override workflows, or journal a trading-plan review without executing live trades.
+description: Use when an external agent is asked to analyze a Marketpal trading plan with the mpal capability CLI, apply portfolio construction policy, explain TRADE or NO_TRADE results, produce investor-readable baseline briefs, handle agent veto or override workflows, or journal a trading-plan review without executing live trades.
 ---
 
-# MarketPal Trader Agent
+# Marketpal Trader Agent
 
 Use `mpal` as the deterministic source of truth. The agent explains and may explicitly veto or propose a bounded override, but it must not invent trades or execute live orders.
 
@@ -14,7 +14,7 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
    - If present, read it and apply its sleeve rules, fixed holdings, contribution policy, review cadence, and high-conviction guardrails.
    - Treat the policy as private user context; do not copy personal dollar amounts into repo-tracked files or public outputs unless directly relevant to the requested review.
    - If the policy marks holdings as fixed/core/high-conviction, do not let the normal engine plan trade them unless the user explicitly asks for a full-portfolio review or a review of that sleeve.
-   - If no policy file exists, continue with the normal MarketPal workflow and state that no private portfolio policy was found.
+   - If no policy file exists, continue with the normal Marketpal workflow and state that no private portfolio policy was found.
 
 2. Choose an approved strategy config.
    - Prefer `mpal strategy list --json` and `mpal strategy show --id <id> --json`.
@@ -24,7 +24,7 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
 
 3. Run the baseline plan.
    - Call `mpal strategy run --date <date> --universe <path> --portfolio <path> --config <path> --json`.
-   - If MarketPal is installed as an MCP server, call `mpal_strategy_run` with the same date, universe, portfolio, and explicit config inputs.
+   - If Marketpal is installed as an MCP server, call `mpal_strategy_run` with the same date, universe, portfolio, and explicit config inputs.
    - Treat the returned JSON as the source of truth for model result, execution result, validation, signals, target weights, proposed trades, warnings, freshness metadata, and config hash.
    - Read `model_result` as the raw signal read and `execution_result`/top-level `result` as the executable rebalance decision.
    - For real current-portfolio reviews, the approved strategy configs use a transition rebalance policy by default: sizing method, turnover budget, max single-trade size, starter position size or Kelly fallback, new-position limit, cash buffer, and protected unscored holdings.
@@ -35,7 +35,7 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
 4. Build the source-backed context pack before final action.
    - Call `mpal ticker events --run <strategy-run-path-or-json> --portfolio <portfolio-path> --days <window> --json`, using 14 days for weekly/default swing reviews and 45 days for monthly swing reviews unless the strategy or user specifies another window.
    - If using MCP, call `mpal_ticker_events` with the previous strategy run and the portfolio input.
-   - If a portfolio file is not available, set `MPAL_API_KEY` so the command can fetch the current portfolio through the MarketPal API.
+   - If a portfolio file is not available, set `MPAL_API_KEY` so the command can fetch the current portfolio through the Marketpal API.
    - Use the returned proposed buys/sells/trims, alternate candidates, ticker research, source-backed updates, cached article insights, missing insight sources, warnings, and freshness metadata as the evidence layer.
    - Extract up to five alternate buy candidates from `ticker events` alternates first, then from deterministic `signals` if the context pack has fewer than five. Exclude tickers already in proposed buy trades unless the user specifically asks for substitutes.
    - Always show those alternate buy candidates to the user with ticker, rank, score, action hint, event context, and why they were not in the executable baseline. Label them as non-executable candidates until a replacement or override plan validates.
@@ -92,7 +92,7 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
 
 ## Hybrid Trader / Quality-Swing Overlay
 
-Use this overlay when the chosen strategy is a MarketPal swing config, such as `best_weekly_swing_v1`, `best_monthly_swing_v1`, `portfolio_low_churn_swing_v1`, `engine_weekly_swing_v1`, `engine_quality_swing_rebuild_v1`, `engine_quality_value_reversion_v1`, or `portfolio_quality_value_reversion_v1`.
+Use this overlay when the chosen strategy is a Marketpal swing config, such as `best_weekly_swing_v1`, `best_monthly_swing_v1`, `portfolio_low_churn_swing_v1`, `engine_weekly_swing_v1`, `engine_quality_swing_rebuild_v1`, `engine_quality_value_reversion_v1`, or `portfolio_quality_value_reversion_v1`.
 
 - Treat momentum as the primary entry signal and profile-QVM as the holdability and survivability check.
 - Treat Markov transition metadata as context unless `mpal` has already consumed it into structured sizing output. The strategy's configured rebalance horizon is the primary horizon for executable sizing.
@@ -165,8 +165,8 @@ Use this overlay when `~/.marketpal/portfolio-policy.md` exists or the user asks
 
 - Treat the private policy file as the user's standing portfolio mandate.
 - Keep core ETF/cash holdings fixed when the policy says they are core, unless the user explicitly asks to rebalance core.
-- Keep high-conviction holdings fixed when the policy says they are outside the MarketPal engine, unless the user asks for that high-conviction sleeve review.
-- For engine-only reviews, construct or use a portfolio input that represents only the MarketPal return-engine sleeve plus any cash allocated to that sleeve; do not blindly let core or high-conviction positions drive engine trades.
+- Keep high-conviction holdings fixed when the policy says they are outside the Marketpal engine, unless the user asks for that high-conviction sleeve review.
+- For engine-only reviews, construct or use a portfolio input that represents only the Marketpal return-engine sleeve plus any cash allocated to that sleeve; do not blindly let core or high-conviction positions drive engine trades.
 - When a policy sleeve is materially off target, surface the drift in the risk read before approving trades.
 - If `mpal` baseline trades conflict with the private policy, prefer an agent veto or a policy-aware override that validates.
 - Journal whether the run was full-portfolio, engine-only, core review, high-conviction review, or what-if simulation.
@@ -219,11 +219,11 @@ HTML report rules:
 
 - Write reports under `tmp/mpal-runs/` or the run directory already used for the review. Name them predictably, e.g. `trade-review-YYYY-MM-DD.html`.
 - Generate a complete standalone HTML file with inline CSS. Use semantic table markup, sticky header, compact numeric columns, a wider `Read` column, and restrained status coloring for `isTrade`, validation, and warnings.
-- Before styling an HTML report, inspect `../marketpal/docs/design-system/DESIGN.md` and `../marketpal/docs/design-system/variables.css` when available. Follow the MarketPal design-system tokens and visual language rather than inventing a new report theme.
-- Style reports as a dark-first MarketPal financial workspace with a sleek Cursor/Vercel-like premium finish: dense, quiet, high-contrast, polished, and product-grade. Use dark canvas `#18191f`, dark panels `#25262d`, raised controls `#383a42`, thin borders `#383a42`, primary text `#fcfcfd`, secondary text `#bfc0c4`, Amethyst premium accent `#f1ccff` with black text, teal for positive/buy, red for negative/risk, and amber for warnings.
+- Before styling an HTML report, inspect `../marketpal/docs/design-system/DESIGN.md` and `../marketpal/docs/design-system/variables.css` when available. Follow the Marketpal design-system tokens and visual language rather than inventing a new report theme.
+- Style reports as a dark-first Marketpal financial workspace with a sleek Cursor/Vercel-like premium finish: dense, quiet, high-contrast, polished, and product-grade. Use dark canvas `#18191f`, dark panels `#25262d`, raised controls `#383a42`, thin borders `#383a42`, primary text `#fcfcfd`, secondary text `#bfc0c4`, Amethyst premium accent `#f1ccff` with black text, teal for positive/buy, red for negative/risk, and amber for warnings.
 - Use Geist-style system typography: `Geist, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`; use `Geist Mono`, `ui-monospace`, `SFMono-Regular`, `Menlo`, monospace for tickers, scores, Kelly, sizing, prices, dates, and config hashes. Use tabular numbers throughout the table.
 - Keep the layout compact and operational: 14px body text, 13px secondary text, 11px captions, 24px max page title, 6-8px radii, tight paddings, no hero sections, no decorative blobs, no heavy gradients, no oversized cards, and no nested bordered cards.
-- Use a premium but restrained visual system: sticky top metadata bar, compact KPI chips for result/validation/turnover/cash, subtle hover rows, selected trade rows with a muted amethyst/teal left accent, and warning rows with amber accents. Dark mode is the default; optional light mode should use the warm MarketPal canvas/panel colors from the design-system docs.
+- Use a premium but restrained visual system: sticky top metadata bar, compact KPI chips for result/validation/turnover/cash, subtle hover rows, selected trade rows with a muted amethyst/teal left accent, and warning rows with amber accents. Dark mode is the default; optional light mode should use the warm Marketpal canvas/panel colors from the design-system docs.
 - Include a concise header above the table: strategy id/version, run date, portfolio scope, model result, execution result, validation status, config hash, journal id when available, and final decision.
 - Include a short notes section below the table for assumptions, freshness/staleness warnings, source-data issues, and "what would change the decision".
 - Keep the HTML static and local. Do not load remote JavaScript, fonts, CSS, trackers, or broker/order-placement links.

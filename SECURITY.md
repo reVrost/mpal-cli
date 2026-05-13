@@ -9,7 +9,7 @@ or exploit details.
 ## API Keys
 
 `MPAL_API_KEY` is a bearer credential. Keep it out of source control, logs, and
-shared prompts. If a key is exposed, rotate or revoke it in MarketPal before
+shared prompts. If a key is exposed, rotate or revoke it in Marketpal before
 sharing diagnostics.
 
 The CLI sends the key only in the `Authorization: Bearer <key>` header to the

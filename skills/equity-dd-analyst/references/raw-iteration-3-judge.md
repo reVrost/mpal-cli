@@ -18,7 +18,7 @@ pass_fail: PASS
 - Clear ranked conclusion with actionable labels: best risk/reward, best quality, speculative, wait/avoid.
 - Proper exposure distinction: contractor vs infrastructure investor vs adjacent/non-core exposure.
 - Good use of same-company framework: scorecard, evidence matrix, bull/bear cases, catalysts, confidence.
-- MarketPal facts are separated from company-filed facts, and the VNT ticker-contamination issue is explicitly flagged.
+- Marketpal facts are separated from company-filed facts, and the VNT ticker-contamination issue is explicitly flagged.
 
 **Remaining Weaknesses**
 - Source discipline is not a 5: no actual links, sparse source dates in the source list, and limited document-level citation trail.
@@ -32,7 +32,7 @@ likely_material_improvement_from_another_iteration: false
 plateau_reason: >
   The report already clears the rubric comfortably. Another pass could polish citations,
   add links, and deepen valuation sensitivities, but the main remaining gaps are data
-  availability, source-linking/output-length constraints, and unavailable MarketPal/filing
+  availability, source-linking/output-length constraints, and unavailable Marketpal/filing
   retrieval rather than a flawed analytical structure.
 ```
 

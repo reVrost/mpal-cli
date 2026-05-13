@@ -1,12 +1,12 @@
 ---
 name: marketpal-onboarding
-description: Use when a user needs to install, configure, or smoke-test MarketPal in Codex or Claude Code; verify mpal/mpal-mcp setup, MPAL_API_KEY, MCP/plugin installation, approved strategy configs, private ~/.marketpal/portfolio-policy.md, and safe first-run workflows after repo or strategy changes.
+description: Use when a user needs to install, configure, or smoke-test Marketpal in Codex or Claude Code; verify mpal/mpal-mcp setup, MPAL_API_KEY, MCP/plugin installation, approved strategy configs, private ~/.marketpal/portfolio-policy.md, and safe first-run workflows after repo or strategy changes.
 ---
 
-# MarketPal Onboarding
+# Marketpal Onboarding
 
 Use this skill to get a user from a fresh checkout or plugin install to a safe,
-working MarketPal setup. It is for setup and smoke tests, not trade approval.
+working Marketpal setup. It is for setup and smoke tests, not trade approval.
 Use `marketpal-trader` for actual strategy reviews, validation, vetoes,
 overrides, and journaling.
 
@@ -18,7 +18,7 @@ When a user asks how to start, give them the shortest safe path:
    process that runs the agent, and install the Codex or Claude Code plugin if
    they want skill-guided setup.
 2. Tell them they can ask their agent:
-   `Run the MarketPal onboarding skill and report the first-run checklist.`
+   `Run the Marketpal onboarding skill and report the first-run checklist.`
 3. Run `mpal doctor --json` when available. Use `mpal doctor --skip-api --json`
    for a local-only check or `mpal doctor --strict --json` when setup failures
    should return a non-zero exit code.
@@ -56,7 +56,7 @@ verified.
 3. Explain the current strategy set.
    - `portfolio_low_churn_swing_v1`: routine full-portfolio swing review with
      conservative turnover and minimum trade rules.
-   - `engine_weekly_swing_v1`: weekly MarketPal return-engine sleeve review;
+   - `engine_weekly_swing_v1`: weekly Marketpal return-engine sleeve review;
      deploys assigned engine cash into ranked swing candidates without forcing
      cleanup sells.
    - `engine_quality_swing_rebuild_v1`: manual higher-turnover engine cleanup
@@ -66,7 +66,7 @@ verified.
      configs for explicit underpriced-quality or pullback-buying requests.
    - `momentum_profile_v1`, `momentum_only_v1`, and `simple_score_v1` may also
      appear in installed strategy lists as general or example configs. Do not
-     recommend them for routine MarketPal swing onboarding unless the user
+     recommend them for routine Marketpal swing onboarding unless the user
      explicitly chose one.
 
 4. Check private portfolio policy.

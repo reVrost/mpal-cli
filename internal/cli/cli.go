@@ -58,7 +58,7 @@ func newApp(out, errOut io.Writer) (*app, func()) {
 func (a *app) rootCommand(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "mpal",
-		Short:         "MarketPal capability CLI",
+		Short:         "Marketpal capability CLI",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -86,7 +86,7 @@ func (a *app) tourCommand() *cobra.Command {
 		Use:   "tour",
 		Short: "Print a first-run checklist for retail investors",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, err := fmt.Fprint(a.out, `MarketPal one-command tour
+			_, err := fmt.Fprint(a.out, `Marketpal one-command tour
 
 Use mpal to review a portfolio idea before you act. It does not place trades.
 

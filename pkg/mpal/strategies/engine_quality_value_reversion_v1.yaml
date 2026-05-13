@@ -2,7 +2,7 @@ id: engine_quality_value_reversion_v1
 version: 1.0.0
 defaults: swing_v1
 name: Engine quality-value reversion v1
-description: Conservative mean-reversion strategy for the MarketPal return-engine sleeve. It looks for high-quality, attractively valued names that have pulled back enough to offer a reversion setup without relying on broken momentum.
+description: Conservative mean-reversion strategy for the Marketpal return-engine sleeve. It looks for high-quality, attractively valued names that have pulled back enough to offer a reversion setup without relying on broken momentum.
 when_to_use: Use manually for engine-sleeve cash deployment when the investor wants quality and valuation to dominate momentum. Best for starter buys or modest top-ups after a pullback; not for high-churn cleanup.
 cadence: weekly_or_monthly_manual
 approved: true

@@ -2,8 +2,8 @@ id: engine_weekly_swing_v1
 version: 1.0.0
 defaults: swing_v1
 name: Engine weekly swing v1
-description: Moderate-turnover weekly swing strategy sized for the MarketPal return-engine sleeve. It can add starter positions on a ~$180k active book when engine cash is available without forcing a full rebuild.
-when_to_use: Use for weekly MarketPal engine-sleeve reviews when the goal is to deploy available engine cash into high-ranked swing candidates. Prefer this over the rebuild strategy unless the engine sleeve needs cleanup or deliberate rotation.
+description: Moderate-turnover weekly swing strategy sized for the Marketpal return-engine sleeve. It can add starter positions on a ~$180k active book when engine cash is available without forcing a full rebuild.
+when_to_use: Use for weekly Marketpal engine-sleeve reviews when the goal is to deploy available engine cash into high-ranked swing candidates. Prefer this over the rebuild strategy unless the engine sleeve needs cleanup or deliberate rotation.
 cadence: weekly
 approved: true
 

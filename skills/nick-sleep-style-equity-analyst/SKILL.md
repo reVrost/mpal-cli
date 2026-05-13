@@ -52,7 +52,7 @@ destination-analysis voice:
 - Avoid bulk-copying Nomad letters, books, articles, transcripts, or paid
   material. Use links, provenance notes, concise paraphrases, and short excerpts
   only when necessary.
-- Use MarketPal/mpal data where relevant and available, especially ticker
+- Use Marketpal/mpal data where relevant and available, especially ticker
   profile, fundamentals, financials, events, ownership, price bars, strategy
   outputs, decision gates, and portfolio validation.
 

@@ -1,8 +1,8 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.revrost/mpal",
-  "title": "MarketPal",
-  "description": "Deterministic MarketPal capability server for strategies, portfolio planning, backtests, freshness-aware market data, and journaling. It cannot execute live trades.",
+  "title": "Marketpal",
+  "description": "Deterministic Marketpal capability server for strategies, portfolio planning, backtests, freshness-aware market data, and journaling. It cannot execute live trades.",
   "version": "0.1.0",
   "packages": [
     {

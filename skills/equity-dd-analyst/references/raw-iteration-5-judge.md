@@ -20,8 +20,8 @@ skill_direction_vs_iteration_4: improved
 
 - Adds explicit valuation stress tests for all four names, including contractor de-rating math and IFT look-through CDC sensitivity.
 - Better contractor mechanics: SKS project concentration, bank guarantee relevance, SXE bonding/facility headroom, and cash conversion are more visible.
-- Stronger source hygiene: primary/company-filed, MarketPal-derived, and secondary-sourced facts are separated clearly.
-- Better data-quality skepticism: VNT ticker collision is identified and excluded; stale or imperfect MarketPal labels are called out.
+- Stronger source hygiene: primary/company-filed, Marketpal-derived, and secondary-sourced facts are separated clearly.
+- Better data-quality skepticism: VNT ticker collision is identified and excluded; stale or imperfect Marketpal labels are called out.
 - Conclusion is highly decision-useful: clear rank, role for each stock, confidence level, and what would change the view.
 
 **Remaining weaknesses**

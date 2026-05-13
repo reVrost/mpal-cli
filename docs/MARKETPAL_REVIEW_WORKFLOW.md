@@ -1,8 +1,8 @@
-# MarketPal Strategy Review Workflow
+# Marketpal Strategy Review Workflow
 
 This guide explains how to use `mpal-cli` to produce structured strategy review
 artifacts for research, validation, and journaling. It is written for
-agent-assisted workflows where MarketPal produces deterministic JSON, an agent
+agent-assisted workflows where Marketpal produces deterministic JSON, an agent
 summarizes the evidence and constraints, and a human remains responsible for
 any investment decision.
 
@@ -32,7 +32,7 @@ and compliance boundaries, see
 
 ## Example Review Cadences
 
-MarketPal supports several review cadences. These are workflow labels for
+Marketpal supports several review cadences. These are workflow labels for
 organizing research, not advice about how often any person should trade.
 
 - **Weekly review:** evaluate current signals, assigned cash, constraints, and
@@ -68,7 +68,7 @@ but they are not interchangeable.
 The quality-value reversion configs use the local
 `scoring_v2_quality_value_reversion` contract. They are research/local-engine
 configs until `strategy list` or `strategy validate` reports
-`api_compatible: true` for the hosted MarketPal API.
+`api_compatible: true` for the hosted Marketpal API.
 
 The weekly engine strategy is buy-biased, not mathematically buy-only. It is
 tuned to avoid forced cleanup sells, but a valid run can still produce trims or
@@ -273,7 +273,7 @@ agent behavior. If a workflow needs stops, maximum loss per idea, volatility
 sizing, or averaging-down rules, encode those rules explicitly and validate
 them before relying on the output.
 
-## How To Read A MarketPal Run
+## How To Read A Marketpal Run
 
 Every strategy review should separate signal quality from execution quality.
 

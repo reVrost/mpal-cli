@@ -1,17 +1,17 @@
 ---
 name: portfolio-review
-description: Use when a user asks for a portfolio review, risk review, sleeve allocation review, concentration analysis, return-target feasibility check, trim/exit rules, portfolio cleanup plan, or next-action roadmap for a stock portfolio. Use current MarketPal/mpal portfolio data where available, apply private portfolio policy when present, score holdings and themes with a professional risk/reward rubric, and do not provide personal financial advice or execute live trades.
+description: Use when a user asks for a portfolio review, risk review, sleeve allocation review, concentration analysis, return-target feasibility check, trim/exit rules, portfolio cleanup plan, or next-action roadmap for a stock portfolio. Use current Marketpal/mpal portfolio data where available, apply private portfolio policy when present, score holdings and themes with a professional risk/reward rubric, and do not provide personal financial advice or execute live trades.
 ---
 
 # Portfolio Review
 
-Run a portfolio-manager style review that turns current holdings, policy, thesis, and MarketPal signals into a concise risk map and next-action plan. This skill is for whole-portfolio and engine-sleeve risk reviews, not single-name DD or routine executable trade packets.
+Run a portfolio-manager style review that turns current holdings, policy, thesis, and Marketpal signals into a concise risk map and next-action plan. This skill is for whole-portfolio and engine-sleeve risk reviews, not single-name DD or routine executable trade packets.
 
 ## Hard Rules
 
 - Use current data. For live holdings, prices, transactions, events, laws, tax, and market context, fetch current data with `mpal` and/or browsing as needed.
 - Load `~/.marketpal/portfolio-policy.md` before real portfolio reviews when it exists. Apply sleeve targets, fixed/core holdings, high-conviction guardrails, contribution rules, and exit/trim policy.
-- Treat MarketPal output as the deterministic trading source of truth. Do not invent executable buys, sells, trims, targets, Kelly sizing, validation status, or journal entries.
+- Treat Marketpal output as the deterministic trading source of truth. Do not invent executable buys, sells, trims, targets, Kelly sizing, validation status, or journal entries.
 - Do not execute live trades. Validate concrete trade packets with `mpal portfolio validate` before describing them as executable.
 - Separate facts, inference, and opinion. Frame conclusions as a research and risk-management view based on stated assumptions, not personal financial advice.
 - Protect private details. Treat holdings, weights, transactions, policy text, tax lots, risk reports, and generated review artifacts as private. Do not write them to repo-tracked paths unless the user explicitly asks for that exact artifact.
@@ -35,7 +35,7 @@ Pick the narrowest mode that satisfies the request:
    - If the user states a return target, convert it into required returns for each sleeve and call out realism, volatility, and drawdown implications.
 
 2. Build the current-state pack.
-   - If MarketPal capabilities are uncertain, run `mpal capabilities --json` first.
+   - If Marketpal capabilities are uncertain, run `mpal capabilities --json` first.
    - Create a private run directory such as `~/.marketpal/reviews/YYYY-MM-DD/` or `tmp/mpal-private/portfolio-review-YYYY-MM-DD/`. Use `~/.marketpal/reviews/` for durable private artifacts; use ignored temp paths for short-lived local work.
    - Run `mpal portfolio snapshot --json` for holdings, values, weights, and freshness, and save it to a private artifact path before using it as `--portfolio <portfolio.json>`.
    - Run `mpal portfolio transactions --limit <n> --json` when fills, tax lots, recent deployment, or journaling matter, and save it privately.
@@ -46,7 +46,7 @@ Pick the narrowest mode that satisfies the request:
    - After a strategy run, use `mpal ticker events --run <run.json> --portfolio <portfolio.json> --days <window> --json` and, when useful, `mpal decision gate --run <run.json> --events <events.json> --config <strategy.yaml> --alternates 5 --json`.
 
 3. Map the portfolio before judging it.
-   - Split holdings into policy sleeves: core, MarketPal engine, high-conviction, cash/unassigned.
+   - Split holdings into policy sleeves: core, Marketpal engine, high-conviction, cash/unassigned.
    - Derive thesis buckets from the holdings, policy, and user thesis. Examples include AI/big tech, AI infrastructure/electrification, lithium/decarbonization, fintech/crypto, consumer, resources, defensives, and cash.
    - Compute top position weight, top 5 weight, top 10 weight, sleeve drift, theme concentration, and recent net deployment.
    - Identify hidden correlation: names that look different but depend on the same macro factor, funding cycle, commodity, multiple expansion, AI capex cycle, or risk-on liquidity.
@@ -75,7 +75,7 @@ Pick the narrowest mode that satisfies the request:
      - Down 35% from cost: default major review; exit or resize only after thesis, event, liquidity, and validation checks unless the private policy explicitly mandates a forced action.
    - For a concrete trade packet, write a plan artifact and validate it with:
      `mpal portfolio validate --plan <plan.json> --portfolio <portfolio.json> --universe <universe.json> --config <strategy.yaml> --json`.
-   - If MCP MarketPal tools are available, use the equivalent `mpal_portfolio_validate` call with the same explicit inputs.
+   - If MCP Marketpal tools are available, use the equivalent `mpal_portfolio_validate` call with the same explicit inputs.
 
 7. Journal accountable decisions only.
    - Do not journal snapshots, ticker events, profile/fundamental fetches, or broad exploration as separate reviews.

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MarketPal Trade Review {{.ID}}</title>
+  <title>Marketpal Trade Review {{.ID}}</title>
   <style>
     :root {
       color-scheme: light;
@@ -85,7 +85,7 @@
 <body>
 <main>
   <header>
-    <h1>MarketPal Trade Review</h1>
+    <h1>Marketpal Trade Review</h1>
     <div class="meta">
       <span class="chip">ID <strong>{{.ID}}</strong></span>
       <span class="chip">As of <strong>{{.AsOf}}</strong></span>

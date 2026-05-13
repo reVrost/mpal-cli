@@ -1,4 +1,4 @@
 interface:
-  display_name: "MarketPal Onboarding"
-  short_description: "Set up MarketPal safely before trading"
-  default_prompt: "Use $marketpal-onboarding to verify my MarketPal setup and run safe smoke tests."
+  display_name: "Marketpal Onboarding"
+  short_description: "Set up Marketpal safely before trading"
+  default_prompt: "Use $marketpal-onboarding to verify my Marketpal setup and run safe smoke tests."

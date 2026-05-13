@@ -150,7 +150,7 @@ func TestTourPrintsRetailChecklistAndDemoArtifacts(t *testing.T) {
 	require.Equal(t, 0, code)
 
 	text := out.String()
-	require.Contains(t, text, "MarketPal one-command tour")
+	require.Contains(t, text, "Marketpal one-command tour")
 	require.Contains(t, text, "First-run checklist")
 	require.Contains(t, text, "mpal doctor --json")
 	require.Contains(t, text, "examples/portfolio.json")
@@ -233,7 +233,7 @@ func TestDoctorReportsInvalidAPIKeyFailure(t *testing.T) {
 
 	require.NoError(t, cmd.Execute())
 	require.Contains(t, out.String(), `"ok": false`)
-	require.Contains(t, out.String(), "MarketPal API check failed: unauthenticated")
+	require.Contains(t, out.String(), "Marketpal API check failed: unauthenticated")
 
 	var payload map[string]any
 	require.NoError(t, json.Unmarshal(out.Bytes(), &payload))
@@ -300,7 +300,7 @@ func TestDoctorHumanOutput(t *testing.T) {
 	cmd.SetArgs([]string{"doctor", "--skip-api"})
 
 	require.NoError(t, cmd.Execute())
-	require.Contains(t, out.String(), "MarketPal doctor: WARN")
+	require.Contains(t, out.String(), "Marketpal doctor: WARN")
 	require.Contains(t, out.String(), "local install health:")
 	require.Contains(t, out.String(), "API availability:")
 	require.Contains(t, out.String(), "Next steps:")

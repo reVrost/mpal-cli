@@ -35,7 +35,7 @@ func TestRootStrategiesMatchEmbeddedCopies(t *testing.T) {
 	}
 }
 
-func TestMarketPalTraderSkillCopiesMatch(t *testing.T) {
+func TestMarketpalTraderSkillCopiesMatch(t *testing.T) {
 	t.Parallel()
 
 	rootRaw, err := os.ReadFile(filepath.Join("..", "..", "skills", "marketpal-trader", "SKILL.md"))

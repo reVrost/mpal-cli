@@ -2,7 +2,7 @@ id: engine_quality_swing_rebuild_v1
 version: 1.0.0
 defaults: swing_v1
 name: Engine quality-swing rebuild v1
-description: Higher-turnover quality-swing strategy for rebuilding the MarketPal return-engine sleeve. It exits weak holds, trims oversized positions, and adds high-ranked swing candidates.
+description: Higher-turnover quality-swing strategy for rebuilding the Marketpal return-engine sleeve. It exits weak holds, trims oversized positions, and adds high-ranked swing candidates.
 when_to_use: Use manually for monthly or quarterly engine cleanup, transition rebalances, or when the active sleeve needs a deliberate rebuild. Do not use as the default daily review because it can use up to 30% turnover.
 cadence: monthly_or_quarterly_manual
 approved: true

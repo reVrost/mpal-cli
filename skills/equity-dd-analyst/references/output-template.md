@@ -55,4 +55,4 @@ List the top three concrete checks, filings, contract wins, funding events, or p
 ## Source Notes
 
 List the most important sources with dates. Flag stale, missing, or secondary-only data.
-Separate company-filed facts from MarketPal-derived facts. If a secondary source was used because a primary document was unavailable, name the primary document to verify next.
+Separate company-filed facts from Marketpal-derived facts. If a secondary source was used because a primary document was unavailable, name the primary document to verify next.

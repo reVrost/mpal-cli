@@ -2,7 +2,7 @@ id: best_monthly_swing_v1
 version: 1.0.0
 defaults: swing_v1
 name: Best monthly swing v1
-description: Default monthly swing-trading review strategy for current MarketPal capabilities. It uses a true monthly rebalance horizon, gives profile/QVM more weight than the weekly strategy, and keeps Kelly sizing more conservative.
+description: Default monthly swing-trading review strategy for current Marketpal capabilities. It uses a true monthly rebalance horizon, gives profile/QVM more weight than the weekly strategy, and keeps Kelly sizing more conservative.
 when_to_use: Use for monthly swing reviews when the goal is a slower, higher-quality allocation pass rather than weekly timing or an engine rebuild. It should make fewer changes and require stronger persistence before adding new positions.
 cadence: monthly
 approved: true
