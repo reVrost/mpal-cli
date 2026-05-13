@@ -436,9 +436,10 @@ func (a *app) backtestCommand(ctx context.Context) *cobra.Command {
 }
 
 func (a *app) backtestRunCommand(ctx context.Context) *cobra.Command {
-	var startArg, endArg, universePath, configPath, benchmark string
+	var startArg, endArg, universePath, configPath, benchmark, profileVersion string
 	trustedOnly := true
 	allowUntrusted := false
+	snapshotFreshnessDays := 0
 	cmd := &cobra.Command{
 		Use: "run",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -463,15 +464,17 @@ func (a *app) backtestRunCommand(ctx context.Context) *cobra.Command {
 			}
 			wireConfig := mpal.CanonicalStrategyConfig(cfg)
 			result, err := a.client.RunBacktest(ctx, &marketpalv1.MpalBacktestRunRequest{
-				Start:          timestamppb.New(start),
-				End:            timestamppb.New(end),
-				UniverseJson:   mustJSON(universe),
-				ConfigJson:     mustJSON(wireConfig),
-				ConfigPath:     configPath,
-				ConfigHash:     hash,
-				TrustedOnly:    trustedOnly,
-				AllowUntrusted: allowUntrusted || !trustedOnly,
-				Benchmark:      benchmark,
+				Start:                 timestamppb.New(start),
+				End:                   timestamppb.New(end),
+				UniverseJson:          mustJSON(universe),
+				ConfigJson:            mustJSON(wireConfig),
+				ConfigPath:            configPath,
+				ConfigHash:            hash,
+				TrustedOnly:           trustedOnly,
+				AllowUntrusted:        allowUntrusted || !trustedOnly,
+				Benchmark:             benchmark,
+				SnapshotFreshnessDays: int32(snapshotFreshnessDays),
+				ProfileVersion:        profileVersion,
 			})
 			if err != nil {
 				return err
@@ -486,6 +489,8 @@ func (a *app) backtestRunCommand(ctx context.Context) *cobra.Command {
 	cmd.Flags().BoolVar(&trustedOnly, "trusted-only", true, "fail if the backtest cannot be trusted")
 	cmd.Flags().BoolVar(&allowUntrusted, "allow-untrusted", false, "return diagnostic output even when trust checks fail")
 	cmd.Flags().StringVar(&benchmark, "benchmark", "", "optional benchmark ticker")
+	cmd.Flags().IntVar(&snapshotFreshnessDays, "snapshot-freshness-days", 0, "optional max age in days for factor snapshots; 0 uses the backend default")
+	cmd.Flags().StringVar(&profileVersion, "profile-version", "", "optional factor snapshot profile version; empty uses the backend default")
 	addJSONFlag(cmd)
 	return cmd
 }

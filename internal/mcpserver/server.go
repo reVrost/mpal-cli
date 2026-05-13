@@ -282,15 +282,17 @@ func registerTools(server *mcp.Server, cfg Config) {
 		}
 		wireConfig := mpal.CanonicalStrategyConfig(strategy)
 		payload, err := cfg.Client.RunBacktest(ctx, &marketpalv1.MpalBacktestRunRequest{
-			Start:          timestamppb.New(start),
-			End:            timestamppb.New(end),
-			UniverseJson:   mustJSON(universe),
-			ConfigJson:     mustJSON(wireConfig),
-			ConfigPath:     sourceLabel(in.ConfigPath, "inline"),
-			ConfigHash:     hash,
-			TrustedOnly:    !in.AllowUntrusted,
-			AllowUntrusted: in.AllowUntrusted,
-			Benchmark:      in.Benchmark,
+			Start:                 timestamppb.New(start),
+			End:                   timestamppb.New(end),
+			UniverseJson:          mustJSON(universe),
+			ConfigJson:            mustJSON(wireConfig),
+			ConfigPath:            sourceLabel(in.ConfigPath, "inline"),
+			ConfigHash:            hash,
+			TrustedOnly:           !in.AllowUntrusted,
+			AllowUntrusted:        in.AllowUntrusted,
+			Benchmark:             in.Benchmark,
+			SnapshotFreshnessDays: in.SnapshotFreshnessDays,
+			ProfileVersion:        in.ProfileVersion,
 		})
 		if err != nil {
 			return nil, nil, err

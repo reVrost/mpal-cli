@@ -75,6 +75,8 @@ message MpalBacktestRunRequest {
   bool allow_untrusted = 7;
   string benchmark = 8;
   string config_hash = 9;
+  int32 snapshot_freshness_days = 10;
+  string profile_version = 11;
 }
 
 service MpalService {

@@ -63,14 +63,16 @@ type portfolioTransactionsInput struct {
 }
 
 type backtestRunInput struct {
-	Start          string `json:"start" jsonschema:"Start date in YYYY-MM-DD format."`
-	End            string `json:"end" jsonschema:"End date in YYYY-MM-DD format."`
-	UniversePath   string `json:"universe_path,omitempty" jsonschema:"Path to universe JSON."`
-	UniverseJSON   string `json:"universe_json,omitempty" jsonschema:"Inline universe JSON."`
-	ConfigPath     string `json:"config_path,omitempty" jsonschema:"Path to explicit versioned strategy YAML/JSON config."`
-	ConfigJSON     string `json:"config_json,omitempty" jsonschema:"Inline explicit versioned strategy config."`
-	Benchmark      string `json:"benchmark,omitempty" jsonschema:"Optional benchmark ticker."`
-	AllowUntrusted bool   `json:"allow_untrusted,omitempty" jsonschema:"Return diagnostics even when trust checks fail."`
+	Start                 string `json:"start" jsonschema:"Start date in YYYY-MM-DD format."`
+	End                   string `json:"end" jsonschema:"End date in YYYY-MM-DD format."`
+	UniversePath          string `json:"universe_path,omitempty" jsonschema:"Path to universe JSON."`
+	UniverseJSON          string `json:"universe_json,omitempty" jsonschema:"Inline universe JSON."`
+	ConfigPath            string `json:"config_path,omitempty" jsonschema:"Path to explicit versioned strategy YAML/JSON config."`
+	ConfigJSON            string `json:"config_json,omitempty" jsonschema:"Inline explicit versioned strategy config."`
+	Benchmark             string `json:"benchmark,omitempty" jsonschema:"Optional benchmark ticker."`
+	AllowUntrusted        bool   `json:"allow_untrusted,omitempty" jsonschema:"Return diagnostics even when trust checks fail."`
+	SnapshotFreshnessDays int32  `json:"snapshot_freshness_days,omitempty" jsonschema:"Optional max age in days for factor snapshots. Use 8-10 for weekly QVM backtests."`
+	ProfileVersion        string `json:"profile_version,omitempty" jsonschema:"Optional factor snapshot profile version. Defaults server-side to qvm_v1."`
 }
 
 type decisionGateInput struct {

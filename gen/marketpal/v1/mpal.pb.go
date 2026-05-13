@@ -651,18 +651,20 @@ func (x *MpalStrategyRunRequest) GetConfigHash() string {
 }
 
 type MpalBacktestRunRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Start          *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=start,proto3" json:"start,omitempty"`
-	End            *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=end,proto3" json:"end,omitempty"`
-	UniverseJson   string                 `protobuf:"bytes,3,opt,name=universe_json,json=universeJson,proto3" json:"universe_json,omitempty"`
-	ConfigJson     string                 `protobuf:"bytes,4,opt,name=config_json,json=configJson,proto3" json:"config_json,omitempty"`
-	ConfigPath     string                 `protobuf:"bytes,5,opt,name=config_path,json=configPath,proto3" json:"config_path,omitempty"`
-	TrustedOnly    bool                   `protobuf:"varint,6,opt,name=trusted_only,json=trustedOnly,proto3" json:"trusted_only,omitempty"`
-	AllowUntrusted bool                   `protobuf:"varint,7,opt,name=allow_untrusted,json=allowUntrusted,proto3" json:"allow_untrusted,omitempty"`
-	Benchmark      string                 `protobuf:"bytes,8,opt,name=benchmark,proto3" json:"benchmark,omitempty"`
-	ConfigHash     string                 `protobuf:"bytes,9,opt,name=config_hash,json=configHash,proto3" json:"config_hash,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Start                 *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=start,proto3" json:"start,omitempty"`
+	End                   *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=end,proto3" json:"end,omitempty"`
+	UniverseJson          string                 `protobuf:"bytes,3,opt,name=universe_json,json=universeJson,proto3" json:"universe_json,omitempty"`
+	ConfigJson            string                 `protobuf:"bytes,4,opt,name=config_json,json=configJson,proto3" json:"config_json,omitempty"`
+	ConfigPath            string                 `protobuf:"bytes,5,opt,name=config_path,json=configPath,proto3" json:"config_path,omitempty"`
+	TrustedOnly           bool                   `protobuf:"varint,6,opt,name=trusted_only,json=trustedOnly,proto3" json:"trusted_only,omitempty"`
+	AllowUntrusted        bool                   `protobuf:"varint,7,opt,name=allow_untrusted,json=allowUntrusted,proto3" json:"allow_untrusted,omitempty"`
+	Benchmark             string                 `protobuf:"bytes,8,opt,name=benchmark,proto3" json:"benchmark,omitempty"`
+	ConfigHash            string                 `protobuf:"bytes,9,opt,name=config_hash,json=configHash,proto3" json:"config_hash,omitempty"`
+	SnapshotFreshnessDays int32                  `protobuf:"varint,10,opt,name=snapshot_freshness_days,json=snapshotFreshnessDays,proto3" json:"snapshot_freshness_days,omitempty"`
+	ProfileVersion        string                 `protobuf:"bytes,11,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *MpalBacktestRunRequest) Reset() {
@@ -758,6 +760,20 @@ func (x *MpalBacktestRunRequest) GetConfigHash() string {
 	return ""
 }
 
+func (x *MpalBacktestRunRequest) GetSnapshotFreshnessDays() int32 {
+	if x != nil {
+		return x.SnapshotFreshnessDays
+	}
+	return 0
+}
+
+func (x *MpalBacktestRunRequest) GetProfileVersion() string {
+	if x != nil {
+		return x.ProfileVersion
+	}
+	return ""
+}
+
 var File_marketpal_v1_mpal_proto protoreflect.FileDescriptor
 
 const file_marketpal_v1_mpal_proto_rawDesc = "" +
@@ -808,7 +824,7 @@ const file_marketpal_v1_mpal_proto_rawDesc = "" +
 	"\vconfig_path\x18\x05 \x01(\tR\n" +
 	"configPath\x12\x1f\n" +
 	"\vconfig_hash\x18\x06 \x01(\tR\n" +
-	"configHash\"\xea\x02\n" +
+	"configHash\"\xcb\x03\n" +
 	"\x16MpalBacktestRunRequest\x120\n" +
 	"\x05start\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05start\x12,\n" +
 	"\x03end\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x03end\x12#\n" +
@@ -821,7 +837,10 @@ const file_marketpal_v1_mpal_proto_rawDesc = "" +
 	"\x0fallow_untrusted\x18\a \x01(\bR\x0eallowUntrusted\x12\x1c\n" +
 	"\tbenchmark\x18\b \x01(\tR\tbenchmark\x12\x1f\n" +
 	"\vconfig_hash\x18\t \x01(\tR\n" +
-	"configHash2\xb6\t\n" +
+	"configHash\x126\n" +
+	"\x17snapshot_freshness_days\x18\n" +
+	" \x01(\x05R\x15snapshotFreshnessDays\x12'\n" +
+	"\x0fprofile_version\x18\v \x01(\tR\x0eprofileVersion2\xb6\t\n" +
 	"\vMpalService\x12X\n" +
 	"\x0fGetCapabilities\x12%.marketpal.v1.MpalCapabilitiesRequest\x1a\x1e.marketpal.v1.MpalJSONResponse\x12X\n" +
 	"\x0fGetTickerEvents\x12%.marketpal.v1.MpalTickerEventsRequest\x1a\x1e.marketpal.v1.MpalJSONResponse\x12T\n" +
