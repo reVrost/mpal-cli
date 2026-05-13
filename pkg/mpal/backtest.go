@@ -65,7 +65,7 @@ func (e Engine) BacktestRun(
 		return result, err
 	}
 
-	seriesByTicker, quality := e.loadBacktestBars(ctx, universe.Tickers, start, end)
+	seriesByTicker, quality := e.loadBacktestBars(ctx, universe.Tickers, start, end, cfg.Backtest.PriceMode)
 	result.DataQuality = quality
 	if usesProfileFactors(cfg) {
 		coverage, err := e.factorCoverage(ctx, universe.Tickers, opts.ProfileVersion)
@@ -93,7 +93,7 @@ func (e Engine) BacktestRun(
 		result = e.runBacktestSimulation(ctx, result, seriesByTicker, calendar, rebalances, universe, cfg, opts)
 	}
 	if opts.Benchmark != "" {
-		result = e.attachBenchmark(ctx, result, opts.Benchmark, start, end)
+		result = e.attachBenchmark(ctx, result, opts.Benchmark, start, end, cfg.Backtest.PriceMode)
 	}
 
 	result.Trusted = len(result.DataQuality.Blockers) == 0
@@ -109,7 +109,7 @@ func (e Engine) BacktestRun(
 	return result, nil
 }
 
-func (e Engine) attachBenchmark(ctx context.Context, result BacktestResult, ticker string, start time.Time, end time.Time) BacktestResult {
+func (e Engine) attachBenchmark(ctx context.Context, result BacktestResult, ticker string, start time.Time, end time.Time, priceMode string) BacktestResult {
 	if e.Prices == nil {
 		result.Warnings = append(result.Warnings, "benchmark skipped: price data source is not configured")
 		return result
@@ -119,7 +119,7 @@ func (e Engine) attachBenchmark(ctx context.Context, result BacktestResult, tick
 		result.Warnings = append(result.Warnings, "benchmark skipped: "+err.Error())
 		return result
 	}
-	series, blockers, warnings := adjustedBacktestBars(bars.Bars)
+	series, blockers, warnings := backtestBarsFromPrices(bars.Bars, priceMode)
 	result.Warnings = append(result.Warnings, warnings...)
 	if len(blockers) > 0 {
 		result.Warnings = append(result.Warnings, "benchmark skipped: "+strings.Join(blockers, "; "))
@@ -190,6 +190,11 @@ func validateBacktestInputs(start time.Time, end time.Time, universe Universe, c
 	if cfg.Backtest.InitialCash <= 0 {
 		return fmt.Errorf("backtest.initial_cash must be > 0")
 	}
+	switch normalizeBacktestPriceMode(cfg.Backtest.PriceMode) {
+	case BacktestPriceModeClose, BacktestPriceModeAdjustedClose:
+	default:
+		return fmt.Errorf("backtest.price_mode must be close or adjusted_close")
+	}
 	return nil
 }
 
@@ -198,6 +203,7 @@ func (e Engine) loadBacktestBars(
 	tickers []string,
 	start time.Time,
 	end time.Time,
+	priceMode string,
 ) (map[string][]backtestBar, DataQualityReport) {
 	seriesByTicker := make(map[string][]backtestBar, len(tickers))
 	quality := DataQualityReport{Trusted: false}
@@ -222,7 +228,7 @@ func (e Engine) loadBacktestBars(
 			item.Blockers = append(item.Blockers, blocker)
 			quality.Blockers = append(quality.Blockers, ticker+" "+blocker)
 		}
-		series, blockers, warnings := adjustedBacktestBars(bars.Bars)
+		series, blockers, warnings := backtestBarsFromPrices(bars.Bars, priceMode)
 		item.Blockers = append(item.Blockers, blockers...)
 		item.Warnings = append(item.Warnings, warnings...)
 		for _, blocker := range blockers {
@@ -247,7 +253,8 @@ func (e Engine) loadBacktestBars(
 	return seriesByTicker, quality
 }
 
-func adjustedBacktestBars(bars []Bar) ([]backtestBar, []string, []string) {
+func backtestBarsFromPrices(bars []Bar, priceMode string) ([]backtestBar, []string, []string) {
+	priceMode = normalizeBacktestPriceMode(priceMode)
 	sorted := append([]Bar(nil), bars...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Date.Before(sorted[j].Date) })
 	seen := map[string]struct{}{}
@@ -263,6 +270,16 @@ func adjustedBacktestBars(bars []Bar) ([]backtestBar, []string, []string) {
 		seen[dateKey] = struct{}{}
 		if bar.Open <= 0 || bar.High <= 0 || bar.Low <= 0 || bar.Close <= 0 {
 			blockers = append(blockers, "has nonpositive OHLC for "+dateKey)
+			continue
+		}
+		if priceMode == BacktestPriceModeClose {
+			out = append(out, backtestBar{
+				Date:  dateOnly(bar.Date),
+				Open:  bar.Open,
+				High:  bar.High,
+				Low:   bar.Low,
+				Close: bar.Close,
+			})
 			continue
 		}
 		if bar.AdjustedClose == nil || *bar.AdjustedClose <= 0 {
@@ -283,7 +300,11 @@ func adjustedBacktestBars(bars []Bar) ([]backtestBar, []string, []string) {
 		})
 	}
 	if len(out) < 2 {
-		blockers = append(blockers, "has fewer than 2 valid adjusted bars")
+		if priceMode == BacktestPriceModeAdjustedClose {
+			blockers = append(blockers, "has fewer than 2 valid adjusted bars")
+		} else {
+			blockers = append(blockers, "has fewer than 2 valid close bars")
+		}
 	}
 	return out, blockers, warnings
 }

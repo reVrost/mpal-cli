@@ -128,6 +128,42 @@ func TestBacktestRunMomentumOnlyExecutesAtNextOpen(t *testing.T) {
 	assert.Greater(t, result.Metrics.FinalEquity, result.Metrics.InitialEquity)
 }
 
+func TestBacktestPriceModeCloseAcceptsMissingAdjustedClose(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2026, 1, 12, 0, 0, 0, 0, time.UTC)
+	bars := []Bar{
+		{Date: start, Open: 100, High: 101, Low: 99, Close: 100, Volume: 1_000_000},
+		{Date: start.AddDate(0, 0, 1), Open: 101, High: 102, Low: 100, Close: 101, Volume: 1_000_000},
+		{Date: start.AddDate(0, 0, 2), Open: 102, High: 103, Low: 101, Close: 102, Volume: 1_000_000},
+	}
+
+	series, blockers, warnings := backtestBarsFromPrices(bars, BacktestPriceModeClose)
+
+	require.Empty(t, warnings)
+	require.Empty(t, blockers)
+	require.Len(t, series, 3)
+	assert.Equal(t, 100.0, series[0].Close)
+	assert.Equal(t, 102.0, series[2].Close)
+}
+
+func TestBacktestPriceModeAdjustedCloseRequiresAdjustedClose(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2026, 1, 12, 0, 0, 0, 0, time.UTC)
+	bars := []Bar{
+		{Date: start, Open: 100, High: 101, Low: 99, Close: 100, Volume: 1_000_000},
+		{Date: start.AddDate(0, 0, 1), Open: 101, High: 102, Low: 100, Close: 101, Volume: 1_000_000},
+	}
+
+	series, blockers, warnings := backtestBarsFromPrices(bars, BacktestPriceModeAdjustedClose)
+
+	require.Empty(t, warnings)
+	require.Empty(t, series)
+	require.Contains(t, blockers, "missing positive adjusted close for 2026-01-12")
+	require.Contains(t, blockers, "has fewer than 2 valid adjusted bars")
+}
+
 func TestBacktestRunDoesNotApplyFillOnSignalDate(t *testing.T) {
 	t.Parallel()
 

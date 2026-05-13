@@ -266,7 +266,6 @@
       "type": "object",
       "additionalProperties": false,
       "description": "Advanced override. Built-in strategies get standard backtest assumptions from their defaults profile.",
-      "required": ["initial_cash", "fee_bps", "slippage_bps"],
       "properties": {
         "initial_cash": {
           "type": "number",
@@ -282,6 +281,11 @@
           "type": "number",
           "minimum": 0,
           "description": "Backtest slippage assumption in basis points."
+        },
+        "price_mode": {
+          "type": "string",
+          "enum": ["close", "adjusted_close"],
+          "description": "Backtest price mode. close uses raw OHLC close data and is the default; adjusted_close applies adjusted-close factors and requires adjusted_close on every bar."
         }
       }
     }

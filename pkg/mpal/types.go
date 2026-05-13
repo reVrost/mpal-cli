@@ -141,6 +141,7 @@ type BacktestConfig struct {
 	InitialCash float64 `json:"initial_cash" yaml:"initial_cash"`
 	FeeBps      float64 `json:"fee_bps" yaml:"fee_bps"`
 	SlippageBps float64 `json:"slippage_bps" yaml:"slippage_bps"`
+	PriceMode   string  `json:"price_mode,omitempty" yaml:"price_mode,omitempty"`
 }
 
 const (
@@ -151,6 +152,9 @@ const (
 	HostedStrategyAPIContract   = "hosted_strategy_api_v1"
 	ScoringContractV1           = "scoring_v1_momentum_profile"
 	ScoringContractV2           = "scoring_v2_quality_value_reversion"
+
+	BacktestPriceModeAdjustedClose = "adjusted_close"
+	BacktestPriceModeClose         = "close"
 )
 
 type StrategyRef struct {
@@ -544,17 +548,43 @@ func ApplyStrategyDefaults(cfg StrategyConfig) StrategyConfig {
 		cfg.Events = EventGuardrailConfig{}
 	}
 	applyRiskProfileDefaults(&cfg)
+	cfg.Backtest.PriceMode = normalizeBacktestPriceMode(cfg.Backtest.PriceMode)
 	return cfg
 }
 
 func applySharedStrategyDefaults(cfg *StrategyConfig) {
 	cfg.Portfolio.LongOnly = true
 	cfg.Risk.ProtectUnscoredHoldings = true
-	cfg.Backtest = BacktestConfig{
+	defaults := defaultBacktestConfig()
+	if cfg.Backtest.InitialCash == 0 {
+		cfg.Backtest.InitialCash = defaults.InitialCash
+	}
+	if cfg.Backtest.FeeBps == 0 {
+		cfg.Backtest.FeeBps = defaults.FeeBps
+	}
+	if cfg.Backtest.SlippageBps == 0 {
+		cfg.Backtest.SlippageBps = defaults.SlippageBps
+	}
+	if strings.TrimSpace(cfg.Backtest.PriceMode) == "" {
+		cfg.Backtest.PriceMode = defaults.PriceMode
+	}
+}
+
+func defaultBacktestConfig() BacktestConfig {
+	return BacktestConfig{
 		InitialCash: 100000,
 		FeeBps:      5,
 		SlippageBps: 10,
+		PriceMode:   BacktestPriceModeClose,
 	}
+}
+
+func normalizeBacktestPriceMode(mode string) string {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		return BacktestPriceModeClose
+	}
+	return mode
 }
 
 func ValidateStrategyConfig(cfg StrategyConfig) ValidationResult {
@@ -672,6 +702,11 @@ func ValidateStrategyConfig(cfg StrategyConfig) ValidationResult {
 		if sizing.KellyMinSampleCount < 0 {
 			errs = append(errs, "risk.kelly_min_sample_count must be >= 0")
 		}
+	}
+	switch normalizeBacktestPriceMode(cfg.Backtest.PriceMode) {
+	case BacktestPriceModeClose, BacktestPriceModeAdjustedClose:
+	default:
+		errs = append(errs, "backtest.price_mode must be close or adjusted_close")
 	}
 	return ValidationResult{Valid: len(errs) == 0, Errors: errs}
 }

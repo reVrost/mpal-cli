@@ -136,6 +136,16 @@ func TestStrategySchemaAcceptsHalfKellyFraction(t *testing.T) {
 	require.NoError(t, schema.Validate(doc))
 }
 
+func TestStrategySchemaAcceptsBacktestPriceModeOverride(t *testing.T) {
+	t.Parallel()
+
+	schema := loadStrategySchema(t)
+	doc := loadYAMLDocument(t, filepath.Join("..", "..", "strategies", "engine_weekly_swing_v1.yaml"))
+	doc["backtest"] = map[string]any{"price_mode": "adjusted_close"}
+
+	require.NoError(t, schema.Validate(doc))
+}
+
 func TestStrategySchemaAcceptsRiskProfileWithOverrides(t *testing.T) {
 	t.Parallel()
 
@@ -208,7 +218,7 @@ func TestStrategyDefaultsExpandSlimBuiltIns(t *testing.T) {
 			require.True(t, ValidateStrategyConfig(cfg).Valid)
 			require.True(t, cfg.Portfolio.LongOnly)
 			require.True(t, cfg.Risk.ProtectUnscoredHoldings)
-			require.Equal(t, BacktestConfig{InitialCash: 100000, FeeBps: 5, SlippageBps: 10}, cfg.Backtest)
+			require.Equal(t, BacktestConfig{InitialCash: 100000, FeeBps: 5, SlippageBps: 10, PriceMode: BacktestPriceModeClose}, cfg.Backtest)
 
 			switch cfg.Defaults {
 			case StrategyDefaultsSwingV1:
@@ -350,7 +360,7 @@ backtest:
 		BoostScore:   0.8,
 		BoostAmount:  0.02,
 	}, cfg.Events)
-	require.Equal(t, BacktestConfig{InitialCash: 12345, FeeBps: 1, SlippageBps: 2}, cfg.Backtest)
+	require.Equal(t, BacktestConfig{InitialCash: 12345, FeeBps: 1, SlippageBps: 2, PriceMode: BacktestPriceModeClose}, cfg.Backtest)
 }
 
 func TestLoadStrategyBytesExpandsRiskProfileAndKeepsOverrides(t *testing.T) {
@@ -382,6 +392,39 @@ risk:
 	require.Equal(t, 0.10, cfg.Risk.TurnoverBudgetPct)
 	require.Equal(t, 0.035, cfg.Risk.MaxSingleTradePct)
 	require.Equal(t, 0.015, cfg.Risk.StarterPositionPct)
+}
+
+func TestLoadStrategyBytesKeepsBacktestPriceModeOverrideWithDefaults(t *testing.T) {
+	t.Parallel()
+
+	cfg, _, err := LoadStrategyBytes([]byte(`
+id: adjusted_backtest_strategy
+version: 1.0.0
+defaults: swing_v1
+approved: true
+scoring:
+  momentum_weight: 0.7
+  profile_weight: 0.3
+  min_buy_score: 0.6
+  min_hold_score: 0.2
+portfolio:
+  max_positions: 5
+  max_position_pct: 0.2
+  min_trade_value: 100
+  rebalance: weekly
+risk:
+  profile: weekly_swing
+  max_new_positions_per_run: 2
+  cash_buffer_pct: 0.02
+backtest:
+  price_mode: adjusted_close
+`))
+	require.NoError(t, err)
+
+	require.Equal(t, BacktestPriceModeAdjustedClose, cfg.Backtest.PriceMode)
+	require.Equal(t, 100000.0, cfg.Backtest.InitialCash)
+	require.Equal(t, 5.0, cfg.Backtest.FeeBps)
+	require.Equal(t, 10.0, cfg.Backtest.SlippageBps)
 }
 
 func TestLoadStrategyBytesUsesCanonicalExpandedHash(t *testing.T) {

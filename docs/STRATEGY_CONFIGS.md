@@ -154,5 +154,11 @@ shown in built-in strategy YAML:
 - `risk.protect_unscored_holdings`
 - `backtest.*`
 
-If a custom config needs to override those fields, omit `defaults` and provide a
-full explicit YAML config.
+If a custom config needs to override most of those fields, omit `defaults` and
+provide a full explicit YAML config. Built-in configs using `defaults` may still
+set `backtest.price_mode` as a narrow override.
+
+`backtest.price_mode` defaults to `close`, which uses the raw OHLC bars returned
+by the Marketpal historical-price backend. Set it to `adjusted_close` only when
+the backend has populated positive `adjusted_close` values for the full
+backtest window and you want corporate-action-adjusted simulation prices.
