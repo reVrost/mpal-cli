@@ -15,14 +15,16 @@ overrides, and journaling.
 When a user asks how to start, give them the shortest safe path:
 
 1. Install `mpal` and `mpal-mcp`, set `MPAL_API_KEY` in the shell or app
-   process that runs the agent, and install the Codex or Claude Code plugin if
-   they want skill-guided setup.
+   process that runs the agent before API-backed commands, and install the
+   Codex or Claude Code plugin if they want skill-guided setup.
 2. Tell them they can ask their agent:
    `Run the Marketpal onboarding skill and report the first-run checklist.`
-3. Run `mpal doctor --json` when available. Use `mpal doctor --skip-api --json`
+3. Run `mpal demo run --json` first. It is deterministic, uses committed
+   fixture data, and does not require `MPAL_API_KEY`.
+4. Run `mpal doctor --json` when available. Use `mpal doctor --skip-api --json`
    for a local-only check or `mpal doctor --strict --json` when setup failures
    should return a non-zero exit code.
-4. Then follow this skill end-to-end. Check the environment, run read-only
+5. Then follow this skill end-to-end. Check the environment, run read-only
    smoke tests, verify MCP/plugin wiring, check for the private policy path,
    and return the first-run checklist with one safe next command.
 
@@ -41,6 +43,12 @@ verified.
      explicit `source .envrc` for development runs.
 
 2. Smoke-test the CLI.
+   - Run `mpal demo run --json` when `mpal` is on `PATH`; otherwise use
+     `go run ./cmd/mpal demo run --json` from the repo. Confirm it reports
+     fixture/demo data and `api_key_required: false`.
+   - Run `mpal demo report` and `mpal demo journal --json` to verify the full
+     fixture workflow: setup check, strategy packet, decision gate, validation,
+     report, and journal finalization.
    - Run `mpal doctor --json` when `mpal` is on `PATH`; otherwise use
      `go run ./cmd/mpal doctor --json` from the repo.
    - If the API key or hosted API is not available yet, run
@@ -87,8 +95,8 @@ verified.
    - Confirm MCP starts `mpal-mcp` and receives `MPAL_API_KEY`.
 
 6. Run a non-trading smoke test.
-   - Prefer read-only commands first: capabilities, strategy list/show,
-     portfolio snapshot, and watchlist get.
+   - Prefer the no-key demo first, then read-only commands: capabilities,
+     strategy list/show, portfolio snapshot, and watchlist get.
    - If the user wants a strategy smoke test, use example or temporary inputs
      and an approved config.
    - For a real portfolio first run, use `marketpal-trader` next and keep live

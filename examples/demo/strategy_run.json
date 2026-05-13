@@ -1,0 +1,231 @@
+{
+  "run_id": "demo_strategy_run_20260511",
+  "mode": "strategy_run",
+  "as_of": "2026-05-11T00:00:00Z",
+  "strategy": {
+    "id": "demo_weekly_swing_v1",
+    "version": "1.0.0",
+    "config_hash": "sha256:demo-fixture-config",
+    "approved": true,
+    "source": "fixture",
+    "path": "examples/demo/strategy.yaml"
+  },
+  "result": "TRADE",
+  "model_result": "TRADE",
+  "execution_result": "TRADE",
+  "summary": "Demo fixture run: two starter candidates cleared the deterministic fixture strategy and validation rules.",
+  "signals": [
+    {
+      "ticker": "AAPL",
+      "as_of": "2026-05-11T00:00:00Z",
+      "momentum_score": 0.91,
+      "profile_score": 0.82,
+      "final_score": 0.883,
+      "action_hint": "BUY_CANDIDATE",
+      "markov": {
+        "model": "demo_markov",
+        "horizon": "weekly",
+        "horizon_bars": 5,
+        "current_state": "uptrend_quality",
+        "current_return": 0.038,
+        "transition_probabilities": {
+          "favorable": 0.58,
+          "neutral": 0.27,
+          "unfavorable": 0.15
+        },
+        "favorable_probability": 0.58,
+        "unfavorable_probability": 0.15,
+        "expected_state_score": 0.71,
+        "sample_count": 84,
+        "total_transition_count": 132,
+        "confidence": 0.74
+      },
+      "raw_kelly": {
+        "horizon": "weekly",
+        "horizon_bars": 5,
+        "raw_kelly": 0.16,
+        "favorable_probability": 0.58,
+        "unfavorable_probability": 0.15,
+        "payoff_ratio": 1.35,
+        "confidence": 0.74,
+        "sample_count": 84,
+        "calibration_status": "demo_fixture"
+      },
+      "reasons": [
+        "fixture momentum and profile scores clear the buy threshold",
+        "weekly demo Markov context is favorable"
+      ],
+      "freshness": [
+        {
+          "source": "mpal_demo_fixture",
+          "provider": "fixture",
+          "storage": "examples/demo",
+          "stale": false,
+          "description": "Demo fixture signal. No live MarketPal API call was made."
+        }
+      ]
+    },
+    {
+      "ticker": "MSFT",
+      "as_of": "2026-05-11T00:00:00Z",
+      "momentum_score": 0.84,
+      "profile_score": 0.86,
+      "final_score": 0.846,
+      "action_hint": "BUY_CANDIDATE",
+      "markov": {
+        "model": "demo_markov",
+        "horizon": "weekly",
+        "horizon_bars": 5,
+        "current_state": "steady_compounder",
+        "current_return": 0.026,
+        "transition_probabilities": {
+          "favorable": 0.52,
+          "neutral": 0.31,
+          "unfavorable": 0.17
+        },
+        "favorable_probability": 0.52,
+        "unfavorable_probability": 0.17,
+        "expected_state_score": 0.66,
+        "sample_count": 91,
+        "total_transition_count": 146,
+        "confidence": 0.69
+      },
+      "raw_kelly": {
+        "horizon": "weekly",
+        "horizon_bars": 5,
+        "raw_kelly": 0.11,
+        "favorable_probability": 0.52,
+        "unfavorable_probability": 0.17,
+        "payoff_ratio": 1.25,
+        "confidence": 0.69,
+        "sample_count": 91,
+        "calibration_status": "demo_fixture"
+      },
+      "reasons": [
+        "fixture profile score supports a starter candidate"
+      ],
+      "freshness": [
+        {
+          "source": "mpal_demo_fixture",
+          "provider": "fixture",
+          "storage": "examples/demo",
+          "stale": false,
+          "description": "Demo fixture signal. No live MarketPal API call was made."
+        }
+      ]
+    },
+    {
+      "ticker": "NVDA",
+      "as_of": "2026-05-11T00:00:00Z",
+      "momentum_score": 0.88,
+      "profile_score": 0.73,
+      "final_score": 0.835,
+      "action_hint": "ALTERNATE_BUY_CONTEXT",
+      "reasons": [
+        "high demo fixture momentum but lower profile support than selected names"
+      ]
+    },
+    {
+      "ticker": "GOOGL",
+      "as_of": "2026-05-11T00:00:00Z",
+      "momentum_score": 0.74,
+      "profile_score": 0.8,
+      "final_score": 0.758,
+      "action_hint": "WATCHLIST_CONTEXT",
+      "reasons": [
+        "watchlist context only in the demo packet"
+      ]
+    }
+  ],
+  "baseline_plan": {
+    "as_of": "2026-05-11T00:00:00Z",
+    "result": "TRADE",
+    "targets": [
+      {
+        "ticker": "AAPL",
+        "target_weight": 0.015,
+        "reason": "demo starter target from top-ranked fixture signal"
+      },
+      {
+        "ticker": "MSFT",
+        "target_weight": 0.012,
+        "reason": "demo starter target from second-ranked fixture signal"
+      }
+    ],
+    "proposed_trades": [
+      {
+        "ticker": "AAPL",
+        "side": "BUY",
+        "intent": "STARTER",
+        "current_weight": 0,
+        "target_weight": 0.015,
+        "delta_weight": 0.015,
+        "estimated_value": 1500,
+        "reason": "demo starter position from top-ranked score above buy threshold",
+        "sizing": {
+          "method": "fractional_kelly",
+          "source": "demo_fixture",
+          "horizon": "weekly",
+          "horizon_bars": 5,
+          "raw_kelly": 0.16,
+          "fractional_kelly": 0.032,
+          "target_weight": 0.015,
+          "kelly_target_weight": 0.032,
+          "final_target_weight": 0.015,
+          "binding_constraint": "starter_position_pct",
+          "favorable_probability": 0.58,
+          "unfavorable_probability": 0.15,
+          "calibration_status": "demo_fixture",
+          "payoff_ratio": 1.35,
+          "confidence": 0.74,
+          "sample_count": 84
+        }
+      },
+      {
+        "ticker": "MSFT",
+        "side": "BUY",
+        "intent": "STARTER",
+        "current_weight": 0,
+        "target_weight": 0.012,
+        "delta_weight": 0.012,
+        "estimated_value": 1200,
+        "reason": "demo starter position from durable profile and positive weekly context",
+        "sizing": {
+          "method": "fractional_kelly",
+          "source": "demo_fixture",
+          "horizon": "weekly",
+          "horizon_bars": 5,
+          "raw_kelly": 0.11,
+          "fractional_kelly": 0.022,
+          "target_weight": 0.012,
+          "kelly_target_weight": 0.022,
+          "final_target_weight": 0.012,
+          "binding_constraint": "starter_position_pct",
+          "favorable_probability": 0.52,
+          "unfavorable_probability": 0.17,
+          "calibration_status": "demo_fixture",
+          "payoff_ratio": 1.25,
+          "confidence": 0.69,
+          "sample_count": 91
+        }
+      }
+    ],
+    "rejected": [
+      {
+        "ticker": "NVDA",
+        "reason": "max_new_positions_per_run reached after selected fixture starters"
+      }
+    ],
+    "summary": "Demo fixture baseline: AAPL and MSFT are starter candidates; NVDA remains alternate context.",
+    "warnings": [
+      "Demo fixture output only; not live MarketPal data."
+    ]
+  },
+  "validation": {
+    "valid": true
+  },
+  "warnings": [
+    "Demo fixture data. No live MarketPal API call was made."
+  ]
+}
+

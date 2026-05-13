@@ -1,0 +1,29 @@
+{
+  "cash": 100000,
+  "equity": 100000,
+  "positions": [
+    {
+      "ticker": "VTI",
+      "market_value": 40000,
+      "weight": 0.4,
+      "current_price": 252.1
+    },
+    {
+      "ticker": "BRK.B",
+      "market_value": 18000,
+      "weight": 0.18,
+      "current_price": 410.25
+    }
+  ],
+  "freshness": {
+    "source": "mpal_demo_fixture",
+    "provider": "fixture",
+    "storage": "examples/demo",
+    "stale": false,
+    "description": "Demo fixture portfolio. No live MarketPal API call was made."
+  },
+  "warnings": [
+    "Demo fixture data only; do not treat this as a current portfolio."
+  ]
+}
+

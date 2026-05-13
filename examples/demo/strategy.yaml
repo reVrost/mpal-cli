@@ -1,0 +1,32 @@
+id: demo_weekly_swing_v1
+version: 1.0.0
+defaults: swing_v1
+name: Demo weekly swing v1
+description: Deterministic fixture strategy for the no-key mpal demo workflow.
+when_to_use: Use only for mpal demo fixture walkthroughs.
+cadence: weekly
+approved: true
+
+scoring:
+  momentum_weight: 0.70
+  profile_weight: 0.30
+  min_buy_score: 0.68
+  min_hold_score: 0.22
+
+portfolio:
+  max_positions: 20
+  max_position_pct: 0.16
+  min_trade_value: 2500
+  rebalance: weekly
+
+risk:
+  profile: weekly_swing
+  sizing_method: fractional_kelly
+  turnover_budget_pct: 0.12
+  max_single_trade_pct: 0.035
+  starter_position_pct: 0.015
+  kelly_fraction: 0.20
+  kelly_max_fraction: 0.04
+  max_new_positions_per_run: 3
+  cash_buffer_pct: 0.02
+

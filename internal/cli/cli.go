@@ -67,6 +67,7 @@ func (a *app) rootCommand(ctx context.Context) *cobra.Command {
 	}
 	cmd.AddCommand(
 		a.tourCommand(),
+		a.demoCommand(ctx),
 		a.doctorCommand(ctx),
 		a.capabilitiesCommand(),
 		a.strategyCommand(ctx),
@@ -91,11 +92,11 @@ func (a *app) tourCommand() *cobra.Command {
 Use mpal to review a portfolio idea before you act. It does not place trades.
 
 First-run checklist:
-  1. Check setup:              mpal doctor --json
-  2. See sample files:         examples/portfolio.json, examples/universe.json, examples/final_plan.json
-  3. Validate a sample plan:   mpal portfolio validate --plan examples/final_plan.json --portfolio examples/portfolio.json --universe examples/universe.json --config strategies/momentum_profile_v1.yaml --json
-  4. Review available models:  mpal strategy list --json
-  5. Save your final decision: mpal journal finalize --id review_... --input examples/final_action.json --json
+  1. Run the no-key demo:      mpal demo run --json
+  2. Generate demo report:     mpal demo report
+  3. Read demo journal:        mpal demo journal --json
+  4. Check local setup:        mpal doctor --skip-api --json
+  5. Review available models:  mpal strategy list --json
 
 Plain-English terms:
   decision gate: a final evidence packet that shows what the model liked, rejected, and why.
@@ -106,10 +107,10 @@ Plain-English terms:
 
 Demo artifacts:
   examples/README.md explains the sample files.
-  examples/portfolio.json is a small sample portfolio.
-  examples/universe.json is a sample stock list.
-  examples/final_plan.json is a sample final plan you can validate locally.
-  examples/final_action.json is a sample journal-finalization payload.
+  examples/demo/ contains the committed no-key fixture workflow.
+  examples/demo/strategy_run.json is the fixture strategy packet.
+  examples/demo/final_plan.json is the fixture plan used for validation.
+  examples/demo/final_journal.json is the fixture journal-finalization payload.
 
 Next step:
   Open README.md for the friendly workflow, or docs/MARKETPAL_REVIEW_WORKFLOW.md for the full professional workflow.
@@ -701,6 +702,7 @@ func mustJSON(value any) string {
 func mpalCapabilityCommands() []string {
 	return []string{
 		"doctor", "capabilities", "strategy list", "strategy show", "strategy validate", "strategy run",
+		"demo run", "demo report", "demo journal",
 		"ticker events", "ticker bars", "ticker profile", "ticker financials",
 		"ticker fundamentals", "ticker insiders", "ticker ownership",
 		"portfolio snapshot", "portfolio transactions", "portfolio validate", "watchlist get", "backtest run", "decision gate",

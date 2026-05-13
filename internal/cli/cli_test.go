@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 )
 
 var _ client.API = fakeMpalAPI{}
+var _ client.API = (*failOnCallAPI)(nil)
 
 type fakeMpalAPI struct {
 	strategyPayload      string
@@ -25,6 +27,51 @@ type fakeMpalAPI struct {
 	fundamentalsPayload  string
 	transactionsPayload  string
 	watchlistErr         error
+}
+
+type failOnCallAPI struct {
+	called bool
+}
+
+func (f *failOnCallAPI) fail() (string, error) {
+	f.called = true
+	return "", errors.New("unexpected MarketPal API call")
+}
+func (f *failOnCallAPI) GetTickerEvents(context.Context, *marketpalv1.MpalTickerEventsRequest) (string, error) {
+	return f.fail()
+}
+func (f *failOnCallAPI) GetTickerBars(context.Context, *marketpalv1.MpalTickerBarsRequest) (string, error) {
+	return f.fail()
+}
+func (f *failOnCallAPI) GetTickerProfile(context.Context, *marketpalv1.MpalTickerProfileRequest) (string, error) {
+	return f.fail()
+}
+func (f *failOnCallAPI) GetTickerFinancials(context.Context, *marketpalv1.MpalTickerFinancialsRequest) (string, error) {
+	return f.fail()
+}
+func (f *failOnCallAPI) GetTickerFundamentals(context.Context, *marketpalv1.MpalTickerDataRequest) (string, error) {
+	return f.fail()
+}
+func (f *failOnCallAPI) GetTickerInsiders(context.Context, *marketpalv1.MpalTickerDataRequest) (string, error) {
+	return f.fail()
+}
+func (f *failOnCallAPI) GetTickerOwnership(context.Context, *marketpalv1.MpalTickerDataRequest) (string, error) {
+	return f.fail()
+}
+func (f *failOnCallAPI) GetPortfolioSnapshot(context.Context, *marketpalv1.MpalPortfolioSnapshotRequest) (string, error) {
+	return f.fail()
+}
+func (f *failOnCallAPI) GetPortfolioTransactions(context.Context, *marketpalv1.MpalPortfolioTransactionsRequest) (string, error) {
+	return f.fail()
+}
+func (f *failOnCallAPI) GetWatchlist(context.Context, *marketpalv1.MpalWatchlistRequest) (string, error) {
+	return f.fail()
+}
+func (f *failOnCallAPI) RunStrategy(context.Context, *marketpalv1.MpalStrategyRunRequest) (string, error) {
+	return f.fail()
+}
+func (f *failOnCallAPI) RunBacktest(context.Context, *marketpalv1.MpalBacktestRunRequest) (string, error) {
+	return f.fail()
 }
 
 func (f fakeMpalAPI) GetTickerEvents(context.Context, *marketpalv1.MpalTickerEventsRequest) (string, error) {
@@ -113,6 +160,9 @@ func TestCapabilitiesReturnsValidJSON(t *testing.T) {
 	require.True(t, ok)
 	require.Contains(t, commands, "tour")
 	require.Contains(t, commands, "doctor")
+	require.Contains(t, commands, "demo run")
+	require.Contains(t, commands, "demo report")
+	require.Contains(t, commands, "demo journal")
 	require.Contains(t, commands, "ticker events")
 	require.Contains(t, commands, "ticker bars")
 	require.Contains(t, commands, "ticker profile")
@@ -152,16 +202,96 @@ func TestTourPrintsRetailChecklistAndDemoArtifacts(t *testing.T) {
 	text := out.String()
 	require.Contains(t, text, "Marketpal one-command tour")
 	require.Contains(t, text, "First-run checklist")
-	require.Contains(t, text, "mpal doctor --json")
-	require.Contains(t, text, "examples/portfolio.json")
-	require.Contains(t, text, "examples/universe.json")
-	require.Contains(t, text, "examples/final_plan.json")
-	require.Contains(t, text, "examples/final_action.json")
+	require.Contains(t, text, "mpal demo run --json")
+	require.Contains(t, text, "mpal demo report")
+	require.Contains(t, text, "mpal demo journal --json")
+	require.Contains(t, text, "examples/demo/")
+	require.Contains(t, text, "examples/demo/strategy_run.json")
+	require.Contains(t, text, "examples/demo/final_plan.json")
+	require.Contains(t, text, "examples/demo/final_journal.json")
 	require.Contains(t, text, "decision gate: a final evidence packet")
 	require.Contains(t, text, "validation: a rule check")
 	require.Contains(t, text, "config hash: a fingerprint")
 	require.Contains(t, text, "journal finalization: saving")
 	require.Contains(t, text, "human overlay: your reviewed change")
+}
+
+func TestDemoRunUsesFixturesWithoutAPIKey(t *testing.T) {
+	t.Setenv("MPAL_API_KEY", "")
+	t.Setenv("MPAL_API_KEYS", "")
+
+	outputDir := t.TempDir()
+	var out bytes.Buffer
+	api := &failOnCallAPI{}
+	a := &app{out: &out, errOut: &bytes.Buffer{}, client: api}
+	cmd := a.rootCommand(context.Background())
+	cmd.SetArgs([]string{"demo", "run", "--output-dir", outputDir, "--json"})
+
+	require.NoError(t, cmd.Execute())
+	require.False(t, api.called)
+	require.Contains(t, out.String(), "Demo fixture data. No live MarketPal API call was made.")
+	require.Contains(t, out.String(), `"setup_check"`)
+	require.Contains(t, out.String(), `"strategy_packet"`)
+	require.Contains(t, out.String(), `"decision_gate"`)
+	require.Contains(t, out.String(), `"validation"`)
+	require.Contains(t, out.String(), `"report"`)
+	require.Contains(t, out.String(), `"journal_finalization"`)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(out.Bytes(), &payload))
+	require.Equal(t, true, payload["demo"])
+	require.Equal(t, "fixture", payload["data_source"])
+	require.Equal(t, true, payload["no_live_api"])
+	setup := payload["setup_check"].(map[string]any)
+	require.Equal(t, false, setup["api_key_required"])
+	require.Equal(t, false, setup["api_key_used"])
+	require.FileExists(t, filepath.Join(outputDir, "demo-trade-review.html"))
+	require.FileExists(t, filepath.Join(outputDir, "demo-mpal.db"))
+}
+
+func TestDemoReportWritesFixtureHTMLWithoutAPIKey(t *testing.T) {
+	t.Setenv("MPAL_API_KEY", "")
+	t.Setenv("MPAL_API_KEYS", "")
+
+	outputDir := t.TempDir()
+	var out bytes.Buffer
+	api := &failOnCallAPI{}
+	a := &app{out: &out, errOut: &bytes.Buffer{}, client: api}
+	cmd := a.rootCommand(context.Background())
+	cmd.SetArgs([]string{"demo", "report", "--output-dir", outputDir})
+
+	require.NoError(t, cmd.Execute())
+	require.False(t, api.called)
+	reportPath := strings.TrimSpace(out.String())
+	require.Equal(t, filepath.Join(outputDir, "demo-trade-review.html"), reportPath)
+	raw, err := os.ReadFile(reportPath)
+	require.NoError(t, err)
+	require.Contains(t, string(raw), "Demo fixture data. No live MarketPal API call was made.")
+	require.Contains(t, string(raw), "<th>Ticker</th>")
+}
+
+func TestDemoJournalFinalizesFixtureReviewWithoutAPIKey(t *testing.T) {
+	t.Setenv("MPAL_API_KEY", "")
+	t.Setenv("MPAL_API_KEYS", "")
+
+	outputDir := t.TempDir()
+	var out bytes.Buffer
+	api := &failOnCallAPI{}
+	a := &app{out: &out, errOut: &bytes.Buffer{}, client: api}
+	cmd := a.rootCommand(context.Background())
+	cmd.SetArgs([]string{"demo", "journal", "--output-dir", outputDir, "--json"})
+
+	require.NoError(t, cmd.Execute())
+	require.False(t, api.called)
+	require.Contains(t, out.String(), `"created_at": "2026-05-11T00:00:00.000Z"`)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(out.Bytes(), &payload))
+	review := payload["review"].(map[string]any)
+	require.Equal(t, demoReviewID, review["id"])
+	require.Equal(t, "trade", review["final_decision"])
+	require.Equal(t, "mpal-demo", review["agent_harness"])
+	require.NotEmpty(t, payload["positions"])
 }
 
 func TestPortfolioTransactionsCommandPassesLimit(t *testing.T) {

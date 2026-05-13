@@ -1,0 +1,40 @@
+{
+  "as_of": "2026-05-11T00:00:00Z",
+  "result": "TRADE",
+  "targets": [
+    {
+      "ticker": "AAPL",
+      "target_weight": 0.015,
+      "reason": "demo final plan accepts the fixture baseline starter"
+    },
+    {
+      "ticker": "MSFT",
+      "target_weight": 0.012,
+      "reason": "demo final plan keeps the second starter small"
+    }
+  ],
+  "proposed_trades": [
+    {
+      "ticker": "AAPL",
+      "side": "BUY",
+      "intent": "STARTER",
+      "current_weight": 0,
+      "target_weight": 0.015,
+      "delta_weight": 0.015,
+      "estimated_value": 1500,
+      "reason": "demo final starter trade"
+    },
+    {
+      "ticker": "MSFT",
+      "side": "BUY",
+      "intent": "STARTER",
+      "current_weight": 0,
+      "target_weight": 0.012,
+      "delta_weight": 0.012,
+      "estimated_value": 1200,
+      "reason": "demo final starter trade"
+    }
+  ],
+  "summary": "Demo final plan validates under the fixture strategy constraints."
+}
+

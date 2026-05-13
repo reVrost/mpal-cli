@@ -1,0 +1,28 @@
+{
+  "final_decision": "trade",
+  "human_reasoning_text": "Demo fixture finalization: accept small starter allocations after validating the fixture plan. This is not a live recommendation.",
+  "final_validation_valid": true,
+  "final_validation_summary": "Demo final plan validated against fixture portfolio, universe, and strategy constraints.",
+  "warnings_text": "Demo fixture data only. No live MarketPal API call was made.",
+  "positions": [
+    {
+      "ticker": "AAPL",
+      "human_decision": "trade",
+      "human_weight": 0.015,
+      "human_reason": "Accepted in fixture workflow after validation."
+    },
+    {
+      "ticker": "MSFT",
+      "human_decision": "trade",
+      "human_weight": 0.012,
+      "human_reason": "Accepted as a small fixture starter after validation."
+    },
+    {
+      "ticker": "NVDA",
+      "human_decision": "watchlist",
+      "human_weight": 0,
+      "human_reason": "Alternate context only in the fixture workflow."
+    }
+  ]
+}
+

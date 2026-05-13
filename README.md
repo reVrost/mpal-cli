@@ -10,10 +10,11 @@ New here? Run the one-command tour:
 
 ```sh
 mpal tour
+mpal demo run --json
 ```
 
 It prints a short first-run checklist, explains the main terms in plain
-English, and points to the demo files in `examples/`.
+English, and points to the no-key demo files in `examples/demo/`.
 
 ## Boundary
 
@@ -56,13 +57,22 @@ Install the CLI and MCP server:
 ```sh
 go install github.com/revrost/mpal-cli/cmd/mpal@latest
 go install github.com/revrost/mpal-cli/cmd/mpal-mcp@latest
-export MPAL_API_KEY=mpal_...
 ```
 
-Smoke test:
+Run the deterministic fixture demo first. It does not require `MPAL_API_KEY`
+and never calls the live MarketPal API:
 
 ```sh
 mpal tour
+mpal demo run --json
+mpal demo report
+mpal demo journal --json
+```
+
+Then set an API key for API-backed commands:
+
+```sh
+export MPAL_API_KEY=mpal_...
 mpal doctor --json
 mpal capabilities --json
 mpal strategy list --json
@@ -149,9 +159,18 @@ advice.
 ### First-time setup
 
 1. Install `mpal` and `mpal-mcp`.
-2. Set `MPAL_API_KEY` in the same shell or app environment that runs the agent.
-3. Install the Codex or Claude Code plugin if you want skill-guided reviews.
-4. Run:
+2. Run the no-key demo:
+
+```sh
+mpal demo run --json
+mpal demo report
+mpal demo journal --json
+```
+
+3. Set `MPAL_API_KEY` in the same shell or app environment that runs the agent
+   before using API-backed commands.
+4. Install the Codex or Claude Code plugin if you want skill-guided reviews.
+5. Run:
 
 ```sh
 mpal doctor --json
@@ -161,13 +180,13 @@ Use `mpal doctor --skip-api --json` for a local-only check, or
 `mpal doctor --strict --json` in CI when missing required setup should return a
 non-zero exit code.
 
-5. Ask your agent:
+6. Ask your agent:
 
 ```text
 Run the Marketpal onboarding skill and report the first-run checklist.
 ```
 
-6. Optional but recommended: create a private portfolio policy at:
+7. Optional but recommended: create a private portfolio policy at:
 
 ```text
 ~/.marketpal/portfolio-policy.md

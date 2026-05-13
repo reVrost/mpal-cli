@@ -1,0 +1,30 @@
+{
+  "kind": "ticker_events",
+  "demo": true,
+  "data_source": "fixture",
+  "label": "Demo fixture data. No live MarketPal API call was made.",
+  "updates": [
+    {
+      "ticker": "AAPL",
+      "event_type": "earnings_context",
+      "summary": "Fixture: services revenue remains the main margin support in the demo packet.",
+      "why_it_matters": "The demo strategy treats durable margin support as context for a small starter position.",
+      "source": "examples/demo/ticker_events.json"
+    },
+    {
+      "ticker": "MSFT",
+      "event_type": "product_cycle",
+      "summary": "Fixture: cloud demand remains steady, but valuation sensitivity is still a review point.",
+      "why_it_matters": "The demo journal records a watchlist-sized final call rather than an aggressive allocation.",
+      "source": "examples/demo/ticker_events.json"
+    },
+    {
+      "ticker": "NVDA",
+      "event_type": "alternate_context",
+      "summary": "Fixture: strong momentum, but not selected because the demo workflow caps new starters.",
+      "why_it_matters": "This demonstrates how alternates appear in the decision gate without becoming executable trades.",
+      "source": "examples/demo/ticker_events.json"
+    }
+  ]
+}
+
