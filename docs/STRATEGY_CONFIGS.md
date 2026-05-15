@@ -4,6 +4,9 @@ Marketpal strategy configs are authored as YAML. The repo also ships a JSON
 Schema at `schemas/strategy.schema.json`; YAML editors can use that schema for
 validation, descriptions, and autocomplete.
 
+For published result examples, see
+[STRATEGY_BACKTEST_RESULTS.md](STRATEGY_BACKTEST_RESULTS.md).
+
 ## Defaults Profiles
 
 Built-in strategy YAML should stay readable. It uses one top-level `defaults`

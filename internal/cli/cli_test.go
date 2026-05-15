@@ -267,7 +267,7 @@ func TestDemoReportWritesFixtureHTMLWithoutAPIKey(t *testing.T) {
 	raw, err := os.ReadFile(reportPath)
 	require.NoError(t, err)
 	require.Contains(t, string(raw), "Demo fixture data. No live MarketPal API call was made.")
-	require.Contains(t, string(raw), "<th>Ticker</th>")
+	require.Contains(t, string(raw), `<button type="button" class="sort-button">Ticker</button>`)
 }
 
 func TestDemoJournalFinalizesFixtureReviewWithoutAPIKey(t *testing.T) {
@@ -753,8 +753,9 @@ backtest:
 	require.FileExists(t, reportPath)
 	reportHTML, err := os.ReadFile(reportPath)
 	require.NoError(t, err)
-	require.Contains(t, string(reportHTML), "<th>Ticker</th>")
-	require.Contains(t, string(reportHTML), "<th class=\"num\">Raw Kelly</th>")
+	require.Contains(t, string(reportHTML), `<button type="button" class="sort-button">Ticker</button>`)
+	require.Contains(t, string(reportHTML), `<button type="button" class="sort-button">Share Price</button>`)
+	require.Contains(t, string(reportHTML), `<button type="button" class="sort-button">Raw Kelly</button>`)
 	require.Contains(t, string(reportHTML), "manual review note")
 }
 

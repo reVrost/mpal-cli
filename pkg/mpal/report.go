@@ -115,6 +115,7 @@ type tradeReviewReportPosition struct {
 	Role              string
 	Intent            string
 	SizingMethod      string
+	SharePrice        string
 	RawKelly          string
 	FractionalKelly   string
 	KellyTargetWeight string
@@ -136,6 +137,7 @@ func tradeReviewReportPositionFromDB(position sqlitejournal.TradeReviewPosition)
 		Role:              displayNullString(position.ModelBucket),
 		Intent:            displayNullString(position.ModelIntent),
 		SizingMethod:      displayNullString(position.SizingMethod),
+		SharePrice:        displayPrice(position.ModelSharePrice),
 		RawKelly:          displayPct(position.RawKelly),
 		FractionalKelly:   displayPct(position.FractionalKelly),
 		KellyTargetWeight: displayPct(position.KellyTargetWeight),
@@ -242,6 +244,16 @@ func displayNumber(value sql.NullFloat64) string {
 		return "NA"
 	}
 	return fmt.Sprintf("%.0f", value.Float64)
+}
+
+func displayPrice(value sql.NullFloat64) string {
+	if !value.Valid {
+		return "NA"
+	}
+	if value.Float64 > 0 && value.Float64 < 10 {
+		return fmt.Sprintf("%.3f", value.Float64)
+	}
+	return fmt.Sprintf("%.2f", value.Float64)
 }
 
 func displayText(value string) string {

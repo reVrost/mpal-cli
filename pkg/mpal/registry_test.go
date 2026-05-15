@@ -2,32 +2,31 @@ package mpal
 
 import (
 	"encoding/json"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/google/jsonschema-go/jsonschema"
+	strategyfiles "github.com/revrost/mpal-cli/strategies"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
 
-func TestRootStrategiesMatchEmbeddedCopies(t *testing.T) {
+func TestBuiltinStrategiesUseRootStrategyPackage(t *testing.T) {
 	t.Parallel()
 
-	matches, err := fs.Glob(builtinStrategyFS, "strategies/*.yaml")
+	matches, err := filepath.Glob(filepath.Join("..", "..", "strategies", "*.yaml"))
 	require.NoError(t, err)
 	require.NotEmpty(t, matches)
 
-	for _, embeddedPath := range matches {
-		embeddedPath := embeddedPath
-		t.Run(filepath.Base(embeddedPath), func(t *testing.T) {
+	for _, rootPath := range matches {
+		rootPath := rootPath
+		t.Run(filepath.Base(rootPath), func(t *testing.T) {
 			t.Parallel()
 
-			embeddedRaw, err := builtinStrategyFS.ReadFile(embeddedPath)
+			embeddedRaw, err := strategyfiles.FS.ReadFile(filepath.Base(rootPath))
 			require.NoError(t, err)
 
-			rootPath := filepath.Join("..", "..", "strategies", filepath.Base(embeddedPath))
 			rootRaw, err := os.ReadFile(rootPath)
 			require.NoError(t, err)
 			require.Equal(t, string(rootRaw), string(embeddedRaw))
@@ -242,6 +241,16 @@ func TestBuiltInRiskProfilesPreserveExpandedSizing(t *testing.T) {
 	t.Parallel()
 
 	expected := map[string]RiskConfig{
+		"aggressive_momentum_weekly_v1.yaml": {
+			TurnoverBudgetPct:  0.45,
+			MaxSingleTradePct:  0.05,
+			StarterPositionPct: 0.02,
+		},
+		"active_momentum_weekly_v1.yaml": {
+			TurnoverBudgetPct:  0.45,
+			MaxSingleTradePct:  0.04,
+			StarterPositionPct: 0.02,
+		},
 		"best_monthly_swing_v1.yaml": {
 			TurnoverBudgetPct:  0.05,
 			MaxSingleTradePct:  0.025,

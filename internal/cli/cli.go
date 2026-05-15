@@ -12,6 +12,7 @@ import (
 
 	marketpalv1 "github.com/revrost/mpal-cli/gen/marketpal/v1"
 	"github.com/revrost/mpal-cli/internal/client"
+	"github.com/revrost/mpal-cli/internal/profileevidence"
 	mpal "github.com/revrost/mpal-cli/pkg/mpal"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -250,7 +251,7 @@ func (a *app) strategyRunCommand(ctx context.Context) *cobra.Command {
 			if run.Result == "" {
 				run.Result = run.ExecutionResult
 			}
-			reviewInput := mpal.TradeReviewStartInputFromStrategyRun(run, cfg, string(configRaw), universe, asOf)
+			reviewInput := mpal.TradeReviewStartInputFromStrategyRun(run, cfg, string(configRaw), universe, asOf, portfolio)
 			review, positions, err := reviewInput.ToCreateParams(time.Now().UTC())
 			if err != nil {
 				return err
@@ -301,6 +302,7 @@ func (a *app) runStrategy(
 		if err != nil {
 			return mpal.StrategyRunResult{}, fmt.Errorf("strategy run returned JSON that could not be auto-journaled: %w", err)
 		}
+		run = a.enrichStrategyRunKellyContext(ctx, run, cfg)
 		return run, nil
 	}
 
@@ -322,6 +324,25 @@ func (a *app) runStrategy(
 	}
 	run.Warnings = mpal.AppendWarnings(run.Warnings, "strategy executed locally because hosted_strategy_api_v1 does not support "+mpal.StrategyScoringContract(cfg))
 	return run, nil
+}
+
+func (a *app) enrichStrategyRunKellyContext(ctx context.Context, run mpal.StrategyRunResult, cfg mpal.StrategyConfig) mpal.StrategyRunResult {
+	if !strings.EqualFold(strings.TrimSpace(cfg.Risk.SizingMethod), mpal.SizingMethodFractionalKelly) || len(run.Signals) == 0 || a.client == nil {
+		return run
+	}
+	tickers := make([]string, 0, len(run.Signals))
+	for _, signal := range run.Signals {
+		tickers = append(tickers, signal.Ticker)
+	}
+	profiles, err := profileevidence.Fetch(ctx, a.client, tickers, run.AsOf)
+	if err != nil {
+		run.Warnings = mpal.AppendWarnings(run.Warnings, "Kelly context enrichment failed: "+err.Error())
+		return run
+	}
+	signals, warnings := mpal.EnrichSignalsWithProfileEvidence(run.Signals, profiles, cfg)
+	run.Signals = signals
+	run.Warnings = mpal.AppendWarnings(run.Warnings, warnings...)
+	return run
 }
 
 func (a *app) portfolioCommand(ctx context.Context) *cobra.Command {

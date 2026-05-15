@@ -116,6 +116,7 @@ INSERT INTO trade_review_positions (
   model_weight,
   model_delta_weight,
   model_estimated_value,
+  model_share_price,
   model_reason,
   sizing_method,
   raw_kelly,
@@ -157,6 +158,7 @@ INSERT INTO trade_review_positions (
   ?,
   ?,
   ?,
+  ?,
   ?
 )
 `
@@ -171,6 +173,7 @@ type CreateTradeReviewPositionParams struct {
 	ModelWeight         sql.NullFloat64 `json:"model_weight"`
 	ModelDeltaWeight    sql.NullFloat64 `json:"model_delta_weight"`
 	ModelEstimatedValue sql.NullFloat64 `json:"model_estimated_value"`
+	ModelSharePrice     sql.NullFloat64 `json:"model_share_price"`
 	ModelReason         sql.NullString  `json:"model_reason"`
 	SizingMethod        sql.NullString  `json:"sizing_method"`
 	RawKelly            sql.NullFloat64 `json:"raw_kelly"`
@@ -200,6 +203,7 @@ func (q *Queries) CreateTradeReviewPosition(ctx context.Context, arg CreateTrade
 		arg.ModelWeight,
 		arg.ModelDeltaWeight,
 		arg.ModelEstimatedValue,
+		arg.ModelSharePrice,
 		arg.ModelReason,
 		arg.SizingMethod,
 		arg.RawKelly,
@@ -301,7 +305,7 @@ func (q *Queries) GetTradeReview(ctx context.Context, id string) (TradeReview, e
 }
 
 const listTradeReviewPositions = `-- name: ListTradeReviewPositions :many
-SELECT id, trade_review_id, ticker, model_bucket, model_intent, model_score, model_weight, model_delta_weight, model_estimated_value, model_reason, sizing_method, raw_kelly, fractional_kelly, kelly_target_weight, final_target_weight, binding_constraint, calibration_status, agent_decision, agent_weight, agent_reason, human_decision, human_weight, execution_price, execution_date, human_reason
+SELECT id, trade_review_id, ticker, model_bucket, model_intent, model_score, model_weight, model_delta_weight, model_estimated_value, model_share_price, model_reason, sizing_method, raw_kelly, fractional_kelly, kelly_target_weight, final_target_weight, binding_constraint, calibration_status, agent_decision, agent_weight, agent_reason, human_decision, human_weight, execution_price, execution_date, human_reason
 FROM trade_review_positions
 WHERE trade_review_id = ?
 ORDER BY ticker ASC
@@ -326,6 +330,7 @@ func (q *Queries) ListTradeReviewPositions(ctx context.Context, tradeReviewID st
 			&i.ModelWeight,
 			&i.ModelDeltaWeight,
 			&i.ModelEstimatedValue,
+			&i.ModelSharePrice,
 			&i.ModelReason,
 			&i.SizingMethod,
 			&i.RawKelly,
@@ -357,7 +362,7 @@ func (q *Queries) ListTradeReviewPositions(ctx context.Context, tradeReviewID st
 }
 
 const listTradeReviewPositionsByTicker = `-- name: ListTradeReviewPositionsByTicker :many
-SELECT p.id, p.trade_review_id, p.ticker, p.model_bucket, p.model_intent, p.model_score, p.model_weight, p.model_delta_weight, p.model_estimated_value, p.model_reason, p.sizing_method, p.raw_kelly, p.fractional_kelly, p.kelly_target_weight, p.final_target_weight, p.binding_constraint, p.calibration_status, p.agent_decision, p.agent_weight, p.agent_reason, p.human_decision, p.human_weight, p.execution_price, p.execution_date, p.human_reason
+SELECT p.id, p.trade_review_id, p.ticker, p.model_bucket, p.model_intent, p.model_score, p.model_weight, p.model_delta_weight, p.model_estimated_value, p.model_share_price, p.model_reason, p.sizing_method, p.raw_kelly, p.fractional_kelly, p.kelly_target_weight, p.final_target_weight, p.binding_constraint, p.calibration_status, p.agent_decision, p.agent_weight, p.agent_reason, p.human_decision, p.human_weight, p.execution_price, p.execution_date, p.human_reason
 FROM trade_review_positions p
 JOIN trade_reviews r ON r.id = p.trade_review_id
 WHERE p.ticker = ?
@@ -383,6 +388,7 @@ func (q *Queries) ListTradeReviewPositionsByTicker(ctx context.Context, ticker s
 			&i.ModelWeight,
 			&i.ModelDeltaWeight,
 			&i.ModelEstimatedValue,
+			&i.ModelSharePrice,
 			&i.ModelReason,
 			&i.SizingMethod,
 			&i.RawKelly,

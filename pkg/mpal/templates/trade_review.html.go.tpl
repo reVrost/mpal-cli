@@ -67,6 +67,24 @@
     td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
     tr:last-child td { border-bottom: 0; }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .sort-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      width: 100%;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: inherit;
+      text-align: inherit;
+      cursor: pointer;
+    }
+    th.num .sort-button { justify-content: flex-end; }
+    .sort-button:hover { color: var(--ink); }
+    th[aria-sort="ascending"] .sort-button::after { content: " ^"; color: var(--muted); }
+    th[aria-sort="descending"] .sort-button::after { content: " v"; color: var(--muted); }
     .ticker { font-weight: 700; white-space: nowrap; }
     .decision { font-weight: 700; white-space: nowrap; }
     .decision-trade { color: var(--trade); }
@@ -106,21 +124,22 @@
       <table>
         <thead>
           <tr>
-            <th>Ticker</th>
-            <th>Trade?</th>
-            <th>Decision</th>
-            <th class="num">Score</th>
-            <th>Role</th>
-            <th>Intent</th>
-            <th>Sizing</th>
-            <th class="num">Raw Kelly</th>
-            <th class="num">Frac Kelly</th>
-            <th class="num">Kelly Target</th>
-            <th class="num">Accepted %</th>
-            <th class="num">Est. Value</th>
-            <th>Binding</th>
-            <th>Calibration</th>
-            <th>Read</th>
+            <th data-sort-type="text"><button type="button" class="sort-button">Ticker</button></th>
+            <th data-sort-type="bool" data-default-sort="desc"><button type="button" class="sort-button">Trade?</button></th>
+            <th data-sort-type="decision" data-default-sort="desc"><button type="button" class="sort-button">Decision</button></th>
+            <th class="num" data-sort-type="number" data-default-sort="desc"><button type="button" class="sort-button">Score</button></th>
+            <th data-sort-type="text"><button type="button" class="sort-button">Role</button></th>
+            <th data-sort-type="text"><button type="button" class="sort-button">Intent</button></th>
+            <th data-sort-type="text"><button type="button" class="sort-button">Sizing</button></th>
+            <th class="num" data-sort-type="number" data-default-sort="desc"><button type="button" class="sort-button">Share Price</button></th>
+            <th class="num" data-sort-type="number" data-default-sort="desc"><button type="button" class="sort-button">Raw Kelly</button></th>
+            <th class="num" data-sort-type="number" data-default-sort="desc"><button type="button" class="sort-button">Frac Kelly</button></th>
+            <th class="num" data-sort-type="number" data-default-sort="desc"><button type="button" class="sort-button">Kelly Target</button></th>
+            <th class="num" data-sort-type="number" data-default-sort="desc"><button type="button" class="sort-button">Accepted %</button></th>
+            <th class="num" data-sort-type="number" data-default-sort="desc"><button type="button" class="sort-button">Est. Value</button></th>
+            <th data-sort-type="text"><button type="button" class="sort-button">Binding</button></th>
+            <th data-sort-type="text"><button type="button" class="sort-button">Calibration</button></th>
+            <th data-sort-type="text"><button type="button" class="sort-button">Read</button></th>
           </tr>
         </thead>
         <tbody>
@@ -133,6 +152,7 @@
             <td>{{.Role}}</td>
             <td>{{.Intent}}</td>
             <td>{{.SizingMethod}}</td>
+            <td class="num">{{.SharePrice}}</td>
             <td class="num">{{.RawKelly}}</td>
             <td class="num">{{.FractionalKelly}}</td>
             <td class="num">{{.KellyTargetWeight}}</td>
@@ -153,5 +173,81 @@
   {{if .Notes}}<section><h2>Additional Notes</h2><div class="block">{{.Notes}}</div></section>{{end}}
   {{if .Warnings}}<section><h2>Warnings</h2><div class="block">{{.Warnings}}</div></section>{{end}}
 </main>
+<script>
+(() => {
+  const decisionOrder = new Map([
+    ["trade", 3],
+    ["resize", 2],
+    ["delay", 2],
+    ["watchlist", 2],
+    ["skip", 1],
+    ["veto", 1],
+    ["no_trade", 1],
+    ["na", 0],
+    ["", 0],
+  ]);
+
+  const valueFor = (cell, type) => {
+    const raw = (cell?.textContent || "").trim();
+    const normalized = raw.toLowerCase();
+    if (raw === "" || normalized === "na") {
+      return { missing: true, value: "" };
+    }
+    if (type === "number") {
+      const value = Number(raw.replace(/[$,%]/g, "").replace(/,/g, ""));
+      return Number.isFinite(value) ? { missing: false, value } : { missing: true, value: "" };
+    }
+    if (type === "bool") {
+      return { missing: false, value: normalized === "yes" ? 1 : 0 };
+    }
+    if (type === "decision") {
+      return { missing: false, value: decisionOrder.get(normalized) ?? 0 };
+    }
+    return { missing: false, value: normalized };
+  };
+
+  const compareValues = (left, right, direction) => {
+    if (left.missing !== right.missing) {
+      return left.missing ? 1 : -1;
+    }
+    if (left.value < right.value) return direction === "asc" ? -1 : 1;
+    if (left.value > right.value) return direction === "asc" ? 1 : -1;
+    return 0;
+  };
+
+  document.querySelectorAll("table").forEach((table) => {
+    const headers = Array.from(table.querySelectorAll("thead th"));
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return;
+
+    headers.forEach((header, index) => {
+      const button = header.querySelector(".sort-button");
+      if (!button) return;
+      header.setAttribute("aria-sort", "none");
+      button.addEventListener("click", () => {
+        const current = header.getAttribute("aria-sort");
+        const defaultDirection = header.dataset.defaultSort || "asc";
+        const direction = current === "ascending" ? "desc" : current === "descending" ? "asc" : defaultDirection;
+        const type = header.dataset.sortType || "text";
+        const rows = Array.from(tbody.querySelectorAll("tr"));
+
+        rows.sort((left, right) => {
+          const compared = compareValues(
+            valueFor(left.children[index], type),
+            valueFor(right.children[index], type),
+            direction,
+          );
+          if (compared !== 0) return compared;
+          return compareValues(valueFor(left.children[0], "text"), valueFor(right.children[0], "text"), "asc");
+        });
+
+        rows.forEach((row) => tbody.appendChild(row));
+        headers.forEach((candidate) => candidate.setAttribute("aria-sort", "none"));
+        header.setAttribute("aria-sort", direction === "asc" ? "ascending" : "descending");
+      });
+    });
+  });
+})();
+</script>
 </body>
 </html>

@@ -7,7 +7,7 @@ import (
 
 // TradeReviewStartInputFromStrategyRun converts a completed strategy run into
 // the deterministic first-pass review row that the CLI auto-journals.
-func TradeReviewStartInputFromStrategyRun(run StrategyRunResult, cfg StrategyConfig, configText string, universe Universe, fallbackAsOf time.Time) TradeReviewStartInput {
+func TradeReviewStartInputFromStrategyRun(run StrategyRunResult, cfg StrategyConfig, configText string, universe Universe, fallbackAsOf time.Time, portfolios ...Portfolio) TradeReviewStartInput {
 	asOf := run.AsOf
 	if asOf.IsZero() {
 		asOf = fallbackAsOf
@@ -35,15 +35,16 @@ func TradeReviewStartInputFromStrategyRun(run StrategyRunResult, cfg StrategyCon
 		ExecutionResult:    executionResult,
 		AgentSummary:       run.Summary,
 		WarningsText:       strings.Join(nonEmptyStrings(warnings), "\n"),
-		Positions:          strategyRunReviewPositions(run),
+		Positions:          strategyRunReviewPositions(run, cfg, firstOptionalPortfolio(portfolios)),
 	}
 }
 
-func strategyRunReviewPositions(run StrategyRunResult) []TradeReviewPositionInput {
+func strategyRunReviewPositions(run StrategyRunResult, cfg StrategyConfig, portfolio Portfolio) []TradeReviewPositionInput {
 	signalsByTicker := make(map[string]SignalResult, len(run.Signals))
 	for _, signal := range run.Signals {
 		signalsByTicker[normalizeJournalTicker(signal.Ticker)] = signal
 	}
+	sharePricesByTicker := portfolioSharePrices(portfolio)
 
 	seen := map[string]bool{}
 	positions := make([]TradeReviewPositionInput, 0, len(run.BaselinePlan.ProposedTrades)+len(run.BaselinePlan.Rejected))
@@ -59,7 +60,8 @@ func strategyRunReviewPositions(run StrategyRunResult) []TradeReviewPositionInpu
 			ModelEstimatedValue: reviewFloatPtr(trade.EstimatedValue),
 			ModelReason:         strings.TrimSpace(trade.Reason),
 		}
-		if signal, ok := signalsByTicker[ticker]; ok {
+		signal, hasSignal := signalsByTicker[ticker]
+		if hasSignal {
 			position.ModelScore = reviewFloatPtr(signal.FinalScore)
 			if position.ModelIntent == "" {
 				position.ModelIntent = signal.ActionHint
@@ -67,6 +69,12 @@ func strategyRunReviewPositions(run StrategyRunResult) []TradeReviewPositionInpu
 			if position.ModelReason == "" {
 				position.ModelReason = strings.Join(signal.Reasons, "; ")
 			}
+			applySignalKellyContext(&position, signal, cfg)
+		}
+		if price, ok := sharePricesByTicker[ticker]; ok {
+			position.ModelSharePrice = reviewFloatPtr(price)
+		} else if hasSignal && signal.CurrentPrice != nil && *signal.CurrentPrice > 0 {
+			position.ModelSharePrice = reviewFloatPtr(*signal.CurrentPrice)
 		}
 		applySizingDecision(&position, trade.Sizing)
 		positions = append(positions, position)
@@ -83,17 +91,75 @@ func strategyRunReviewPositions(run StrategyRunResult) []TradeReviewPositionInpu
 			ModelBucket: "rejected",
 			ModelReason: strings.TrimSpace(rejected.Reason),
 		}
-		if signal, ok := signalsByTicker[ticker]; ok {
+		signal, hasSignal := signalsByTicker[ticker]
+		if hasSignal {
 			position.ModelScore = reviewFloatPtr(signal.FinalScore)
 			position.ModelIntent = signal.ActionHint
 			if position.ModelReason == "" {
 				position.ModelReason = strings.Join(signal.Reasons, "; ")
 			}
+			applySignalKellyContext(&position, signal, cfg)
+		}
+		if price, ok := sharePricesByTicker[ticker]; ok {
+			position.ModelSharePrice = reviewFloatPtr(price)
+		} else if hasSignal && signal.CurrentPrice != nil && *signal.CurrentPrice > 0 {
+			position.ModelSharePrice = reviewFloatPtr(*signal.CurrentPrice)
 		}
 		positions = append(positions, position)
 	}
 
 	return positions
+}
+
+func firstOptionalPortfolio(portfolios []Portfolio) Portfolio {
+	if len(portfolios) == 0 {
+		return Portfolio{}
+	}
+	return portfolios[0]
+}
+
+func portfolioSharePrices(portfolio Portfolio) map[string]float64 {
+	prices := make(map[string]float64, len(portfolio.Positions))
+	for _, position := range portfolio.Positions {
+		ticker := normalizeJournalTicker(position.Ticker)
+		if ticker == "" {
+			continue
+		}
+		price := position.CurrentPrice
+		if price == 0 && position.Shares > 0 {
+			price = position.MarketValue / position.Shares
+		}
+		if price > 0 {
+			prices[ticker] = price
+		}
+	}
+	return prices
+}
+
+func applySignalKellyContext(position *TradeReviewPositionInput, signal SignalResult, cfg StrategyConfig) {
+	if position == nil || signal.RawKelly == nil {
+		return
+	}
+	if position.SizingMethod == "" {
+		position.SizingMethod = SizingMethodFractionalKelly
+	}
+	if position.RawKelly == nil {
+		position.RawKelly = reviewFloatPtr(signal.RawKelly.RawKelly)
+	}
+	applied := applyRiskProfileDefaultsCopy(cfg)
+	decision, _ := fractionalKellyDecision(signal, normalizeSizingConfig(applied.Risk))
+	if position.FractionalKelly == nil {
+		position.FractionalKelly = reviewFloatPtr(decision.FractionalKelly)
+	}
+	if position.KellyTargetWeight == nil {
+		position.KellyTargetWeight = reviewFloatPtr(decision.KellyTargetWeight)
+	}
+	if position.BindingConstraint == "" {
+		position.BindingConstraint = decision.BindingConstraint
+	}
+	if position.CalibrationStatus == "" {
+		position.CalibrationStatus = firstNonEmpty(signal.RawKelly.CalibrationStatus, decision.CalibrationStatus)
+	}
 }
 
 func applySizingDecision(position *TradeReviewPositionInput, sizing *SizingDecision) {

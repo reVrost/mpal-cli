@@ -1,0 +1,29 @@
+id: active_momentum_weekly_v1
+version: 1.0.0
+defaults: basic_v1
+name: Active momentum weekly v1
+description: More active pure-momentum weekly strategy discovered from the May 2026 watchlist-universe search. It keeps quality and value disabled, lowers entry and hold thresholds, and deploys capital faster than momentum_only_v1.
+when_to_use: Use for aggressive weekly momentum reviews on a high-conviction watchlist when the goal is faster deployment into the strongest price-momentum names. Treat as higher-turnover and more concentrated than the baseline momentum-only strategy.
+cadence: weekly
+approved: true
+
+scoring:
+  momentum_weight: 1.00
+  profile_weight: 0.00
+  min_buy_score: 0.55
+  min_hold_score: 0.10
+
+portfolio:
+  max_positions: 14
+  max_position_pct: 0.18
+  min_trade_value: 100
+  rebalance: weekly
+
+risk:
+  profile: basic
+  sizing_method: fractional_kelly
+  turnover_budget_pct: 0.45
+  max_single_trade_pct: 0.04
+  starter_position_pct: 0.02
+  max_new_positions_per_run: 4
+  cash_buffer_pct: 0.02

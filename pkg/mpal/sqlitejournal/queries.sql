@@ -65,6 +65,7 @@ INSERT INTO trade_review_positions (
   model_weight,
   model_delta_weight,
   model_estimated_value,
+  model_share_price,
   model_reason,
   sizing_method,
   raw_kelly,
@@ -82,6 +83,7 @@ INSERT INTO trade_review_positions (
   execution_date,
   human_reason
 ) VALUES (
+  ?,
   ?,
   ?,
   ?,

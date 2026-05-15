@@ -89,6 +89,9 @@ func (e Engine) signalScoreWithEvent(
 	reversion := meanReversionScore(bars.Bars)
 	markov := profileMarkovRead(profile, cfg)
 	rawKelly := profileRawKellyRead(profile, cfg)
+	if rawKelly == nil {
+		rawKelly = rawKellyReadFromMarkov(markov, normalizeSizingConfig(applyRiskProfileDefaultsCopy(cfg).Risk))
+	}
 	finalScore := weightedSignalScore(cfg.Scoring, momentum, profile.ProfileScore, quality, value, reversion)
 	reasons := []string{scoringReason(cfg.Scoring)}
 	warnings = append(warnings, missingComponentWarnings(cfg.Scoring, profile)...)
@@ -258,6 +261,45 @@ func profileRawKellyRead(profile ProfileScore, cfg StrategyConfig) *RawKellyRead
 		}
 	}
 	return nil
+}
+
+func EnrichSignalsWithProfileEvidence(signals []SignalResult, profiles map[string]ProfileScore, cfg StrategyConfig) ([]SignalResult, []string) {
+	out := append([]SignalResult{}, signals...)
+	if len(out) == 0 {
+		return out, nil
+	}
+	applied := applyRiskProfileDefaultsCopy(cfg)
+	var warnings []string
+	for i := range out {
+		ticker := strings.ToUpper(strings.TrimSpace(out[i].Ticker))
+		if ticker == "" {
+			continue
+		}
+		profile, ok := profiles[ticker]
+		if !ok {
+			warnings = AppendWarnings(warnings, ticker+" Kelly context unavailable: profile not returned")
+			out[i].Warnings = AppendWarnings(out[i].Warnings, "Kelly context unavailable: profile not returned")
+			continue
+		}
+		if out[i].CurrentPrice == nil && profile.CurrentPrice != nil && *profile.CurrentPrice > 0 {
+			price := *profile.CurrentPrice
+			out[i].CurrentPrice = &price
+		}
+		if out[i].Markov == nil {
+			out[i].Markov = profileMarkovRead(profile, applied)
+		}
+		if out[i].RawKelly == nil {
+			out[i].RawKelly = profileRawKellyRead(profile, applied)
+		}
+		if out[i].RawKelly == nil {
+			out[i].RawKelly = rawKellyReadFromMarkov(out[i].Markov, normalizeSizingConfig(applied.Risk))
+		}
+		if out[i].RawKelly == nil {
+			warnings = AppendWarnings(warnings, ticker+" Kelly context unavailable: raw Kelly evidence not returned")
+			out[i].Warnings = AppendWarnings(out[i].Warnings, "Kelly context unavailable: raw Kelly evidence not returned")
+		}
+	}
+	return out, warnings
 }
 
 func weightedSignalScore(scoring ScoringConfig, momentum float64, profile float64, quality float64, value float64, reversion float64) float64 {

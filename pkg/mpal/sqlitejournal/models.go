@@ -42,6 +42,7 @@ type TradeReviewPosition struct {
 	ModelWeight         sql.NullFloat64 `json:"model_weight"`
 	ModelDeltaWeight    sql.NullFloat64 `json:"model_delta_weight"`
 	ModelEstimatedValue sql.NullFloat64 `json:"model_estimated_value"`
+	ModelSharePrice     sql.NullFloat64 `json:"model_share_price"`
 	ModelReason         sql.NullString  `json:"model_reason"`
 	SizingMethod        sql.NullString  `json:"sizing_method"`
 	RawKelly            sql.NullFloat64 `json:"raw_kelly"`

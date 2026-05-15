@@ -175,6 +175,31 @@ func fractionalKellyDecision(signal SignalResult, cfg normalizedSizingConfig) (S
 	return decision, target > 0
 }
 
+func rawKellyReadFromMarkov(markov *MarkovRead, cfg normalizedSizingConfig) *RawKellyRead {
+	if markov == nil {
+		return nil
+	}
+	pWin := markov.FavorableProbability
+	pLoss := markov.UnfavorableProbability
+	raw := 0.0
+	if pWin+pLoss > 0 {
+		raw = (pWin - pLoss) / (pWin + pLoss)
+	}
+	return &RawKellyRead{
+		Horizon:                markov.Horizon,
+		HorizonBars:            markov.HorizonBars,
+		RawKelly:               round(raw, 6),
+		FavorableProbability:   round(pWin, 6),
+		UnfavorableProbability: round(pLoss, 6),
+		PayoffRatio:            round(cfg.KellyDefaultPayoffRatio, 6),
+		Confidence:             round(markov.Confidence, 6),
+		SampleCount:            markov.SampleCount,
+		CalibrationStatus:      "heuristic_markov",
+		Source:                 "markov",
+		Warnings:               append([]string{}, markov.Warnings...),
+	}
+}
+
 func kellyAuditReason(prefix string, decision SizingDecision, cfg normalizedSizingConfig) string {
 	return fmt.Sprintf("%s sized by fractional Kelly: raw=%.3f, confidence=%.2f, fraction=%.2f, target=%.3f",
 		prefix,

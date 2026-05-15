@@ -1,17 +1,15 @@
 package mpal
 
 import (
-	"embed"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-)
 
-//go:embed strategies/*.yaml
-var builtinStrategyFS embed.FS
+	strategyfiles "github.com/revrost/mpal-cli/strategies"
+)
 
 type StrategyInfo struct {
 	ID                  string           `json:"id"`
@@ -76,13 +74,13 @@ func (r StrategyRegistry) List() ([]StrategyInfo, error) {
 }
 
 func listEmbeddedStrategies() ([]StrategyInfo, error) {
-	matches, err := fs.Glob(builtinStrategyFS, "strategies/*.yaml")
+	matches, err := fs.Glob(strategyfiles.FS, "*.yaml")
 	if err != nil {
 		return nil, err
 	}
 	infos := make([]StrategyInfo, 0, len(matches))
 	for _, path := range matches {
-		raw, err := builtinStrategyFS.ReadFile(path)
+		raw, err := strategyfiles.FS.ReadFile(path)
 		if err != nil {
 			return nil, err
 		}
@@ -97,7 +95,7 @@ func listEmbeddedStrategies() ([]StrategyInfo, error) {
 			Cadence:             cfg.Cadence,
 			Approved:            cfg.Approved,
 			Source:              "builtin",
-			Path:                "embedded:" + path,
+			Path:                "embedded:strategies/" + path,
 			ConfigHash:          hash,
 			ConfigHashAlgorithm: StrategyConfigHashAlgorithm,
 			ScoringContract:     StrategyScoringContract(cfg),
@@ -169,7 +167,8 @@ func (r StrategyRegistry) Show(id string) (StrategyInfo, StrategyConfig, error) 
 }
 
 func loadEmbeddedStrategy(path string) (StrategyConfig, string, error) {
-	raw, err := builtinStrategyFS.ReadFile(path)
+	path = strings.TrimPrefix(path, "strategies/")
+	raw, err := strategyfiles.FS.ReadFile(path)
 	if err != nil {
 		return StrategyConfig{}, "", err
 	}

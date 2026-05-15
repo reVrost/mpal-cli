@@ -445,6 +445,45 @@ func TestExecuteBacktestTradesSellsBeforeBuys(t *testing.T) {
 	assert.InDelta(t, 100, positions["BBB"].Shares, 0.000001)
 }
 
+func TestExecuteBacktestTradesCarriesKellySizing(t *testing.T) {
+	t.Parallel()
+
+	signalDate := time.Date(2026, 1, 12, 0, 0, 0, 0, time.UTC)
+	fillDate := signalDate.AddDate(0, 0, 1)
+	cfg := kellyTestConfig()
+	cfg.Backtest.FeeBps = 0
+	cfg.Backtest.SlippageBps = 0
+	cfg.Portfolio.MinTradeValue = 1
+	plan := PlanPortfolio(
+		signalDate,
+		Universe{Tickers: []string{"AAPL"}},
+		Portfolio{Cash: 100000, Equity: 100000},
+		[]SignalResult{{Ticker: "AAPL", FinalScore: 0.9, Markov: markovEdge(0.55, 0.45, 0.3, 100), RawKelly: rawKellyEdge(0.55, 0.45, 0.3, 100)}},
+		cfg,
+	)
+	require.Len(t, plan.ProposedTrades, 1)
+
+	trades, _, _, _, warnings := executeBacktestTrades(
+		map[string][]backtestBar{"AAPL": {{Date: fillDate, Open: 100, High: 100, Low: 100, Close: 100}}},
+		nil,
+		100000,
+		100000,
+		plan,
+		signalDate,
+		fillDate,
+		cfg,
+	)
+
+	require.Empty(t, warnings)
+	require.Len(t, trades, 1)
+	assert.Equal(t, SizingMethodFractionalKelly, trades[0].SizingMethod)
+	assert.Equal(t, 0.1, trades[0].RawKelly)
+	assert.Equal(t, 0.0075, trades[0].FractionalKelly)
+	assert.Equal(t, 0.0075, trades[0].KellyTargetWeight)
+	assert.Equal(t, SizingBindingKellyTarget, trades[0].BindingConstraint)
+	assert.Equal(t, "heuristic_markov", trades[0].CalibrationStatus)
+}
+
 func risingBacktestBars(start time.Time, end time.Time, price float64, step float64) []Bar {
 	var bars []Bar
 	for date := start; !date.After(end); date = date.AddDate(0, 0, 1) {

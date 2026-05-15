@@ -19,6 +19,7 @@ func ReviewJournalOutput(review sqlitejournal.TradeReview, positions []sqlitejou
 			"model_weight":          nullableFloat(position.ModelWeight),
 			"model_delta_weight":    nullableFloat(position.ModelDeltaWeight),
 			"model_estimated_value": nullableFloat(position.ModelEstimatedValue),
+			"model_share_price":     nullableFloat(position.ModelSharePrice),
 			"model_reason":          nullableString(position.ModelReason),
 			"sizing_method":         nullableString(position.SizingMethod),
 			"raw_kelly":             nullableFloat(position.RawKelly),

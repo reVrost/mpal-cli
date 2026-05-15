@@ -1,0 +1,29 @@
+id: aggressive_momentum_weekly_v1
+version: 1.0.0
+defaults: basic_v1
+name: Aggressive momentum weekly v1
+description: Top raw-return pure-momentum weekly strategy discovered from the May 2026 watchlist-universe search. It keeps quality and value disabled, lowers entry and hold thresholds, and uses a more concentrated 10-position book with faster single-trade deployment.
+when_to_use: Use for aggressive weekly momentum reviews on a high-conviction watchlist when the goal is maximum momentum capture and the user accepts higher concentration and turnover. Treat as more concentrated than active_momentum_weekly_v1.
+cadence: weekly
+approved: true
+
+scoring:
+  momentum_weight: 1.00
+  profile_weight: 0.00
+  min_buy_score: 0.55
+  min_hold_score: 0.10
+
+portfolio:
+  max_positions: 10
+  max_position_pct: 0.18
+  min_trade_value: 100
+  rebalance: weekly
+
+risk:
+  profile: basic
+  sizing_method: fractional_kelly
+  turnover_budget_pct: 0.45
+  max_single_trade_pct: 0.05
+  starter_position_pct: 0.02
+  max_new_positions_per_run: 4
+  cash_buffer_pct: 0.02

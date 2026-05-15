@@ -353,9 +353,14 @@ Built-in configs:
 - `engine_quality_swing_rebuild_v1`: manual engine cleanup or rebuild scenario
 - `engine_quality_value_reversion_v1`: engine quality-value pullback review
 - `portfolio_quality_value_reversion_v1`: full-portfolio quality-value pullback review
+- `active_momentum_weekly_v1`: active pure-momentum weekly review for a high-conviction watchlist
+- `aggressive_momentum_weekly_v1`: concentrated pure-momentum weekly review based on the top raw-return search config
 - `momentum_profile_v1`
 - `momentum_only_v1`
 - `simple_score_v1`
+
+Published result examples live in
+[`docs/STRATEGY_BACKTEST_RESULTS.md`](docs/STRATEGY_BACKTEST_RESULTS.md).
 
 Custom configs can live in:
 

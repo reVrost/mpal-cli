@@ -68,6 +68,7 @@ func (j *SQLiteReviewJournal) Migrate(ctx context.Context) error {
 		typ  string
 	}{
 		{name: "model_estimated_value", typ: "REAL"},
+		{name: "model_share_price", typ: "REAL"},
 		{name: "raw_kelly", typ: "REAL"},
 		{name: "fractional_kelly", typ: "REAL"},
 		{name: "kelly_target_weight", typ: "REAL"},

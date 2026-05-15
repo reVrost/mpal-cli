@@ -195,6 +195,7 @@ func backtestSignalForTicker(
 	coreBars := backtestBarsToCoreBars(bars)
 	reversionScore := meanReversionScore(coreBars)
 	markov := markovRead(coreBars, cfg)
+	rawKelly := rawKellyReadFromMarkov(markov, normalizeSizingConfig(applyRiskProfileDefaultsCopy(cfg).Risk))
 	reasons := []string{scoringReason(cfg.Scoring)}
 	profile := ProfileScore{ProfileScore: profileScore}
 	if usesProfileFactors(cfg) {
@@ -232,7 +233,7 @@ func backtestSignalForTicker(
 			finalScore, reasons = applyEventGuardrail(finalScore, eventScore, cfg, reasons)
 		}
 	}
-	return signalResult(ticker, asOf, momentum, profile, reversionScore, markov, nil, finalScore, cfg, reasons, nil, nil, eventScore), true, nil
+	return signalResult(ticker, asOf, momentum, profile, reversionScore, markov, rawKelly, finalScore, cfg, reasons, nil, nil, eventScore), true, nil
 }
 
 func applyPendingBacktestFill(
@@ -295,7 +296,7 @@ func executeBacktestTrades(
 			pos := nextPositions[proposed.Ticker]
 			pos.Shares += shares
 			nextPositions[proposed.Ticker] = pos
-			trades = append(trades, newBacktestTrade(fillDate, signalDate, proposed.Ticker, side, shares, price, value, fee, cash, cfg.Backtest.SlippageBps, proposed.Reason))
+			trades = append(trades, newBacktestTrade(fillDate, signalDate, proposed.Ticker, side, shares, price, value, fee, cash, cfg.Backtest.SlippageBps, proposed.Reason, proposed.Sizing))
 			turnover += math.Abs(proposed.DeltaWeight)
 		} else if side == SideSell {
 			price *= 1 - slippageRate
@@ -316,7 +317,7 @@ func executeBacktestTrades(
 				nextPositions[proposed.Ticker] = pos
 			}
 			cash += value - fee
-			trades = append(trades, newBacktestTrade(fillDate, signalDate, proposed.Ticker, side, shares, price, value, fee, cash, cfg.Backtest.SlippageBps, proposed.Reason))
+			trades = append(trades, newBacktestTrade(fillDate, signalDate, proposed.Ticker, side, shares, price, value, fee, cash, cfg.Backtest.SlippageBps, proposed.Reason, proposed.Sizing))
 			turnover += math.Abs(proposed.DeltaWeight)
 		}
 	}
@@ -341,8 +342,8 @@ func tradeExecutionPriority(side string) int {
 	return 2
 }
 
-func newBacktestTrade(date time.Time, signalDate time.Time, ticker string, side string, shares float64, price float64, value float64, fee float64, cash float64, slippageBps float64, reason string) BacktestTrade {
-	return BacktestTrade{
+func newBacktestTrade(date time.Time, signalDate time.Time, ticker string, side string, shares float64, price float64, value float64, fee float64, cash float64, slippageBps float64, reason string, sizing *SizingDecision) BacktestTrade {
+	trade := BacktestTrade{
 		Date:           date,
 		SignalDate:     signalDate,
 		Ticker:         ticker,
@@ -355,6 +356,16 @@ func newBacktestTrade(date time.Time, signalDate time.Time, ticker string, side 
 		CashAfterTrade: round(cash, 2),
 		Reason:         reason,
 	}
+	if sizing != nil {
+		trade.SizingMethod = sizing.Method
+		trade.RawKelly = sizing.RawKelly
+		trade.FractionalKelly = sizing.FractionalKelly
+		trade.KellyTargetWeight = sizing.KellyTargetWeight
+		trade.FinalTargetWeight = sizing.FinalTargetWeight
+		trade.BindingConstraint = sizing.BindingConstraint
+		trade.CalibrationStatus = sizing.CalibrationStatus
+	}
+	return trade
 }
 
 func computeBacktestMetrics(initial float64, curve []EquityPoint, trades []BacktestTrade, rebalances []BacktestRebalance) BacktestMetrics {

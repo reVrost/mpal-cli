@@ -43,6 +43,7 @@ type TradeReviewPositionInput struct {
 	ModelWeight         *float64 `json:"model_weight,omitempty"`
 	ModelDeltaWeight    *float64 `json:"model_delta_weight,omitempty"`
 	ModelEstimatedValue *float64 `json:"model_estimated_value,omitempty"`
+	ModelSharePrice     *float64 `json:"model_share_price,omitempty"`
 	ModelReason         string   `json:"model_reason,omitempty"`
 	SizingMethod        string   `json:"sizing_method,omitempty"`
 	RawKelly            *float64 `json:"raw_kelly,omitempty"`
@@ -163,6 +164,7 @@ func (in TradeReviewPositionInput) toCreateParams(reviewID string, now time.Time
 		ModelWeight:         nullSQLFloat(in.ModelWeight),
 		ModelDeltaWeight:    nullSQLFloat(in.ModelDeltaWeight),
 		ModelEstimatedValue: nullSQLFloat(in.ModelEstimatedValue),
+		ModelSharePrice:     nullSQLFloat(in.ModelSharePrice),
 		ModelReason:         nullSQLString(in.ModelReason),
 		SizingMethod:        nullSQLString(in.SizingMethod),
 		RawKelly:            nullSQLFloat(in.RawKelly),

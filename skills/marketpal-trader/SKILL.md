@@ -29,6 +29,7 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
    - Read `model_result` as the raw signal read and `execution_result`/top-level `result` as the executable rebalance decision.
    - For real current-portfolio reviews, the approved strategy configs use a transition rebalance policy by default: sizing method, turnover budget, max single-trade size, starter position size or Kelly fallback, new-position limit, cash buffer, and protected unscored holdings.
    - Inspect `strategy.config.risk.sizing_method`, `proposed_trades[].sizing`, `proposed_trades[].reason`, `proposed_trades[].target_weight`, and `proposed_trades[].delta_weight`. If `mpal` returns a structured sizing decision, explain it as part of the baseline; do not fall back to old fixed-starter language.
+   - For configs with `risk.sizing_method: fractional_kelly`, expect the strategy-run/journal/report path to expose Kelly context when the server provides profile evidence. If `proposed_trades[].sizing` is absent, do not assume Kelly was skipped; treat `signals[].raw_kelly` or decision-gate Markov context as sizing context, and clearly label it non-executable unless it appears in `proposed_trades[].sizing` or a validated plan.
    - Use the `signals` payload from `strategy run` for pure research ranking. Do not describe the old top-N/rank-and-replace behavior as a rebalance plan.
    - If `validation.valid` is false, the final decision is `NO_TRADE` unless a separately validated override is journaled.
 
@@ -46,7 +47,7 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
    - Keep context calls compact by default: use the strategy defaults unless the user asks for deeper research; when adding extra requested tickers, prefer `--days 14 --limit 80` and avoid raising `--insights-per-ticker` unless the decision depends on deeper article detail.
 
 5. Read deterministic sizing before final action.
-   - When available, call `mpal decision gate --run <strategy-run-path-or-json> --events <ticker-events-path-or-json> --config <config-path> --alternates 5 --json` or MCP `mpal_decision_gate` after the baseline run and event-context call. Treat its item statuses, sizing fields, rejected tickers, event context, alternate context, and validation read as the decision-gate evidence packet.
+   - When available, call `mpal decision gate --run <strategy-run-path-or-json> --events <ticker-events-path-or-json> --config <config-path> --alternates 5 --include-markov-context <strategy-horizon> --json` or MCP `mpal_decision_gate` after the baseline run and event-context call. Use `weekly`, `monthly`, or `daily` from the strategy rebalance cadence. Treat its item statuses, sizing fields, rejected tickers, event context, alternate context, Markov context, raw Kelly context, and validation read as the decision-gate evidence packet.
    - Treat `proposed_trades[].sizing`, `baseline_plan.rejected[]`, and `mpal decision gate` output as the only executable Kelly sizing/gating sources.
    - Do not independently compute raw Kelly, fractional Kelly, gate statuses, vetoes, caps, downsizes, delays, or replacement eligibility from profile output.
    - Identify the executable sizing horizon from `proposed_trades[].sizing.horizon` when present; otherwise infer it from `strategy.config.portfolio.rebalance` and label it as inferred. Do not call sizing weekly unless the exposed horizon is weekly.
@@ -57,7 +58,7 @@ Use `mpal` as the deterministic source of truth. The agent explains and may expl
 ### Runtime Efficiency
 
 - Do not rerun `mpal strategy run` in the same review unless the portfolio, universe, date, or config changes.
-- After the baseline run completes, run independent evidence calls in parallel where the environment allows it: `ticker events --run`, optional `ticker profile` context requested by the user or needed for raw Kelly/profile reads, and any missing requested-ticker `ticker events --tickers ...` can run concurrently.
+- After the baseline run completes, run independent evidence calls in parallel where the environment allows it: `ticker events --run`, decision-gate Markov/Kelly context, optional `ticker profile` context requested by the user or needed for raw Kelly/profile reads, and any missing requested-ticker `ticker events --tickers ...` can run concurrently.
 - Prefer one batched command per evidence type. Use comma-separated tickers for `ticker profile`, `ticker events`, `ticker financials`, `ticker insiders`, and `ticker ownership`; do not loop over one ticker at a time from the skill.
 - Reuse local run artifacts under `tmp/mpal-runs/` during the same review. If a JSON file already exists for the same date, strategy, universe, portfolio, and ticker set, read it instead of refetching unless the user asks for a fresh run.
 - Keep chat-visible output compact. Save wide JSON and HTML reports to files, then summarize the decision; avoid pasting large payloads back into chat.
@@ -148,6 +149,7 @@ Use this overlay when the selected strategy config has `risk.sizing_method: frac
   - risk caps: why the final size may be smaller than the Kelly target
   - validation: whether the final concrete plan is executable
 - For each Kelly-sized trade, report fields that are present in `mpal` output: sizing method, raw Kelly, fractional Kelly, `kelly_target_weight`, `final_target_weight`, `binding_constraint`, payoff ratio or default payoff assumption, current weight, delta weight, warnings, confidence, sample count, favorable/unfavorable probabilities, and calibration status. If the current CLI output does not expose a field, say that rather than estimating it.
+- If a Kelly-enabled strategy or report still shows `NA`/missing Kelly fields after the decision gate with `--include-markov-context`, explicitly say which source failed to return it: executable sizing, signal raw Kelly, or profile Markov/raw-Kelly evidence. Do not silently omit Kelly columns.
 - Report the sizing horizon when exposed by `proposed_trades[].sizing.horizon`; otherwise infer the strategy-run horizon from `strategy.config.portfolio.rebalance` and label it as inferred. Do not call executable sizing weekly when the strategy rebalance is daily.
 - Prefer `proposed_trades[].sizing.binding_constraint` when present. If it is absent, explain the binding constraint when inferable: Kelly target, max position, max single trade, turnover budget, cash buffer, min trade value, Kelly max cap, max new positions, protected holdings, or validation failure.
 - If the binding constraint is not explicit in `mpal` output, say "binding constraint not exposed" rather than guessing.
@@ -199,9 +201,9 @@ When the user asks for a table, asks "what would you trade today?", asks to comp
 
 Default columns:
 
-| Ticker | isTrade | Score | Role | Sizing Horizon | Raw Kelly | Frac Kelly | Accepted Sizing % | Accepted Notional | Read |
-| --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | --- |
-| `AAPL` | true | 0.912 | Starter | weekly | 12.00% | 3.00% capped | 1.50% | USD 1,500 | One-sentence investment read. |
+| Ticker | isTrade | Score | Role | Sizing Horizon | Share Price | Raw Kelly | Frac Kelly | Accepted Sizing % | Accepted Notional | Read |
+| --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `AAPL` | true | 0.912 | Starter | weekly | USD 215.40 | 12.00% | 3.00% capped | 1.50% | USD 1,500 | One-sentence investment read. |
 
 Report rules:
 
@@ -209,8 +211,9 @@ Report rules:
 - Use `Role` values such as `Starter`, `Top-up`, `Alternate`, `Trim`, `Exit`, or `user-request`. If the user explicitly asks for a custom role label such as `user-request`, use that exact label.
 - `isTrade` is `true` only for the final validated executable plan or validated override being recommended. If a valid baseline is narrowed by an agent override, baseline trades excluded from the override must show `isTrade=false`.
 - `Accepted Sizing %` and `Accepted Notional` must reflect the final validated plan only. Non-selected candidates show `0.00%` and `0`, even when they had positive Kelly but were not selected or did not validate.
-- Show raw Kelly and fractional Kelly only when `mpal` exposes them. Raw Kelly may be negative. Label fractional Kelly with the structured `binding_constraint`, warning, or validation state from `mpal`, such as `kelly_target`, `kelly_max_fraction`, `max_single_trade_pct`, `fixed_fallback`, `unavailable`, or `low-confidence`.
+- Show raw Kelly and fractional Kelly whenever `mpal` exposes them through executable sizing, signal context, report/journal fields, or decision-gate Markov context. Raw Kelly may be negative. Label fractional Kelly with the structured `binding_constraint`, warning, or validation state from `mpal`, such as `kelly_target`, `kelly_max_fraction`, `max_single_trade_pct`, `fixed_fallback`, `unavailable`, or `low-confidence`. If unavailable, keep the column and state the missing source.
 - The `Read` column should be a concise portfolio-manager note: model rank/score, profile-QVM support, event context, sizing/concentration issue, source-data issue, or why the ticker is not selected.
+- Include `Share Price` as the model/reference share price for top-ups or existing holdings when available from the portfolio/run context. Do not treat it as an executed fill price unless it came from transaction reconciliation or final human execution fields.
 - For requested tickers not in the baseline context pack, fetch `ticker events --tickers ...`; fetch `ticker profile --tickers ...` when the user asks for Markov/raw Kelly context or the latest strategy run lacks a needed Markov read. Join those reads with deterministic `signals` from the latest strategy run when available.
 - If a requested ticker has source collision, stale profile, missing insight, or ticker-mapping concerns, state that in `Read` and do not validate it as a trade until the data issue is resolved.
 - If the user asks whether to add one or more candidates, validate concrete bounded override combinations with `mpal portfolio validate` before saying they are executable. Prefer one extra starter at a time unless the user explicitly wants a more aggressive deployment.
@@ -218,7 +221,7 @@ Report rules:
 HTML report rules:
 
 - Write reports under `tmp/mpal-runs/` or the run directory already used for the review. Name them predictably, e.g. `trade-review-YYYY-MM-DD.html`.
-- Generate a complete standalone HTML file with inline CSS. Use semantic table markup, sticky header, compact numeric columns, a wider `Read` column, and restrained status coloring for `isTrade`, validation, and warnings.
+- Generate a complete standalone HTML file with inline CSS. Use semantic table markup, sortable column headers, sticky header, compact numeric columns, a wider `Read` column, and restrained status coloring for `isTrade`, validation, and warnings. Decision, Trade, Score, Share Price, Raw Kelly, Fractional Kelly, accepted sizing, and estimated value must sort numerically or by useful status order.
 - Before styling an HTML report, inspect `../marketpal/docs/design-system/DESIGN.md` and `../marketpal/docs/design-system/variables.css` when available. Follow the Marketpal design-system tokens and visual language rather than inventing a new report theme.
 - Style reports as a dark-first Marketpal financial workspace with a sleek Cursor/Vercel-like premium finish: dense, quiet, high-contrast, polished, and product-grade. Use dark canvas `#18191f`, dark panels `#25262d`, raised controls `#383a42`, thin borders `#383a42`, primary text `#fcfcfd`, secondary text `#bfc0c4`, Amethyst premium accent `#f1ccff` with black text, teal for positive/buy, red for negative/risk, and amber for warnings.
 - Use Geist-style system typography: `Geist, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`; use `Geist Mono`, `ui-monospace`, `SFMono-Regular`, `Menlo`, monospace for tickers, scores, Kelly, sizing, prices, dates, and config hashes. Use tabular numbers throughout the table.

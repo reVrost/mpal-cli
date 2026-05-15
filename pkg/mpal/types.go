@@ -256,6 +256,7 @@ type SignalResult struct {
 	ReversionScore       *float64      `json:"reversion_score,omitempty"`
 	EventScore           *float64      `json:"event_score,omitempty"`
 	EventScoreConfidence *float64      `json:"event_score_confidence,omitempty"`
+	CurrentPrice         *float64      `json:"current_price,omitempty"`
 	Markov               *MarkovRead   `json:"markov,omitempty"`
 	RawKelly             *RawKellyRead `json:"raw_kelly,omitempty"`
 	FinalScore           float64       `json:"final_score"`
@@ -440,17 +441,24 @@ type EquityPoint struct {
 }
 
 type BacktestTrade struct {
-	Date           time.Time `json:"date"`
-	SignalDate     time.Time `json:"signal_date"`
-	Ticker         string    `json:"ticker"`
-	Side           string    `json:"side"`
-	Shares         float64   `json:"shares"`
-	Price          float64   `json:"price"`
-	GrossValue     float64   `json:"gross_value"`
-	Fee            float64   `json:"fee"`
-	SlippageBps    float64   `json:"slippage_bps"`
-	CashAfterTrade float64   `json:"cash_after_trade"`
-	Reason         string    `json:"reason"`
+	Date              time.Time `json:"date"`
+	SignalDate        time.Time `json:"signal_date"`
+	Ticker            string    `json:"ticker"`
+	Side              string    `json:"side"`
+	Shares            float64   `json:"shares"`
+	Price             float64   `json:"price"`
+	GrossValue        float64   `json:"gross_value"`
+	Fee               float64   `json:"fee"`
+	SlippageBps       float64   `json:"slippage_bps"`
+	CashAfterTrade    float64   `json:"cash_after_trade"`
+	Reason            string    `json:"reason"`
+	SizingMethod      string    `json:"sizing_method,omitempty"`
+	RawKelly          float64   `json:"raw_kelly,omitempty"`
+	FractionalKelly   float64   `json:"fractional_kelly,omitempty"`
+	KellyTargetWeight float64   `json:"kelly_target_weight,omitempty"`
+	FinalTargetWeight float64   `json:"final_target_weight,omitempty"`
+	BindingConstraint string    `json:"binding_constraint,omitempty"`
+	CalibrationStatus string    `json:"calibration_status,omitempty"`
 }
 
 type BacktestRebalance struct {

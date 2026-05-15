@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS trade_review_positions (
   model_weight REAL,
   model_delta_weight REAL,
   model_estimated_value REAL,
+  model_share_price REAL,
   model_reason TEXT,
 
   -- Populated from deterministic sizing fields when exposed by mpal.

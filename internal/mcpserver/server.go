@@ -129,6 +129,7 @@ func registerTools(server *mcp.Server, cfg Config) {
 		if err != nil {
 			return nil, nil, fmt.Errorf("strategy run returned JSON that could not be auto-journaled: %w", err)
 		}
+		run = enrichStrategyRunKellyContext(ctx, cfg.Client, run, strategy)
 		if run.AsOf.IsZero() {
 			run.AsOf = asOf
 		}
@@ -148,7 +149,7 @@ func registerTools(server *mcp.Server, cfg Config) {
 		if run.Result == "" {
 			run.Result = run.ExecutionResult
 		}
-		reviewInput := mpal.TradeReviewStartInputFromStrategyRun(run, strategy, strategyText, universe, asOf)
+		reviewInput := mpal.TradeReviewStartInputFromStrategyRun(run, strategy, strategyText, universe, asOf, portfolio)
 		review, positions, err := reviewInput.ToCreateParams(time.Now().UTC())
 		if err != nil {
 			return nil, nil, err
@@ -420,6 +421,25 @@ func registerTools(server *mcp.Server, cfg Config) {
 		}
 		return nil, object(mpal.ReviewJournalOutput(review, positions)), nil
 	})
+}
+
+func enrichStrategyRunKellyContext(ctx context.Context, api client.API, run mpal.StrategyRunResult, strategy mpal.StrategyConfig) mpal.StrategyRunResult {
+	if !strings.EqualFold(strings.TrimSpace(strategy.Risk.SizingMethod), mpal.SizingMethodFractionalKelly) || len(run.Signals) == 0 || api == nil {
+		return run
+	}
+	tickers := make([]string, 0, len(run.Signals))
+	for _, signal := range run.Signals {
+		tickers = append(tickers, signal.Ticker)
+	}
+	profiles, err := profileevidence.Fetch(ctx, api, tickers, run.AsOf)
+	if err != nil {
+		run.Warnings = mpal.AppendWarnings(run.Warnings, "Kelly context enrichment failed: "+err.Error())
+		return run
+	}
+	signals, warnings := mpal.EnrichSignalsWithProfileEvidence(run.Signals, profiles, strategy)
+	run.Signals = signals
+	run.Warnings = mpal.AppendWarnings(run.Warnings, warnings...)
+	return run
 }
 
 func openReviewJournal(ctx context.Context, path string) (*mpal.SQLiteReviewJournal, error) {
