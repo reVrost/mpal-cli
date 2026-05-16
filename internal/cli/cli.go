@@ -511,7 +511,7 @@ func (a *app) backtestRunCommand(ctx context.Context) *cobra.Command {
 	cmd.Flags().BoolVar(&allowUntrusted, "allow-untrusted", false, "return diagnostic output even when trust checks fail")
 	cmd.Flags().StringVar(&benchmark, "benchmark", "", "optional benchmark ticker")
 	cmd.Flags().IntVar(&snapshotFreshnessDays, "snapshot-freshness-days", 0, "optional max age in days for factor snapshots; 0 uses the backend default")
-	cmd.Flags().StringVar(&profileVersion, "profile-version", "", "optional factor snapshot profile version; empty uses the backend default")
+	cmd.Flags().StringVar(&profileVersion, "profile-version", mpal.DefaultBacktestProfileVersion, "factor snapshot profile version")
 	addJSONFlag(cmd)
 	return cmd
 }

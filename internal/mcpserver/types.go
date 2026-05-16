@@ -72,7 +72,7 @@ type backtestRunInput struct {
 	Benchmark             string `json:"benchmark,omitempty" jsonschema:"Optional benchmark ticker."`
 	AllowUntrusted        bool   `json:"allow_untrusted,omitempty" jsonschema:"Return diagnostics even when trust checks fail."`
 	SnapshotFreshnessDays int32  `json:"snapshot_freshness_days,omitempty" jsonschema:"Optional max age in days for factor snapshots. Use 8-10 for weekly QVM backtests."`
-	ProfileVersion        string `json:"profile_version,omitempty" jsonschema:"Optional factor snapshot profile version. Defaults server-side to qvm_v1."`
+	ProfileVersion        string `json:"profile_version,omitempty" jsonschema:"Optional factor snapshot profile version. Defaults to qvm_v1."`
 }
 
 type decisionGateInput struct {

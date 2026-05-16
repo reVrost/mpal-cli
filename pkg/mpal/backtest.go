@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	defaultBacktestProfileVersion         = "qvm_v1"
+	DefaultBacktestProfileVersion         = "qvm_v1"
+	defaultBacktestProfileVersion         = DefaultBacktestProfileVersion
 	defaultSnapshotFreshnessDays          = 45
 	defaultPriceCoverageToleranceDays     = 7
 	backtestWarmupCalendarDays            = 430

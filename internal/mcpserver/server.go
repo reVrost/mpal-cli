@@ -282,6 +282,10 @@ func registerTools(server *mcp.Server, cfg Config) {
 			return nil, nil, err
 		}
 		wireConfig := mpal.CanonicalStrategyConfig(strategy)
+		profileVersion := in.ProfileVersion
+		if profileVersion == "" {
+			profileVersion = mpal.DefaultBacktestProfileVersion
+		}
 		payload, err := cfg.Client.RunBacktest(ctx, &marketpalv1.MpalBacktestRunRequest{
 			Start:                 timestamppb.New(start),
 			End:                   timestamppb.New(end),
@@ -293,7 +297,7 @@ func registerTools(server *mcp.Server, cfg Config) {
 			AllowUntrusted:        in.AllowUntrusted,
 			Benchmark:             in.Benchmark,
 			SnapshotFreshnessDays: in.SnapshotFreshnessDays,
-			ProfileVersion:        in.ProfileVersion,
+			ProfileVersion:        profileVersion,
 		})
 		if err != nil {
 			return nil, nil, err

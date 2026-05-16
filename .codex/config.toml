@@ -1,0 +1,6 @@
+[mcp_servers.mpal]
+command = "mpal-mcp"
+env_vars = [
+    "MPAL_API_KEY",
+    "MPAL_BASE_URL",
+]
